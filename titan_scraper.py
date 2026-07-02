@@ -13,9 +13,8 @@ from curl_cffi import requests as tls_requests
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# --- NEW: BANKROLL & STRATEGY SETTINGS ---
-CURRENT_BANKROLL = 10000   # Set your total bankroll here in KShs
-ACTIVE_STRATEGY = "Titan"  # Change to Fortress, Velocity, or Lone Wolf if running different models
+# --- STRATEGY SETTINGS ---
+ACTIVE_STRATEGY = "Titan"  # Saved silently in your CSV to track performance
 
 TARGET_CONFIG = {
     "Statarea": {
@@ -45,13 +44,6 @@ class TitanAdvancedEngine:
     def __init__(self, configs):
         self.configs = configs
         self.master_matrix = {}
-
-    def calculate_stakes(self, bankroll):
-        """Calculates the 1%, 2%, and 3% stakes based on the current bankroll."""
-        conservative = bankroll * 0.01
-        standard = bankroll * 0.02
-        aggressive = bankroll * 0.03
-        return conservative, standard, aggressive
 
     def send_telegram_alert(self, message):
         """Dispatches real-time alerts to your Telegram bot."""
@@ -107,8 +99,7 @@ class TitanAdvancedEngine:
                 counter = Counter(picks)
                 top, occ = counter.most_common(1)[0]
                 conf = (occ / len(picks)) * 100
-                # Appended ACTIVE_STRATEGY to the history log
-                writer.writerow([datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ACTIVE_STRATEGY, match, top, f"{conf}%", str(picks)])
+                writer.writerow([datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ACTIVE_STRATEGY, match, top, f"{conf:.0f}%", str(picks)])
 
     async def run_pipeline(self):
         print("[+] Launching Titan Consensus Engine...")
@@ -121,28 +112,19 @@ class TitanAdvancedEngine:
     def display_consensus(self):
         print("\n" + "="*70 + "\n TITAN HIGH-CONFIDENCE SIGNALS \n" + "="*70)
         found_strong = False
-        cons, std, agg = self.calculate_stakes(CURRENT_BANKROLL)
         
         for match, picks in self.master_matrix.items():
             counter = Counter(picks)
             top, occ = counter.most_common(1)[0]
+            
+            # The match must be on at least 2 sites
             if len(picks) > 1:
                 conf = (occ / len(picks)) * 100
                 
-                # Upgraded Professional Telegram Message
-                msg = (
-                    f"🚨 [STRONG] SIGNAL DETECTED 🚨\n\n"
-                    f"⚙️ Strategy Engine: {ACTIVE_STRATEGY}\n"
-                    f"⚽ Match: {match}\n"
-                    f"🎯 Verdict: {top} ({conf:.0f}% Consensus)\n\n"
-                    f"💰 RECOMMENDED STAKING (KShs):\n"
-                    f"• Conservative (1%): {cons:,.0f} KShs\n"
-                    f"• Standard (2%): {std:,.0f} KShs\n"
-                    f"• Aggressive (3%): {agg:,.0f} KShs\n\n"
-                    f"Execute on Betika or Bangbet."
-                )
+                # The clean, punchy format you prefer
+                msg = f"🔥 TITAN ALERT: {match}\nVerdict: {top} ({conf:.0f}% Consensus)"
                 
-                print(f"[STRONG] {match} - Verdict: {top} ({conf:.0f}%)")
+                print(f"[STRONG] {msg}")
                 self.send_telegram_alert(msg)
                 found_strong = True
                 
