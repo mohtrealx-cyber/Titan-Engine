@@ -2,38 +2,30 @@ name: Fortress V2 Algorithmic Engine
 
 on:
   schedule:
-    - cron: '17 4 * * *'  # 7:17 AM East African Time
-    - cron: '17 10 * * *' # 1:17 PM East African Time
-  workflow_dispatch:
-
-permissions:
-  contents: write  # Gives the bot permission to save the CSV permanently
+    - cron: '17 4 * * *'
+  workflow_dispatch: 
 
 jobs:
   run-fortress:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Setup Python Runtime
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
-      - name: Install Data Ingestion Libraries
-        run: pip install beautifulsoup4 curl-cffi
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install beautifulsoup4 curl_cffi
 
       - name: Execute Algorithmic Quant Engine
         env:
           TELEGRAM_TOKEN: ${{ secrets.FORTRESS_TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.FORTRESS_TELEGRAM_CHAT_ID }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-        run: python fortress_engine.py
-      - name: Save CSV Data Back to GitHub
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add fortress_performance_history.csv
-          git commit -m "Auto-update performance history [Bot]" || echo "No changes to commit"
-          git push
+        run: python xg_quant_test.py
