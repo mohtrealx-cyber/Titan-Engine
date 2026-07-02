@@ -23,8 +23,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install understatapi requests
 
-      - name: Execute Algorithmic Quant Engine
+     - name: Execute Master Engine
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python xg_scraper_test.py
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python fortress_engine.py
