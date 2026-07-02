@@ -46,7 +46,6 @@ class TitanAdvancedEngine:
         self.master_matrix = {}
 
     def send_telegram_alert(self, message):
-        """Dispatches real-time alerts to your Telegram bot."""
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
             print("[!] Error: Telegram keys are missing from the environment vault.")
             return
@@ -91,6 +90,28 @@ class TitanAdvancedEngine:
             return site_name, count
         except: return site_name, 0
 
+    def filter_existing_today(self):
+        """Checks the CSV file to prevent sending duplicate alerts on the same day."""
+        today_date = datetime.datetime.now().strftime('%Y-%m-%d')
+        filename = "betting_performance_history.csv"
+        scraped_today = set()
+
+        if os.path.exists(filename):
+            with open(filename, 'r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    # If the row starts with today's date, add the match name (column index 2) to the set
+                    if len(row) > 2 and row[0].startswith(today_date):
+                        scraped_today.add(row[2])
+
+        # Filter out matches that have already been scraped today
+        new_matches = {}
+        for match, picks in self.master_matrix.items():
+            if match not in scraped_today:
+                new_matches[match] = picks
+        
+        self.master_matrix = new_matches
+
     def save_to_history(self):
         filename = "betting_performance_history.csv"
         with open(filename, 'a', newline='', encoding='utf-8') as f:
@@ -106,6 +127,10 @@ class TitanAdvancedEngine:
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
+        
+        # Execute the duplicate check before saving or displaying
+        self.filter_existing_today()
+        
         self.save_to_history()
         self.display_consensus()
 
@@ -121,14 +146,13 @@ class TitanAdvancedEngine:
             if len(picks) > 1:
                 conf = (occ / len(picks)) * 100
                 
-                # The clean, punchy format you prefer
                 msg = f"🔥 TITAN ALERT: {match}\nVerdict: {top} ({conf:.0f}% Consensus)"
                 
                 print(f"[STRONG] {msg}")
                 self.send_telegram_alert(msg)
                 found_strong = True
                 
-        if not found_strong: print("[!] No high-confidence signals found.")
+        if not found_strong: print("[!] No new high-confidence signals found.")
 
 if __name__ == "__main__":
     engine = TitanAdvancedEngine(TARGET_CONFIG)
