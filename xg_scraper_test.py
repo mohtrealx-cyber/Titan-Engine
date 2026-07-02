@@ -1,6 +1,7 @@
 # ==============================================================================
-# MODULE G: LIVE UNDERSTAT xG SCRAPER (V3.0 BRUTE FORCE SPLIT)
+# MODULE G: LIVE UNDERSTAT xG SCRAPER (V4.0 SMART EXTRACTION)
 # ==============================================================================
+import re
 import json
 from curl_cffi import requests as tls_requests
 
@@ -14,28 +15,33 @@ def scrape_real_xg(team_name, understat_url):
             print(f"[-] Connection rejected. Status: {response.status_code}")
             return None
             
-        # V3 BRUTE FORCE: Ignore Regex entirely. Just chop the string exactly where the data starts.
-        start_marker = "var datesData = JSON.parse('"
-        end_marker = "');"
+        # V4 SMART EXTRACTION: Ignores spacing/tabs and targets the single-quote wrapper
+        match = re.search(r"var\s+datesData.*?JSON\.parse\('([^']+)'\)", response.text, re.DOTALL)
         
-        if start_marker in response.text:
-            # Chop off everything before the marker, then chop off everything after the closing marker
-            raw_encrypted_string = response.text.split(start_marker)[1].split(end_marker)[0]
-            
-            # Decode the hexadecimal escapes into standard JSON
+        if match:
+            # Capture the raw string and decode it into JSON
+            raw_encrypted_string = match.group(1)
             decoded_string = raw_encrypted_string.encode('utf-8').decode('unicode_escape')
             match_database = json.loads(decoded_string)
             
-            # Isolate the most recent completed match to get their current form
+            # Isolate the most recent completed match
             latest_match = match_database[-1]
             side_identifier = latest_match['side'] # 'h' or 'a'
             raw_xg = float(latest_match['xG'][side_identifier])
             
             print(f"[+] DATA EXTRACTED! {team_name}'s latest match xG: {raw_xg:.2f}\n")
             return raw_xg
-        else:
-            print(f"[-] Split failed. Could not find the start_marker in the HTML.")
             
+        else:
+            print(f"[-] Extraction failed. Running diagnostic scanner...")
+            # If the regex misses, print exactly what the code looks like around the target variable
+            if "datesData" in response.text:
+                debug_chunk = response.text.split("datesData")[1][:100]
+                print(f"    [Diagnostic] Found the variable, but the structure is:")
+                print(f"    datesData{debug_chunk}\n")
+            else:
+                print(f"    [Diagnostic] The 'datesData' variable is completely missing from the HTML.\n")
+                
     except Exception as e:
         print(f"[-] Critical Scraping Error: {e}\n")
         
