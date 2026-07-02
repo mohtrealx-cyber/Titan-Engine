@@ -2,8 +2,8 @@ name: Titan Engine Automator
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # Runs at 7:00 AM East African Time
-    - cron: '0 10 * * *' # Runs at 1:00 PM East African Time
+    - cron: '0 4 * * *'  # 4:00 AM UTC = 7:00 AM East African Time
+    - cron: '0 10 * * *' # 10:00 AM UTC = 1:00 PM (13:00) East African Time
   workflow_dispatch:
 
 jobs:
