@@ -21,12 +21,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install beautifulsoup4 curl_cffi requests
+          pip install understatapi
 
       - name: Execute Algorithmic Quant Engine
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.FORTRESS_TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.FORTRESS_TELEGRAM_CHAT_ID }}
-          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-          ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
         run: python xg_scraper_test.py
