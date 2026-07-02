@@ -1,7 +1,6 @@
 # ==============================================================================
-# MODULE G: LIVE UNDERSTAT xG SCRAPER (V2.1 REGEX UPGRADE)
+# MODULE G: LIVE UNDERSTAT xG SCRAPER (V3.0 BRUTE FORCE SPLIT)
 # ==============================================================================
-import re
 import json
 from curl_cffi import requests as tls_requests
 
@@ -15,11 +14,16 @@ def scrape_real_xg(team_name, understat_url):
             print(f"[-] Connection rejected. Status: {response.status_code}")
             return None
             
-        # V2 REGEX: More aggressive search pattern to catch the JSON no matter how Understat spaces it
-        json_hunt = re.search(r"var datesData\s*=\s*JSON\.parse\(\s*['\"]([^'\"]+)['\"]\s*\)", response.text)
+        # V3 BRUTE FORCE: Ignore Regex entirely. Just chop the string exactly where the data starts.
+        start_marker = "var datesData = JSON.parse('"
+        end_marker = "');"
         
-        if json_hunt:
-            decoded_string = json_hunt.group(1).encode('utf-8').decode('unicode_escape')
+        if start_marker in response.text:
+            # Chop off everything before the marker, then chop off everything after the closing marker
+            raw_encrypted_string = response.text.split(start_marker)[1].split(end_marker)[0]
+            
+            # Decode the hexadecimal escapes into standard JSON
+            decoded_string = raw_encrypted_string.encode('utf-8').decode('unicode_escape')
             match_database = json.loads(decoded_string)
             
             # Isolate the most recent completed match to get their current form
@@ -30,9 +34,7 @@ def scrape_real_xg(team_name, understat_url):
             print(f"[+] DATA EXTRACTED! {team_name}'s latest match xG: {raw_xg:.2f}\n")
             return raw_xg
         else:
-            # The Debug Trap: If it fails, print exactly what the server returned
-            print(f"[-] Regex failed to locate datesData. Cloudflare may have triggered.")
-            print(f"    Page Snippet: {response.text[:250].strip()}...\n")
+            print(f"[-] Split failed. Could not find the start_marker in the HTML.")
             
     except Exception as e:
         print(f"[-] Critical Scraping Error: {e}\n")
