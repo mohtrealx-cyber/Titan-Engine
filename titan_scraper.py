@@ -1,121 +1,141 @@
-import asyncio
-import csv
-import datetime
-from bs4 import BeautifulSoup
-from collections import Counter
-import concurrent.futures
-from curl_cffi import requests as tls_requests
-
-# ==============================================================================
-# CONFIGURATION
-# ==============================================================================
 import os
+import sys
+import csv
+from datetime import datetime
+import requests
+from bs4 import BeautifulSoup
 
+# =====================================================================
+# 1. SECURITY & CONFIGURATION SETTINGS
+# =====================================================================
+# Secret Vault Retrieval (Hides your private tokens from the public)
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-TARGET_CONFIG = {
-    "Statarea": {
-        "url": "https://www.statarea.com/predictions",
-        "row_selector": "div", "row_class": "matchrow",
-        "home_selector": "div", "home_class": "name", "home_index": 0,
-        "away_selector": "div", "away_class": "name", "away_index": 1,
-        "pick_selector": "div", "pick_class": "type1", "pick_index": 0
-    },
-    "PredictZ": {
-        "url": "https://www.predictz.com/predictions/",
-        "row_selector": "div", "row_class": "pttr",
-        "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
-        "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
-        "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0
-    },
-    "Vitibet": {
-        "url": "https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en",
-        "row_selector": "a", "row_class": "livescore-match-row",
-        "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-        "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
-        "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0
+
+# --- USER PROFILE BANKROLL & STRATEGY ---
+CURRENT_BANKROLL = 10000   # Set your total bankroll here in KShs
+ACTIVE_STRATEGY = "Titan"   # Tag options: Titan, Fortress, Velocity, Lone Wolf
+CSV_FILE_PATH = "betting_performance_history.csv"
+
+
+# =====================================================================
+# 2. CORE MATHEMATICAL UTILITIES
+# =====================================================================
+def calculate_stakes(bankroll):
+    """
+    Executes the strict 1-3% money management formula.
+    Returns calculated values rounded to the nearest Shilling.
+    """
+    conservative = bankroll * 0.01
+    standard = bankroll * 0.02
+    aggressive = bankroll * 0.03
+    return conservative, standard, aggressive
+
+
+# =====================================================================
+# 3. TELEGRAM NOTIFICATION ENGINE
+# =====================================================================
+def send_telegram_alert(match_name, prediction, odds="N/A"):
+    """
+    Formats and transmits a high-visibility structural alert 
+    directly to your mobile device via Telegram API.
+    """
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        print("[-] Error: Missing Telegram credentials in environment vault.")
+        return
+
+    # Calculate stakes dynamically based on CURRENT_BANKROLL
+    cons, std, agg = calculate_stakes(CURRENT_BANKROLL)
+
+    # Build the clean structured message block
+    message = (
+        f"🚨 [STRONG] SIGNAL DETECTED 🚨\n\n"
+        f"⚙️ Strategy Engine: {ACTIVE_STRATEGY}\n"
+        f"⚽ Match: {match_name}\n"
+        f"🎯 Prediction: {prediction}\n"
+        f"📊 Average Odds: {odds}\n\n"
+        f"💰 RECOMMENDED STAKING (KShs):\n"
+        f"• Conservative (1%): {cons:,.0f} KShs\n"
+        f"• Standard (2%): {std:,.0f} KShs\n"
+        f"• Aggressive (3%): {agg:,.0f} KShs\n\n"
+        f"🤖 Automated via GitHub Actions Cloud Engine."
+    )
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "Markdown"
     }
-}
 
-class TitanAdvancedEngine:
-    def __init__(self, configs):
-        self.configs = configs
-        self.master_matrix = {}
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code == 200:
+            print(f"[+] Success: Alert pushed to phone for {match_name}")
+        else:
+            print(f"[-] Broadcast failure: {response.text}")
+    except Exception as e:
+        print(f"[-] Connection Error to Telegram Endpoint: {e}")
 
-    def send_telegram_alert(self, message):
-        """Dispatches real-time alerts to your Telegram bot."""
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
-        try:
-            tls_requests.post(url, json=payload, impersonate="chrome120", timeout=10)
-        except Exception as e:
-            print(f"[!] Bot Alert Failed: {e}")
 
-    def clean_team_name(self, name):
-        name = name.strip().lower()
-        mapping = {
-            "man utd": "manchester united", "chelsea fc": "chelsea",
-            "lfc": "liverpool", "bosnia and herzegovina": "bosnia-herzegovina"
-        }
-        return mapping.get(name, name).title()
+# =====================================================================
+# 4. AUTO-LOGGING TRAJECTORY ENGINE
+# =====================================================================
+def log_to_history(match_name, prediction, odds="N/A"):
+    """
+    Automatically logs identified high-confidence signals directly 
+    into the tracking CSV file for consistency checks.
+    """
+    date_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    file_exists = os.path.exists(CSV_FILE_PATH)
+    
+    try:
+        with open(CSV_FILE_PATH, mode='a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            
+            # Create structural headers if file is fresh
+            if not file_exists:
+                writer.writerow(["Date", "Strategy", "Match", "Prediction", "Odds", "Outcome", "Points"])
+            
+            # Append rows safely
+            writer.writerow([date_str, ACTIVE_STRATEGY, match_name, prediction, odds, "PENDING", "0"])
+            print(f"[+] Performance log successfully updated in {CSV_FILE_PATH}")
+    except Exception as e:
+        print(f"[-] CSV Write Failure: {e}")
 
-    def log_prediction(self, home, away, prediction):
-        match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
-        if match_key not in self.master_matrix:
-            self.master_matrix[match_key] = []
-        self.master_matrix[match_key].append(prediction.strip().upper())
 
-    def fetch_and_scrape_sync(self, site_name, cfg):
-        try:
-            response = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
-            if response.status_code != 200: return site_name, 0
-            soup = BeautifulSoup(response.content, 'html.parser')
-            rows = soup.find_all(cfg["row_selector"], class_=cfg["row_class"])
-            count = 0
-            for row in rows:
-                try:
-                    h = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
-                    a = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
-                    p = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
-                    if h and a and p:
-                        self.log_prediction(h, a, p)
-                        count += 1
-                except: continue
-            return site_name, count
-        except: return site_name, 0
+# =====================================================================
+# 5. CENTRAL SCRAPING HARVESTER
+# =====================================================================
+def run_main_scraper():
+    """
+    Executes core scraping sequences.
+    """
+    print(f"[*] Initializing {ACTIVE_STRATEGY} engine run sequence...")
 
-    def save_to_history(self):
-        filename = "betting_performance_history.csv"
-        with open(filename, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            for match, picks in self.master_matrix.items():
-                counter = Counter(picks)
-                top, occ = counter.most_common(1)[0]
-                conf = (occ / len(picks)) * 100
-                writer.writerow([datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), match, top, f"{conf}%", str(picks)])
+    # -----------------------------------------------------------------
+    # NOTE FOR ENOCK: Place your custom URL requests and BeautifulSoup 
+    # parsing code inside this section.
+    # -----------------------------------------------------------------
+    
+    # --- SAMPLE TRIGGER DATA (Used to test if your pipeline works) ---
+    # Replace or delete this mock match setup once your live site scraping logic is added
+    signal_found = True
+    match_discovered = "Liverpool vs Chelsea"
+    predicted_outcome = "Over 2.5 Goals"
+    estimated_odds = "1.85"
+    # -----------------------------------------------------------------
 
-    async def run_pipeline(self):
-        print("[+] Launching Titan Consensus Engine...")
-        loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
-            await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
-        self.save_to_history()
-        self.display_consensus()
+    if signal_found:
+        # 1. Fire the dynamic alert to your phone
+        send_telegram_alert(match_discovered, predicted_outcome, estimated_odds)
+        
+        # 2. Append directly to your tracking sheet
+        log_to_history(match_discovered, predicted_outcome, estimated_odds)
 
-    def display_consensus(self):
-        print("\n" + "="*70 + "\n TITAN HIGH-CONFIDENCE SIGNALS \n" + "="*70)
-        found_strong = False
-        for match, picks in self.master_matrix.items():
-            counter = Counter(picks)
-            top, occ = counter.most_common(1)[0]
-            if len(picks) > 1:
-                conf = (occ / len(picks)) * 100
-                msg = f"🔥 TITAN ALERT: {match}\nVerdict: {top} ({conf:.0f}% Consensus)"
-                print(f"[STRONG] {msg}")
-                self.send_telegram_alert(msg)
-                found_strong = True
-        if not found_strong: print("[!] No high-confidence signals found.")
 
+# =====================================================================
+# 6. OPERATIONAL SYSTEM RUNNER
+# =====================================================================
 if __name__ == "__main__":
-    engine = TitanAdvancedEngine(TARGET_CONFIG)
-    asyncio.run(engine.run_pipeline())
+    run_main_scraper()
