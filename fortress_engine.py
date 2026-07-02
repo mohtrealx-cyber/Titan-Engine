@@ -1,4 +1,5 @@
 import os
+import time
 import asyncio
 import csv
 import datetime
@@ -15,14 +16,19 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-ACTIVE_STRATEGY = "Fortress V3.0 (Quant Fusion)"
+ACTIVE_STRATEGY = "Fortress V3.1 (Live Date Routing)"
 CSV_FILE_PATH = "fortress_performance_history.csv"
 
-TARGET_CONFIG = {
-    "Statarea": {"url": "https://www.statarea.com/predictions", "row_selector": "div", "row_class": "matchrow", "home_selector": "div", "home_class": "name", "home_index": 0, "away_selector": "div", "away_class": "name", "away_index": 1, "pick_selector": "div", "pick_class": "type1", "pick_index": 0},
-    "PredictZ": {"url": "https://www.predictz.com/predictions/", "row_selector": "div", "row_class": "pttr", "home_selector": "div", "home_class": "pttmobh", "home_index": 0, "away_selector": "div", "away_class": "pttmoba", "away_index": 0, "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0},
-    "Vitibet": {"url": "https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en", "row_selector": "a", "row_class": "livescore-match-row", "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0, "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1, "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0}
-}
+def get_dynamic_configs():
+    """Generates live URLs for TODAY only and attaches a cache-buster to bypass Cloudflare."""
+    today_date = datetime.datetime.now().strftime('%Y-%m-%d')
+    cb = int(time.time()) 
+    
+    return {
+        "Statarea": {"url": f"https://www.statarea.com/predictions/date/{today_date}/", "row_selector": "div", "row_class": "matchrow", "home_selector": "div", "home_class": "name", "home_index": 0, "away_selector": "div", "away_class": "name", "away_index": 1, "pick_selector": "div", "pick_class": "type1", "pick_index": 0},
+        "PredictZ": {"url": f"https://www.predictz.com/predictions/today/?cb={cb}", "row_selector": "div", "row_class": "pttr", "home_selector": "div", "home_class": "pttmobh", "home_index": 0, "away_selector": "div", "away_class": "pttmoba", "away_index": 0, "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0},
+        "Vitibet": {"url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}", "row_selector": "a", "row_class": "livescore-match-row", "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0, "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1, "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0}
+    }
 
 class FortressMasterEngine:
     def __init__(self, configs):
@@ -96,14 +102,12 @@ class FortressMasterEngine:
     # 4. PHASE 3: QUANT ENGINE & DYNAMIC SEASON ROLLED
     # ==============================================================================
     def get_active_season(self):
-        """Automatically rolls the API season backwards if the European summer break is active."""
         now = datetime.datetime.now()
-        if now.month < 8: # Before August, we use last year's data
+        if now.month < 8: 
             return str(now.year - 1)
         return str(now.year)
 
     def get_live_team_xg(self, team_name, season):
-        """Silently queries the database. Suppresses errors if the team is not in Europe's Top 5 leagues."""
         formatted_name = team_name.replace(" ", "_")
         try:
             with UnderstatClient() as understat:
@@ -174,19 +178,16 @@ class FortressMasterEngine:
             confidence_pct = (prediction_weights[top_pick] / total_weight) * 100
             true_odds = 1 / (confidence_pct / 100) if confidence_pct > 0 else 0.0
 
-            # PHASE 3: Attempt to pull Pure xG Math
             home_xg = self.get_live_team_xg(home_team, season)
             away_xg = self.get_live_team_xg(away_team, season)
             xg_tag = ""
             
-            # PHASE 2 MATH: Calculate +EV if live odds are available
             bookie_odds = self.fetch_live_bookmaker_odds(home_team) if top_pick == "1" else None
             
             if home_xg and away_xg:
                 h_prob, d_prob, a_prob = self.calculate_pure_probability(home_xg, away_xg)
                 xg_tag = f"\n   ↳ 📊 xG Pure Math: Home({h_prob:.1f}%) Draw({d_prob:.1f}%) Away({a_prob:.1f}%)"
                 
-                # If xG math exists, it overrides the tipster confidence for the true EV calculation
                 if bookie_odds and top_pick == "1":
                     ev_percentage = ((h_prob / 100) * bookie_odds) - 1
             else:
@@ -239,4 +240,5 @@ class FortressMasterEngine:
         self.send_telegram_alert(msg)
 
 if __name__ == "__main__":
-    asyncio.run(FortressMasterEngine(TARGET_CONFIG).run_pipeline())
+    live_configs = get_dynamic_configs()
+    asyncio.run(FortressMasterEngine(live_configs).run_pipeline())
