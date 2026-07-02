@@ -6,6 +6,7 @@ from difflib import SequenceMatcher
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
+from understatapi import UnderstatClient
 
 # ==============================================================================
 # 1. CONFIGURATION & SECURITY
@@ -14,7 +15,7 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-ACTIVE_STRATEGY = "Fortress V2.5"
+ACTIVE_STRATEGY = "Fortress V3.0 (Quant Fusion)"
 CSV_FILE_PATH = "fortress_performance_history.csv"
 
 TARGET_CONFIG = {
@@ -72,20 +73,16 @@ class FortressMasterEngine:
     # 3. PHASE 2: LIVE ODDS API INGESTION (FUZZY MATCH UPGRADE)
     # ==============================================================================
     def is_similar_name(self, name_a, name_b):
-        """Mathematical string comparison to bypass exact spelling requirements."""
         return SequenceMatcher(None, name_a.lower(), name_b.lower()).ratio() > 0.70
 
     def fetch_live_bookmaker_odds(self, home_team):
         if not ODDS_API_KEY: return None
-            
         url = f"https://api.the-odds-api.com/v4/sports/upcoming/odds/?apiKey={ODDS_API_KEY}&regions=eu&markets=h2h"
         try:
             response = tls_requests.get(url, timeout=10)
             if response.status_code == 200:
                 for match in response.json():
                     api_home_team = match.get('home_team', '')
-                    
-                    # AI Fuzzy Match: Allows 'Raja Casablanca' to match 'Raja Club Athletic'
                     if self.is_similar_name(home_team, api_home_team) or home_team.lower() in api_home_team.lower():
                         bookmakers = match.get('bookmakers', [])
                         if bookmakers:
@@ -96,7 +93,48 @@ class FortressMasterEngine:
         return None
 
     # ==============================================================================
-    # 4. DATA PIPELINE & MATH ENGINE
+    # 4. PHASE 3: QUANT ENGINE & DYNAMIC SEASON ROLLED
+    # ==============================================================================
+    def get_active_season(self):
+        """Automatically rolls the API season backwards if the European summer break is active."""
+        now = datetime.datetime.now()
+        if now.month < 8: # Before August, we use last year's data
+            return str(now.year - 1)
+        return str(now.year)
+
+    def get_live_team_xg(self, team_name, season):
+        """Silently queries the database. Suppresses errors if the team is not in Europe's Top 5 leagues."""
+        formatted_name = team_name.replace(" ", "_")
+        try:
+            with UnderstatClient() as understat:
+                match_data = understat.team(team=formatted_name).get_match_data(season=season)
+                completed_matches = [m for m in match_data if m.get('isResult') == True]
+                if completed_matches:
+                    latest_match = completed_matches[-1]
+                    if latest_match['h']['title'].lower() == team_name.lower():
+                        return float(latest_match['xG']['h'])
+                    return float(latest_match['xG']['a'])
+        except: pass
+        return None
+
+    def calculate_pure_probability(self, home_xg, away_xg):
+        total_xg = home_xg + away_xg
+        if total_xg == 0: return 33.3, 33.3, 33.3
+        home_raw_pct = (home_xg / total_xg) * 100
+        away_raw_pct = (away_xg / total_xg) * 100
+        home_advantage_pct = home_raw_pct + 5.0
+        away_adjusted_pct = away_raw_pct - 5.0
+        xg_difference = abs(home_xg - away_xg)
+        draw_pct = 28.0 - (xg_difference * 5) 
+        draw_pct = max(15.0, min(draw_pct, 35.0))
+        remaining_pct = 100.0 - draw_pct
+        total_adjusted_strength = home_advantage_pct + away_adjusted_pct
+        home_final_prob = (home_advantage_pct / total_adjusted_strength) * remaining_pct
+        away_final_prob = (away_adjusted_pct / total_adjusted_strength) * remaining_pct
+        return home_final_prob, draw_pct, away_final_prob
+
+    # ==============================================================================
+    # 5. DATA PIPELINE & MATH ENGINE
     # ==============================================================================
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
@@ -119,11 +157,13 @@ class FortressMasterEngine:
     def process_quant_signals(self):
         daily_sures, jackpot_builders, value_exploits, csv_rows = [], [], [], []
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        season = self.get_active_season()
 
         for match, listings in self.master_matrix.items():
             if len(listings) < 2: continue
             
             home_team = match.split(" vs ")[0]
+            away_team = match.split(" vs ")[1]
             prediction_weights = {}
             total_weight = sum(self.dynamic_weights[site] for site, _ in listings)
 
@@ -134,18 +174,32 @@ class FortressMasterEngine:
             confidence_pct = (prediction_weights[top_pick] / total_weight) * 100
             true_odds = 1 / (confidence_pct / 100) if confidence_pct > 0 else 0.0
 
+            # PHASE 3: Attempt to pull Pure xG Math
+            home_xg = self.get_live_team_xg(home_team, season)
+            away_xg = self.get_live_team_xg(away_team, season)
+            xg_tag = ""
+            
             # PHASE 2 MATH: Calculate +EV if live odds are available
             bookie_odds = self.fetch_live_bookmaker_odds(home_team) if top_pick == "1" else None
             
-            if bookie_odds:
-                ev_percentage = ((confidence_pct / 100) * bookie_odds) - 1
-                if ev_percentage > 0.05: # Only flag if the edge is at least 5%
-                    value_exploits.append(f"🚨 {match}\n   ➔ True Odds: {true_odds:.2f} | Bookie Pays: {bookie_odds}\n   ➔ Edge: +{ev_percentage*100:.1f}% EV")
+            if home_xg and away_xg:
+                h_prob, d_prob, a_prob = self.calculate_pure_probability(home_xg, away_xg)
+                xg_tag = f"\n   ↳ 📊 xG Pure Math: Home({h_prob:.1f}%) Draw({d_prob:.1f}%) Away({a_prob:.1f}%)"
+                
+                # If xG math exists, it overrides the tipster confidence for the true EV calculation
+                if bookie_odds and top_pick == "1":
+                    ev_percentage = ((h_prob / 100) * bookie_odds) - 1
+            else:
+                if bookie_odds and top_pick == "1":
+                    ev_percentage = ((confidence_pct / 100) * bookie_odds) - 1
+
+            if bookie_odds and 'ev_percentage' in locals() and ev_percentage > 0.05: 
+                value_exploits.append(f"🚨 {match}\n   ➔ True Odds: {true_odds:.2f} | Bookie Pays: {bookie_odds}\n   ➔ Edge: +{ev_percentage*100:.1f}% EV{xg_tag}")
 
             csv_rows.append([timestamp, ACTIVE_STRATEGY, match, top_pick, f"{confidence_pct:.0f}%", str([f"{s}:{p}" for s, p in listings]), ""])
 
-            if confidence_pct >= 99.9: daily_sures.append(f"• {match} ➔ {top_pick} [True Odds: {true_odds:.2f}]")
-            else: jackpot_builders.append(f"• {match} ➔ {top_pick} ({confidence_pct:.0f}%) [True Odds: {true_odds:.2f}]")
+            if confidence_pct >= 99.9: daily_sures.append(f"• {match} ➔ {top_pick} [True Odds: {true_odds:.2f}]{xg_tag}")
+            else: jackpot_builders.append(f"• {match} ➔ {top_pick} ({confidence_pct:.0f}%) [True Odds: {true_odds:.2f}]{xg_tag}")
 
         return daily_sures, jackpot_builders, value_exploits, csv_rows
 
