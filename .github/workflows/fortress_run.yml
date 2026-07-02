@@ -28,8 +28,8 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.FORTRESS_TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.FORTRESS_TELEGRAM_CHAT_ID }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: python fortress_engine.py
-
       - name: Save CSV Data Back to GitHub
         run: |
           git config --global user.name "github-actions[bot]"
