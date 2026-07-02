@@ -1,4 +1,4 @@
-name: Fortress Master Pipeline
+name: Titan Engine Automator
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch: 
 
 jobs:
-  run-fortress:
+  run-titan:
     runs-on: ubuntu-latest
     
     steps:
@@ -21,11 +21,10 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install beautifulsoup4 curl_cffi understatapi requests
+          pip install beautifulsoup4 curl_cffi requests
 
-      - name: Execute Master Engine
+      - name: Execute Titan Engine
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: python fortress_engine.py
