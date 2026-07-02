@@ -3,7 +3,6 @@ import asyncio
 import csv
 import datetime
 from bs4 import BeautifulSoup
-from collections import Counter
 import concurrent.futures
 from curl_cffi import requests as tls_requests
 
@@ -12,113 +11,53 @@ from curl_cffi import requests as tls_requests
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+ODDS_API_KEY = os.environ.get("ODDS_API_KEY") # NEW: Phase 2 Live Bookmaker Hook
 
-ACTIVE_STRATEGY = "Fortress"
+ACTIVE_STRATEGY = "Fortress V2"
 CSV_FILE_PATH = "fortress_performance_history.csv"
 
 TARGET_CONFIG = {
-    "Statarea": {
-        "url": "https://www.statarea.com/predictions",
-        "row_selector": "div", "row_class": "matchrow",
-        "home_selector": "div", "home_class": "name", "home_index": 0,
-        "away_selector": "div", "away_class": "name", "away_index": 1,
-        "pick_selector": "div", "pick_class": "type1", "pick_index": 0
-    },
-    "PredictZ": {
-        "url": "https://www.predictz.com/predictions/",
-        "row_selector": "div", "row_class": "pttr",
-        "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
-        "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
-        "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0
-    },
-    "Vitibet": {
-        "url": "https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en",
-        "row_selector": "a", "row_class": "livescore-match-row",
-        "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-        "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
-        "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0
-    }
+    "Statarea": {"url": "https://www.statarea.com/predictions", "row_selector": "div", "row_class": "matchrow", "home_selector": "div", "home_class": "name", "home_index": 0, "away_selector": "div", "away_class": "name", "away_index": 1, "pick_selector": "div", "pick_class": "type1", "pick_index": 0},
+    "PredictZ": {"url": "https://www.predictz.com/predictions/", "row_selector": "div", "row_class": "pttr", "home_selector": "div", "home_class": "pttmobh", "home_index": 0, "away_selector": "div", "away_class": "pttmoba", "away_index": 0, "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0},
+    "Vitibet": {"url": "https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en", "row_selector": "a", "row_class": "livescore-match-row", "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0, "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1, "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0}
 }
 
 class FortressMasterEngine:
     def __init__(self, configs):
         self.configs = configs
         self.master_matrix = {}
-        self.dynamic_weights = self.calculate_dynamic_weights() # Triggers the AI learning loop
+        self.dynamic_weights = self.calculate_dynamic_weights()
 
     # ==============================================================================
-    # 2. MACHINE LEARNING FEEDBACK LOOP (SELF-TUNING)
+    # 2. PHASE 1: MACHINE LEARNING & TRANSLATOR LOGIC
     # ==============================================================================
     def calculate_dynamic_weights(self):
-        """Reads graded historical data and mathematically adjusts trust scores."""
         weights = {"Statarea": 1.0, "PredictZ": 1.0, "Vitibet": 1.0}
-        
-        if not os.path.exists(CSV_FILE_PATH):
-            print("[*] No historical data found. Using baseline weights.")
-            return weights
-            
+        if not os.path.exists(CSV_FILE_PATH): return weights
         try:
             with open(CSV_FILE_PATH, 'r', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    # Look for rows that have been manually graded (7 columns)
+                for row in csv.reader(f):
                     if len(row) >= 7:
-                        grade = str(row[6]).strip().upper()
-                        top_pick = str(row[3]).strip()
-                        sources_str = str(row[5])
-                        
+                        grade, top_pick, sources_str = str(row[6]).strip().upper(), str(row[3]).strip(), str(row[5])
                         if grade in ["WIN", "LOSS"]:
-                            # Parse the saved string back into usable data
-                            clean_str = sources_str.replace("['", "").replace("']", "").replace("', '", "|")
-                            sources_list = clean_str.split("|")
-                            
-                            for item in sources_list:
+                            for item in sources_str.replace("['", "").replace("']", "").replace("', '", "|").split("|"):
                                 if ":" in item:
                                     site, pick = item.split(":", 1)
-                                    site = site.strip()
-                                    pick = pick.strip()
-                                    
-                                    if site in weights:
-                                        if grade == "WIN" and pick == top_pick:
-                                            weights[site] += 0.05  # Reward accurate predictions
-                                        elif grade == "LOSS" and pick == top_pick:
-                                            weights[site] -= 0.05  # Penalize inaccurate predictions
-                                        
-                                        # Set math boundaries so weights don't break the system
-                                        weights[site] = max(0.5, min(weights[site], 2.0))
-        except Exception as e:
-            print(f"[!] Warning: Feedback loop encountered an error: {e}")
-            
-        print(f"[*] AI Dynamic Weights Calculated: {weights}")
+                                    if site.strip() in weights:
+                                        if grade == "WIN" and pick.strip() == top_pick: weights[site.strip()] += 0.05
+                                        elif grade == "LOSS" and pick.strip() == top_pick: weights[site.strip()] -= 0.05
+                                        weights[site.strip()] = max(0.5, min(weights[site.strip()], 2.0))
+        except: pass
         return weights
 
-    # ==============================================================================
-    # 3. UNIVERSAL DATA TRANSLATOR LAYER
-    # ==============================================================================
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
-        translation_matrix = {
-            "1": ["1", "home", "home win", "team a", "team 1"],
-            "X": ["x", "draw", "tie"],
-            "2": ["2", "away", "away win", "team b", "team 2"],
-            "1X": ["1x", "home or draw", "home/draw", "1 x"],
-            "X2": ["x2", "away or draw", "away/draw", "x 2"],
-            "12": ["12", "home or away", "any winner"],
-            "OVER 1.5": ["o1.5", "over 1.5", "over 1.5 goals", "+1.5"],
-            "OVER 2.5": ["o2.5", "over 2.5", "over 2.5 goals", "+2.5"],
-            "UNDER 2.5": ["u2.5", "under 2.5", "under 2.5 goals", "-2.5"],
-            "GG": ["gg", "btts", "both teams to score", "yes"],
-            "NG": ["ng", "btts - no", "no goal", "no"]
-        }
-        for standard_tag, variations in translation_matrix.items():
-            if text in variations:
-                return standard_tag
+        matrix = {"1": ["1", "home", "home win"], "X": ["x", "draw"], "2": ["2", "away", "away win"], "OVER 1.5": ["o1.5", "over 1.5", "+1.5"], "OVER 2.5": ["o2.5", "over 2.5", "+2.5"], "UNDER 2.5": ["u2.5", "under 2.5", "-2.5"], "GG": ["gg", "btts", "yes"]}
+        for tag, vars in matrix.items():
+            if text in vars: return tag
         return None
 
-    def clean_team_name(self, name):
-        name = name.strip().lower()
-        mapping = {"man utd": "manchester united", "chelsea fc": "chelsea", "lfc": "liverpool"}
-        return mapping.get(name, name).title()
+    def clean_team_name(self, name): return name.strip().title()
 
     def log_prediction_qa(self, site_name, home, away, raw_prediction):
         if not home or not away or not raw_prediction: return
@@ -129,114 +68,115 @@ class FortressMasterEngine:
         self.master_matrix[match_key].append((site_name, normalized_pick))
 
     # ==============================================================================
-    # 4. SCRAPER PIPELINE
+    # 3. PHASE 2: LIVE ODDS API INGESTION
+    # ==============================================================================
+    def fetch_live_bookmaker_odds(self, home_team):
+        """Connects to a live odds database to pull current bookmaker payouts."""
+        if not ODDS_API_KEY:
+            return None # Bypasses if key isn't installed yet
+            
+        url = f"https://api.the-odds-api.com/v4/sports/upcoming/odds/?apiKey={ODDS_API_KEY}&regions=eu&markets=h2h"
+        try:
+            response = tls_requests.get(url, timeout=10)
+            if response.status_code == 200:
+                for match in response.json():
+                    if home_team.lower() in match.get('home_team', '').lower():
+                        bookmakers = match.get('bookmakers', [])
+                        if bookmakers:
+                            for outcome in bookmakers[0].get('markets', [])[0].get('outcomes', []):
+                                if outcome.get('name') == match['home_team']:
+                                    return outcome.get('price') # Returns live decimal odd
+        except: pass
+        return None
+
+    # ==============================================================================
+    # 4. DATA PIPELINE & MATH ENGINE
     # ==============================================================================
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            response = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
-            if response.status_code != 200: return
-            soup = BeautifulSoup(response.content, 'html.parser')
-            rows = soup.find_all(cfg["row_selector"], class_=cfg["row_class"])
-            for row in rows:
-                try:
-                    h = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
-                    a = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
-                    p = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
-                    self.log_prediction_qa(site_name, h, a, p)
+            r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
+            if r.status_code != 200: return
+            for row in BeautifulSoup(r.content, 'html.parser').find_all(cfg["row_selector"], class_=cfg["row_class"]):
+                try: self.log_prediction_qa(site_name, row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text, row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text, row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text)
                 except: continue
         except: return
 
     def filter_existing_today(self):
-        today_date = datetime.datetime.now().strftime('%Y-%m-%d')
-        scraped_today = set()
+        today = datetime.datetime.now().strftime('%Y-%m-%d')
+        scraped = set()
         if os.path.exists(CSV_FILE_PATH):
             with open(CSV_FILE_PATH, 'r', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    if len(row) > 2 and row[0].startswith(today_date):
-                        scraped_today.add(row[2])
-        self.master_matrix = {k: v for k, v in self.master_matrix.items() if k not in scraped_today}
+                for row in csv.reader(f):
+                    if len(row) > 2 and row[0].startswith(today): scraped.add(row[2])
+        self.master_matrix = {k: v for k, v in self.master_matrix.items() if k not in scraped}
 
-    # ==============================================================================
-    # 5. QUANT ENGINE & ALGORITHMIC OUTPUT
-    # ==============================================================================
     def process_quant_signals(self):
-        daily_sure_bets = []
-        jackpot_builders = []
-        csv_rows_to_save = []
+        daily_sures, jackpot_builders, value_exploits, csv_rows = [], [], [], []
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         for match, listings in self.master_matrix.items():
             if len(listings) < 2: continue
-
+            
+            home_team = match.split(" vs ")[0]
             prediction_weights = {}
-            total_possible_weight = sum(self.dynamic_weights[site] for site, _ in listings)
+            total_weight = sum(self.dynamic_weights[site] for site, _ in listings)
 
             for site, pick in listings:
-                weight = self.dynamic_weights.get(site, 1.0)
-                prediction_weights[pick] = prediction_weights.get(pick, 0.0) + weight
+                prediction_weights[pick] = prediction_weights.get(pick, 0.0) + self.dynamic_weights.get(site, 1.0)
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
-            weighted_score = prediction_weights[top_pick]
-            confidence_pct = (weighted_score / total_possible_weight) * 100
+            confidence_pct = (prediction_weights[top_pick] / total_weight) * 100
             true_odds = 1 / (confidence_pct / 100) if confidence_pct > 0 else 0.0
 
-            raw_sources_log = str([f"{s}:{p}" for s, p in listings])
-            # Added a placeholder for the grading column
-            csv_rows_to_save.append([timestamp, ACTIVE_STRATEGY, match, top_pick, f"{confidence_pct:.0f}%", raw_sources_log, ""])
+            # PHASE 2 MATH: Calculate +EV if live odds are available
+            bookie_odds = self.fetch_live_bookmaker_odds(home_team) if top_pick == "1" else None
+            
+            if bookie_odds:
+                ev_percentage = ((confidence_pct / 100) * bookie_odds) - 1
+                if ev_percentage > 0.05: # Only flag if the edge is at least 5%
+                    value_exploits.append(f"🚨 {match}\n   ➔ True Odds: {true_odds:.2f} | Bookie Pays: {bookie_odds}\n   ➔ Edge: +{ev_percentage*100:.1f}% EV")
 
-            if confidence_pct >= 99.9: # Accounts for floating point math
-                daily_sure_bets.append(f"• {match} ➔ {top_pick} [True Odds: {true_odds:.2f}]")
-            else:
-                jackpot_builders.append(f"• {match} ➔ {top_pick} ({confidence_pct:.0f}%) [True Odds: {true_odds:.2f}]")
+            csv_rows.append([timestamp, ACTIVE_STRATEGY, match, top_pick, f"{confidence_pct:.0f}%", str([f"{s}:{p}" for s, p in listings]), ""])
 
-        return daily_sure_bets, jackpot_builders, csv_rows_to_save
+            if confidence_pct >= 99.9: daily_sures.append(f"• {match} ➔ {top_pick} [True Odds: {true_odds:.2f}]")
+            else: jackpot_builders.append(f"• {match} ➔ {top_pick} ({confidence_pct:.0f}%) [True Odds: {true_odds:.2f}]")
 
-    def save_to_history(self, rows):
-        file_exists = os.path.exists(CSV_FILE_PATH)
-        with open(CSV_FILE_PATH, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            if not file_exists:
-                writer.writerow(["Timestamp", "Strategy", "Match", "Top_Pick", "Confidence", "Sources", "Grade"])
-            writer.writerows(rows)
+        return daily_sures, jackpot_builders, value_exploits, csv_rows
 
-    def send_telegram_alert(self, message):
-        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
-        try:
-            tls_requests.post(url, json=payload, impersonate="chrome120", timeout=10)
-        except Exception as e: print(f"[!] Bot Alert Failed: {e}")
+    def send_telegram_alert(self, msg):
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            tls_requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, impersonate="chrome120", timeout=10)
 
     async def run_pipeline(self):
-        print(f"[+] Initializing Project {ACTIVE_STRATEGY} Data Pipeline...")
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
         
         self.filter_existing_today()
-        daily_sures, jackpot_slips, rows = self.process_quant_signals()
+        sures, jackpots, exploits, rows = self.process_quant_signals()
         
-        if not daily_sures and not jackpot_slips:
-            print("[!] No new validated analytical signals generated today.")
-            return
+        if not sures and not jackpots: return
+        
+        file_exists = os.path.exists(CSV_FILE_PATH)
+        with open(CSV_FILE_PATH, 'a', newline='', encoding='utf-8') as f:
+            w = csv.writer(f)
+            if not file_exists: w.writerow(["Timestamp", "Strategy", "Match", "Top_Pick", "Confidence", "Sources", "Grade"])
+            w.writerows(rows)
 
-        self.save_to_history(rows)
-
-        msg = f"🏰 PROJECT {ACTIVE_STRATEGY.upper()}: QUANT ALERT 🏰\n\n"
-        if daily_sures:
-            msg += "🏆 PREMIUM SURE SLIPS (Dynamic AI Weights)\n"
-            for bet in daily_sures: msg += f"{bet}\n"
+        msg = f"🏰 PROJECT FORTRESS V2.5 🏰\n\n"
+        if exploits:
+            msg += "🚨 HIGH-VALUE EXPLOITS DETECTED 🚨\n"
+            for b in exploits: msg += f"{b}\n\n"
+        if sures:
+            msg += "🏆 PREMIUM SURE SLIPS\n"
+            for b in sures: msg += f"{b}\n"
             msg += "\n"
-        if jackpot_slips:
-            msg += "🎫 ALGORITHMIC JACKPOT BUILDERS\n"
-            for bet in jackpot_slips: msg += f"{bet}\n"
+        if jackpots:
+            msg += "🎫 ALGORITHMIC BUILDERS\n"
+            for b in jackpots: msg += f"{b}\n"
             msg += "\n"
-        msg += f"📊 Powered by Fortress V2 Self-Tuning Engine."
         
         self.send_telegram_alert(msg)
-        print("[+] Quant Mega-Ticket dispatched to Bot #2.")
 
 if __name__ == "__main__":
-    engine = FortressMasterEngine(TARGET_CONFIG)
-    asyncio.run(engine.run_pipeline())
+    asyncio.run(FortressMasterEngine(TARGET_CONFIG).run_pipeline())
