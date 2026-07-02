@@ -1,5 +1,5 @@
 # ==============================================================================
-# MODULE G: LIVE UNDERSTAT xG SCRAPER (V4.0 SMART EXTRACTION)
+# MODULE G: LIVE UNDERSTAT xG SCRAPER (V5.0 UNIVERSAL PAYLOAD HUNTER)
 # ==============================================================================
 import re
 import json
@@ -15,32 +15,35 @@ def scrape_real_xg(team_name, understat_url):
             print(f"[-] Connection rejected. Status: {response.status_code}")
             return None
             
-        # V4 SMART EXTRACTION: Ignores spacing/tabs and targets the single-quote wrapper
-        match = re.search(r"var\s+datesData.*?JSON\.parse\('([^']+)'\)", response.text, re.DOTALL)
+        # V5 UNIVERSAL HUNTER: Extract EVERY piece of encrypted JSON hidden on the page.
+        hidden_payloads = re.findall(r"JSON\.parse\('([^']+)'\)", response.text)
         
-        if match:
-            # Capture the raw string and decode it into JSON
-            raw_encrypted_string = match.group(1)
-            decoded_string = raw_encrypted_string.encode('utf-8').decode('unicode_escape')
-            match_database = json.loads(decoded_string)
+        if not hidden_payloads:
+            print("[-] Security block. Cloudflare completely stripped the payloads.")
+            return None
             
-            # Isolate the most recent completed match
-            latest_match = match_database[-1]
-            side_identifier = latest_match['side'] # 'h' or 'a'
-            raw_xg = float(latest_match['xG'][side_identifier])
-            
-            print(f"[+] DATA EXTRACTED! {team_name}'s latest match xG: {raw_xg:.2f}\n")
-            return raw_xg
-            
-        else:
-            print(f"[-] Extraction failed. Running diagnostic scanner...")
-            # If the regex misses, print exactly what the code looks like around the target variable
-            if "datesData" in response.text:
-                debug_chunk = response.text.split("datesData")[1][:100]
-                print(f"    [Diagnostic] Found the variable, but the structure is:")
-                print(f"    datesData{debug_chunk}\n")
-            else:
-                print(f"    [Diagnostic] The 'datesData' variable is completely missing from the HTML.\n")
+        for payload in hidden_payloads:
+            decoded_string = payload.encode('utf-8').decode('unicode_escape')
+            try:
+                database = json.loads(decoded_string)
+                
+                # Identify the correct database: A list of matches containing 'xG'
+                if isinstance(database, list) and len(database) > 0 and 'xG' in database[0]:
+                    
+                    # Filter out future matches that haven't been played yet
+                    completed_matches = [m for m in database if m.get('isResult') == True]
+                    
+                    if completed_matches:
+                        latest_match = completed_matches[-1]
+                        side_identifier = latest_match['side'] # 'h' or 'a'
+                        raw_xg = float(latest_match['xG'][side_identifier])
+                        
+                        print(f"[+] DATA EXTRACTED! {team_name}'s latest match xG: {raw_xg:.2f}\n")
+                        return raw_xg
+            except:
+                continue
+                
+        print("[-] Payloads found, but none contained the match history database.")
                 
     except Exception as e:
         print(f"[-] Critical Scraping Error: {e}\n")
