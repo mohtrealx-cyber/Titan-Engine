@@ -2,8 +2,12 @@ name: Line Movement Tracker Automator
 
 on:
   schedule:
-    - cron: '0 */3 * * *' # Automated check executes every 3 hours on the dot
-  workflow_dispatch: # Permits instant manual execution overrides
+    - cron: '0 */3 * * *' 
+  workflow_dispatch: 
+
+# NEW: Grants the cloud server permission to save the CSV file back to your repo
+permissions:
+  contents: write
 
 jobs:
   track-market:
