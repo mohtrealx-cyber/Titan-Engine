@@ -8,21 +8,13 @@ import concurrent.futures
 from curl_cffi import requests as tls_requests
 
 # ==============================================================================
-# 1. CONFIGURATION, SECURITY & TRUST WEIGHTS
+# 1. CONFIGURATION & SECURITY
 # ==============================================================================
-# Secure Vault Retrieval for Bot #2
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 ACTIVE_STRATEGY = "Fortress"
 CSV_FILE_PATH = "fortress_performance_history.csv"
-
-# SMART WEIGHTING: Assigns mathematical trust scores based on historical accuracy
-SITE_WEIGHTS = {
-    "Statarea": 1.2,   # 20% more influence on final consensus
-    "PredictZ": 1.0,   # Baseline standard weight
-    "Vitibet": 0.8     # 20% less influence due to higher volatility
-}
 
 TARGET_CONFIG = {
     "Statarea": {
@@ -51,15 +43,60 @@ TARGET_CONFIG = {
 class FortressMasterEngine:
     def __init__(self, configs):
         self.configs = configs
-        self.master_matrix = {}  # Structure: { "Match Name": [("SITE", "NORMALIZED_PICK")] }
+        self.master_matrix = {}
+        self.dynamic_weights = self.calculate_dynamic_weights() # Triggers the AI learning loop
 
     # ==============================================================================
-    # 2. MODULE A: UNIVERSAL DATA TRANSLATOR LAYER
+    # 2. MACHINE LEARNING FEEDBACK LOOP (SELF-TUNING)
+    # ==============================================================================
+    def calculate_dynamic_weights(self):
+        """Reads graded historical data and mathematically adjusts trust scores."""
+        weights = {"Statarea": 1.0, "PredictZ": 1.0, "Vitibet": 1.0}
+        
+        if not os.path.exists(CSV_FILE_PATH):
+            print("[*] No historical data found. Using baseline weights.")
+            return weights
+            
+        try:
+            with open(CSV_FILE_PATH, 'r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    # Look for rows that have been manually graded (7 columns)
+                    if len(row) >= 7:
+                        grade = str(row[6]).strip().upper()
+                        top_pick = str(row[3]).strip()
+                        sources_str = str(row[5])
+                        
+                        if grade in ["WIN", "LOSS"]:
+                            # Parse the saved string back into usable data
+                            clean_str = sources_str.replace("['", "").replace("']", "").replace("', '", "|")
+                            sources_list = clean_str.split("|")
+                            
+                            for item in sources_list:
+                                if ":" in item:
+                                    site, pick = item.split(":", 1)
+                                    site = site.strip()
+                                    pick = pick.strip()
+                                    
+                                    if site in weights:
+                                        if grade == "WIN" and pick == top_pick:
+                                            weights[site] += 0.05  # Reward accurate predictions
+                                        elif grade == "LOSS" and pick == top_pick:
+                                            weights[site] -= 0.05  # Penalize inaccurate predictions
+                                        
+                                        # Set math boundaries so weights don't break the system
+                                        weights[site] = max(0.5, min(weights[site], 2.0))
+        except Exception as e:
+            print(f"[!] Warning: Feedback loop encountered an error: {e}")
+            
+        print(f"[*] AI Dynamic Weights Calculated: {weights}")
+        return weights
+
+    # ==============================================================================
+    # 3. UNIVERSAL DATA TRANSLATOR LAYER
     # ==============================================================================
     def normalize_prediction(self, raw_text):
-        """Standardizes messy web strings into unified market feature tags."""
         text = str(raw_text).strip().lower()
-        
         translation_matrix = {
             "1": ["1", "home", "home win", "team a", "team 1"],
             "X": ["x", "draw", "tie"],
@@ -73,38 +110,26 @@ class FortressMasterEngine:
             "GG": ["gg", "btts", "both teams to score", "yes"],
             "NG": ["ng", "btts - no", "no goal", "no"]
         }
-        
         for standard_tag, variations in translation_matrix.items():
             if text in variations:
                 return standard_tag
         return None
 
-    # ==============================================================================
-    # 3. MODULE B: QUALITY ASSURANCE & DATA INGESTION
-    # ==============================================================================
     def clean_team_name(self, name):
         name = name.strip().lower()
         mapping = {"man utd": "manchester united", "chelsea fc": "chelsea", "lfc": "liverpool"}
         return mapping.get(name, name).title()
 
     def log_prediction_qa(self, site_name, home, away, raw_prediction):
-        """QA Validation layer ensuring data integrity before processing."""
-        if not home or not away or not raw_prediction:
-            return  # Silently discard incomplete data rows
-            
+        if not home or not away or not raw_prediction: return
         normalized_pick = self.normalize_prediction(raw_prediction)
-        if not normalized_pick:
-            return  # Discard unrecognized markets to preserve math accuracy
-            
+        if not normalized_pick: return
         match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
-        
-        if match_key not in self.master_matrix:
-            self.master_matrix[match_key] = []
-            
+        if match_key not in self.master_matrix: self.master_matrix[match_key] = []
         self.master_matrix[match_key].append((site_name, normalized_pick))
 
     # ==============================================================================
-    # 4. CORE SCRAPER PIPELINE
+    # 4. SCRAPER PIPELINE
     # ==============================================================================
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
@@ -112,7 +137,6 @@ class FortressMasterEngine:
             if response.status_code != 200: return
             soup = BeautifulSoup(response.content, 'html.parser')
             rows = soup.find_all(cfg["row_selector"], class_=cfg["row_class"])
-            
             for row in rows:
                 try:
                     h = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
@@ -125,18 +149,16 @@ class FortressMasterEngine:
     def filter_existing_today(self):
         today_date = datetime.datetime.now().strftime('%Y-%m-%d')
         scraped_today = set()
-
         if os.path.exists(CSV_FILE_PATH):
             with open(CSV_FILE_PATH, 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
                 for row in reader:
                     if len(row) > 2 and row[0].startswith(today_date):
                         scraped_today.add(row[2])
-
         self.master_matrix = {k: v for k, v in self.master_matrix.items() if k not in scraped_today}
 
     # ==============================================================================
-    # 5. MODULE C: QUANT ENGINE & MATHEMATICAL WEIGHTING
+    # 5. QUANT ENGINE & ALGORITHMIC OUTPUT
     # ==============================================================================
     def process_quant_signals(self):
         daily_sure_bets = []
@@ -145,33 +167,25 @@ class FortressMasterEngine:
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         for match, listings in self.master_matrix.items():
-            if len(listings) < 2:
-                continue  # Consensus requires a minimum of 2 source points
+            if len(listings) < 2: continue
 
-            # Calculate Weighted Scores for each unique prediction
             prediction_weights = {}
-            total_possible_weight = sum(SITE_WEIGHTS[site] for site, _ in listings)
+            total_possible_weight = sum(self.dynamic_weights[site] for site, _ in listings)
 
             for site, pick in listings:
-                weight = SITE_WEIGHTS.get(site, 1.0)
+                weight = self.dynamic_weights.get(site, 1.0)
                 prediction_weights[pick] = prediction_weights.get(pick, 0.0) + weight
 
-            # Identify the dominant mathematical prediction
             top_pick = max(prediction_weights, key=prediction_weights.get)
             weighted_score = prediction_weights[top_pick]
-            
-            # Calculate final statistical confidence percentage
             confidence_pct = (weighted_score / total_possible_weight) * 100
-            
-            # True Odds calculation based on algorithmic probability
             true_odds = 1 / (confidence_pct / 100) if confidence_pct > 0 else 0.0
 
-            # Raw un-normalized array representation for historical record logs
             raw_sources_log = str([f"{s}:{p}" for s, p in listings])
-            csv_rows_to_save.append([timestamp, ACTIVE_STRATEGY, match, top_pick, f"{confidence_pct:.0f}%", raw_sources_log])
+            # Added a placeholder for the grading column
+            csv_rows_to_save.append([timestamp, ACTIVE_STRATEGY, match, top_pick, f"{confidence_pct:.0f}%", raw_sources_log, ""])
 
-            # Classify into structural categories
-            if confidence_pct == 100:
+            if confidence_pct >= 99.9: # Accounts for floating point math
                 daily_sure_bets.append(f"• {match} ➔ {top_pick} [True Odds: {true_odds:.2f}]")
             else:
                 jackpot_builders.append(f"• {match} ➔ {top_pick} ({confidence_pct:.0f}%) [True Odds: {true_odds:.2f}]")
@@ -183,7 +197,7 @@ class FortressMasterEngine:
         with open(CSV_FILE_PATH, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(["Timestamp", "Strategy", "Match", "Top_Pick", "Confidence", "Sources"])
+                writer.writerow(["Timestamp", "Strategy", "Match", "Top_Pick", "Confidence", "Sources", "Grade"])
             writer.writerows(rows)
 
     def send_telegram_alert(self, message):
@@ -192,8 +206,7 @@ class FortressMasterEngine:
         payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
         try:
             tls_requests.post(url, json=payload, impersonate="chrome120", timeout=10)
-        except Exception as e:
-            print(f"[!] Bot Alert Failed: {e}")
+        except Exception as e: print(f"[!] Bot Alert Failed: {e}")
 
     async def run_pipeline(self):
         print(f"[+] Initializing Project {ACTIVE_STRATEGY} Data Pipeline...")
@@ -210,17 +223,16 @@ class FortressMasterEngine:
 
         self.save_to_history(rows)
 
-        # Compile Premium Ticket Interface
         msg = f"🏰 PROJECT {ACTIVE_STRATEGY.upper()}: QUANT ALERT 🏰\n\n"
         if daily_sures:
-            msg += "🏆 PREMIUM SURE SLIPS (100% Weighted)\n"
+            msg += "🏆 PREMIUM SURE SLIPS (Dynamic AI Weights)\n"
             for bet in daily_sures: msg += f"{bet}\n"
             msg += "\n"
         if jackpot_slips:
             msg += "🎫 ALGORITHMIC JACKPOT BUILDERS\n"
             for bet in jackpot_slips: msg += f"{bet}\n"
             msg += "\n"
-        msg += f"📊 Powered by Fortress V2 Statistical Engine."
+        msg += f"📊 Powered by Fortress V2 Self-Tuning Engine."
         
         self.send_telegram_alert(msg)
         print("[+] Quant Mega-Ticket dispatched to Bot #2.")
