@@ -2,6 +2,7 @@ import os
 import asyncio
 import csv
 import datetime
+from difflib import SequenceMatcher
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
@@ -11,9 +12,9 @@ from curl_cffi import requests as tls_requests
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-ODDS_API_KEY = os.environ.get("ODDS_API_KEY") # NEW: Phase 2 Live Bookmaker Hook
+ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-ACTIVE_STRATEGY = "Fortress V2"
+ACTIVE_STRATEGY = "Fortress V2.5"
 CSV_FILE_PATH = "fortress_performance_history.csv"
 
 TARGET_CONFIG = {
@@ -68,24 +69,29 @@ class FortressMasterEngine:
         self.master_matrix[match_key].append((site_name, normalized_pick))
 
     # ==============================================================================
-    # 3. PHASE 2: LIVE ODDS API INGESTION
+    # 3. PHASE 2: LIVE ODDS API INGESTION (FUZZY MATCH UPGRADE)
     # ==============================================================================
+    def is_similar_name(self, name_a, name_b):
+        """Mathematical string comparison to bypass exact spelling requirements."""
+        return SequenceMatcher(None, name_a.lower(), name_b.lower()).ratio() > 0.70
+
     def fetch_live_bookmaker_odds(self, home_team):
-        """Connects to a live odds database to pull current bookmaker payouts."""
-        if not ODDS_API_KEY:
-            return None # Bypasses if key isn't installed yet
+        if not ODDS_API_KEY: return None
             
         url = f"https://api.the-odds-api.com/v4/sports/upcoming/odds/?apiKey={ODDS_API_KEY}&regions=eu&markets=h2h"
         try:
             response = tls_requests.get(url, timeout=10)
             if response.status_code == 200:
                 for match in response.json():
-                    if home_team.lower() in match.get('home_team', '').lower():
+                    api_home_team = match.get('home_team', '')
+                    
+                    # AI Fuzzy Match: Allows 'Raja Casablanca' to match 'Raja Club Athletic'
+                    if self.is_similar_name(home_team, api_home_team) or home_team.lower() in api_home_team.lower():
                         bookmakers = match.get('bookmakers', [])
                         if bookmakers:
                             for outcome in bookmakers[0].get('markets', [])[0].get('outcomes', []):
-                                if outcome.get('name') == match['home_team']:
-                                    return outcome.get('price') # Returns live decimal odd
+                                if self.is_similar_name(outcome.get('name', ''), api_home_team):
+                                    return outcome.get('price')
         except: pass
         return None
 
@@ -163,7 +169,7 @@ class FortressMasterEngine:
             if not file_exists: w.writerow(["Timestamp", "Strategy", "Match", "Top_Pick", "Confidence", "Sources", "Grade"])
             w.writerows(rows)
 
-        msg = f"🏰 PROJECT FORTRESS V2.5 🏰\n\n"
+        msg = f"🏰 PROJECT {ACTIVE_STRATEGY.upper()} 🏰\n\n"
         if exploits:
             msg += "🚨 HIGH-VALUE EXPLOITS DETECTED 🚨\n"
             for b in exploits: msg += f"{b}\n\n"
