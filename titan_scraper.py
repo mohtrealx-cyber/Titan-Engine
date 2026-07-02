@@ -14,7 +14,7 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 # --- STRATEGY SETTINGS ---
-ACTIVE_STRATEGY = "Titan"  # Saved silently in your CSV to track performance
+ACTIVE_STRATEGY = "Titan"
 
 TARGET_CONFIG = {
     "Statarea": {
@@ -47,7 +47,7 @@ class TitanAdvancedEngine:
 
     def send_telegram_alert(self, message):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-            print("[!] Error: Telegram keys are missing from the environment vault.")
+            print("[!] Error: Telegram keys are missing.")
             return
             
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -91,7 +91,6 @@ class TitanAdvancedEngine:
         except: return site_name, 0
 
     def filter_existing_today(self):
-        """Checks the CSV file to prevent sending duplicate alerts on the same day."""
         today_date = datetime.datetime.now().strftime('%Y-%m-%d')
         filename = "betting_performance_history.csv"
         scraped_today = set()
@@ -100,11 +99,9 @@ class TitanAdvancedEngine:
             with open(filename, 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
                 for row in reader:
-                    # If the row starts with today's date, add the match name (column index 2) to the set
                     if len(row) > 2 and row[0].startswith(today_date):
                         scraped_today.add(row[2])
 
-        # Filter out matches that have already been scraped today
         new_matches = {}
         for match, picks in self.master_matrix.items():
             if match not in scraped_today:
@@ -128,31 +125,53 @@ class TitanAdvancedEngine:
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
         
-        # Execute the duplicate check before saving or displaying
         self.filter_existing_today()
-        
         self.save_to_history()
         self.display_consensus()
 
     def display_consensus(self):
-        print("\n" + "="*70 + "\n TITAN HIGH-CONFIDENCE SIGNALS \n" + "="*70)
-        found_strong = False
+        print("\n" + "="*70 + "\n TITAN MEGA-TICKET COMPILER \n" + "="*70)
         
+        daily_bets = []
+        jackpot_bets = []
+        
+        # Sort the matches into 100% Sure Bets and Jackpot Builders
         for match, picks in self.master_matrix.items():
             counter = Counter(picks)
             top, occ = counter.most_common(1)[0]
             
-            # The match must be on at least 2 sites
             if len(picks) > 1:
                 conf = (occ / len(picks)) * 100
-                
-                msg = f"🔥 TITAN ALERT: {match}\nVerdict: {top} ({conf:.0f}% Consensus)"
-                
-                print(f"[STRONG] {msg}")
-                self.send_telegram_alert(msg)
-                found_strong = True
-                
-        if not found_strong: print("[!] No new high-confidence signals found.")
+                if conf == 100:
+                    daily_bets.append(f"• {match} ➔ {top}")
+                else:
+                    jackpot_bets.append(f"• {match} ➔ {top} ({conf:.0f}%)")
+                    
+        # If no matches found, do nothing
+        if not daily_bets and not jackpot_bets:
+            print("[!] No new high-confidence signals found today.")
+            return
+            
+        # Build the final Telegram message
+        msg = "🚨 TITAN ENGINE: MEGA-TICKET 🚨\n\n"
+        
+        if daily_bets:
+            msg += "🏆 DAILY SURE BETS (100%)\n"
+            for bet in daily_bets:
+                msg += f"{bet}\n"
+            msg += "\n"
+            
+        if jackpot_bets:
+            msg += "🎫 DAILY JACKPOT BUILDER\n"
+            for bet in jackpot_bets:
+                msg += f"{bet}\n"
+            msg += "\n"
+            
+        msg += f"⚙️ Strategy: {ACTIVE_STRATEGY}"
+        
+        # Send one single message
+        self.send_telegram_alert(msg)
+        print("[+] Mega-Ticket successfully pushed to Telegram.")
 
 if __name__ == "__main__":
     engine = TitanAdvancedEngine(TARGET_CONFIG)
