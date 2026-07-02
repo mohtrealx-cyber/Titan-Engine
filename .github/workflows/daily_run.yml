@@ -1,0 +1,28 @@
+name: Titan Engine Automator
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # Runs at 7:00 AM East African Time
+    - cron: '0 10 * * *' # Runs at 1:00 PM East African Time
+  workflow_dispatch:
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Grab the code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install tools
+        run: pip install beautifulsoup4 curl-cffi
+
+      - name: Run Titan Engine
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python titan_scraper.py
