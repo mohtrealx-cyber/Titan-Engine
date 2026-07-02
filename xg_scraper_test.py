@@ -1,25 +1,42 @@
 # ==============================================================================
-# MODULE G: LIVE UNDERSTAT xG SCRAPER (V5.0 UNIVERSAL PAYLOAD HUNTER)
+# MODULE G: LIVE UNDERSTAT xG SCRAPER (V6.0 CLOUD PROXY BYPASS)
 # ==============================================================================
+import os
 import re
 import json
-from curl_cffi import requests as tls_requests
+import requests
+
+ZENROWS_API_KEY = os.environ.get("ZENROWS_API_KEY")
 
 def scrape_real_xg(team_name, understat_url):
-    print(f"[*] Establishing secure connection to Understat for: {team_name}...")
+    print(f"[*] Dispatching ZenRows Proxy to render JS for: {team_name}...")
+    
+    if not ZENROWS_API_KEY:
+        print("[-] Error: ZenRows API Key missing from GitHub Secrets.")
+        return None
+        
+    proxy_url = "https://api.zenrows.com/v1/"
+    
+    # We command the proxy to fully render the JavaScript before returning the HTML
+    params = {
+        "url": understat_url,
+        "apikey": ZENROWS_API_KEY,
+        "js_render": "true", 
+        "premium_proxy": "true"
+    }
     
     try:
-        response = tls_requests.get(understat_url, impersonate="chrome120", timeout=15)
+        response = requests.get(proxy_url, params=params, timeout=45)
         
         if response.status_code != 200:
-            print(f"[-] Connection rejected. Status: {response.status_code}")
+            print(f"[-] Proxy rejected. Status: {response.status_code}")
             return None
             
-        # V5 UNIVERSAL HUNTER: Extract EVERY piece of encrypted JSON hidden on the page.
+        # Now that the JS is rendered, the V5 Universal Hunter will easily find the payload
         hidden_payloads = re.findall(r"JSON\.parse\('([^']+)'\)", response.text)
         
         if not hidden_payloads:
-            print("[-] Security block. Cloudflare completely stripped the payloads.")
+            print("[-] Payload missing. The proxy loaded the page, but the data did not render.")
             return None
             
         for payload in hidden_payloads:
@@ -27,10 +44,7 @@ def scrape_real_xg(team_name, understat_url):
             try:
                 database = json.loads(decoded_string)
                 
-                # Identify the correct database: A list of matches containing 'xG'
                 if isinstance(database, list) and len(database) > 0 and 'xG' in database[0]:
-                    
-                    # Filter out future matches that haven't been played yet
                     completed_matches = [m for m in database if m.get('isResult') == True]
                     
                     if completed_matches:
