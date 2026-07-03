@@ -55,41 +55,34 @@ class ZenRowsConsensusEngine:
 
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
-        if len(text) > 0: text = text[0]
-        matrix = {"1": ["1", "home"], "X": ["x", "draw", "0"], "2": ["2", "away"]}
-        for tag, vars in matrix.items():
-            if text in vars: return tag
+        
+        # 1. Check exact word matches first
+        if text in ["home", "home win"]: return "1"
+        if text in ["draw", "x", "0"]: return "X"
+        if text in ["away", "away win"]: return "2"
+        
+        # 2. Check leading characters (handles "1X", "Home (2.10)", etc)
+        if len(text) > 0:
+            char = text[0]
+            if char == "1" or char == "h": return "1"
+            if char in ["x", "0", "d"]: return "X"
+            if char == "2" or char == "a": return "2"
+            
         return None
 
     def clean_team_name(self, name): 
         return name.strip().title()
 
-   # ==========================================================
+    # ==========================================================
     # TIME-SHIFT FILTER: DETECTS ALREADY KICKED OFF MATCHES
     # ==========================================================
     def is_match_active_or_played(self, row):
         text = row.get_text(separator=" ").upper()
-        
-        # 1. Check strictly for explicit "Finished" or "Live" flags 
-        # We pad the text with spaces to ensure we don't accidentally match words containing these letters
         padded_text = f" {text} "
         status_flags = [" FT ", " HT ", "CANC", "POSTP", "FINISHED", " LIVE ", "AET ", "PEN ", "DELAYED"]
-        
         for flag in status_flags:
             if flag in padded_text:
                 return True
-                
-        # We removed the Regex score pattern here. It was generating false positives 
-        # by flagging dates (e.g., "03-07") and odds strings on PredictZ and Vitibet.
-            
-        return False
-                
-        # 2. Check for active scorelines (e.g., " 1 - 0 " or " 2-2 ")
-        # The Regex specifically ensures it doesn't accidentally flag dates (2024-05-12)
-        score_pattern = r'(?<!\d|-)\b\d{1,2}\s*-\s*\d{1,2}\b(?!\d|-)'
-        if re.search(score_pattern, text):
-            return True
-            
         return False
 
     def log_prediction_qa(self, site_name, home, away, raw_prediction):
@@ -102,6 +95,9 @@ class ZenRowsConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
+            # ==========================================================
+            # ZENROWS TUNNEL
+            # ==========================================================
             if cfg.get("use_zenrows") and ZENROWS_API_KEY:
                 proxy_url = "https://api.zenrows.com/v1/"
                 params = {
@@ -137,15 +133,50 @@ class ZenRowsConsensusEngine:
                     if self.is_match_active_or_played(row):
                         skipped_count += 1
                         continue
+
+                    home, away, pick = None, None, None
+                    
+                    # ==========================================================
+                    # INTELLIGENT DUAL-PARSER FOR PREDICTZ
+                    # ==========================================================
+                    if site_name == "PredictZ":
+                        # Try Mobile Classes First
+                        h_elem = row.find(class_="pttmobh")
+                        a_elem = row.find(class_="pttmoba")
+                        p_elem = row.find(class_=re.compile("ptoddsdesc|ptmobpred"))
                         
-                    self.log_prediction_qa(
-                        site_name, 
-                        row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text, 
-                        row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text, 
-                        row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
-                    )
-                    valid_count += 1
-                except: continue
+                        if h_elem and a_elem and p_elem:
+                            home = h_elem.text
+                            away = a_elem.text
+                            pick = p_elem.text
+                        else:
+                            # Fallback to Desktop Tag Search
+                            links = row.find_all("a")
+                            if len(links) >= 2:
+                                home = links[0].text
+                                away = links[1].text
+                                p_div = row.find(class_=re.compile("ptprd|ptpred"))
+                                if p_div:
+                                    pick = p_div.text
+                                else:
+                                    # Brute force column scan
+                                    for td in row.find_all("div", class_="pttd"):
+                                        norm = self.normalize_prediction(td.text)
+                                        if norm:
+                                            pick = norm
+                                            break
+                    else:
+                        # STANDARD PARSER FOR STATAREA & VITIBET
+                        home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
+                        away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
+                        pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
+                    
+                    if home and away and pick:
+                        self.log_prediction_qa(site_name, home, away, pick)
+                        valid_count += 1
+                        
+                except Exception as e: 
+                    continue
                 
             self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
                 
