@@ -86,17 +86,23 @@ class GoalMatrixEngine:
                         if outcome.get("name") == "Yes":
                             btts_yes_odds = outcome.get("price")
 
-            # FILTER 1: Safest Accumulator (Over 1.5)
-            # If Over 2.5 is priced below 1.55, the bookies expect 3+ goals. 
-            # This makes 2 goals (Over 1.5) a statistical near-certainty.
-            if over_2_5_odds and over_2_5_odds <= 1.55:
+           # FILTER 1: Safest Accumulator (Over 1.5)
+            # TEMPORARY WORLD CUP ADJUSTMENT: Threshold raised from 1.55 to 1.75
+            if over_2_5_odds and over_2_5_odds <= 1.75:
                 self.safe_over_1_5.append(f"🔒 {home} vs {away}")
                 
                 # FILTER 2: High Yield (Over 2.5 backed by pure xG Math)
+                # Note: This will likely remain quiet for international matches 
+                # because the Understat API strictly tracks domestic league xG.
                 h_xg = self.get_team_xg(home, season)
                 a_xg = self.get_team_xg(away, season)
                 if h_xg and a_xg and (h_xg + a_xg >= 2.8):
                     self.value_over_2_5.append(f"🔥 {home} vs {away} ➔ Over 2.5 (xG: {h_xg+a_xg:.2f} | Odds: {over_2_5_odds})")
+
+            # FILTER 3: The BTTS Locks
+            # TEMPORARY WORLD CUP ADJUSTMENT: Threshold raised from 1.65 to 1.85
+            if btts_yes_odds and btts_yes_odds <= 1.85:
+                self.btts_locks.append(f"⚔️ {home} vs {away} ➔ BTTS: Yes (Odds: {btts_yes_odds})")
 
             # FILTER 3: The BTTS Locks
             if btts_yes_odds and btts_yes_odds <= 1.65:
