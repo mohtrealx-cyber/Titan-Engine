@@ -26,12 +26,12 @@ def get_dynamic_configs():
             "away_selector": "div", "away_class": "name", "away_index": 1, 
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0
         },
-        "PredictZ": {
-            "url": f"https://www.predictz.com/predictions/today/?cb={cb}", 
-            "row_selector": "div", "row_class": "pttr", 
-            "home_selector": "div", "home_class": "pttmobh", "home_index": 0, 
-            "away_selector": "div", "away_class": "pttmoba", "away_index": 0, 
-            "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0
+        "Forebet": {
+            "url": "https://www.forebet.com/en/football-predictions.html", 
+            "row_selector": "div", "row_class": "rcnt", 
+            "home_selector": "span", "home_class": "homeTeam", "home_index": 0, 
+            "away_selector": "span", "away_class": "awayTeam", "away_index": 0, 
+            "pick_selector": "span", "pick_class": "forepr", "pick_index": 0
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}", 
@@ -69,7 +69,7 @@ class SimpleConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            # Impersonating Safari here as it sometimes bypasses Cloudflare better than Chrome
+            # Impersonating Safari to bypass basic bot checks
             r = tls_requests.get(cfg["url"], impersonate="safari15_5", timeout=20)
             
             if r.status_code != 200: 
@@ -114,6 +114,7 @@ class SimpleConsensusEngine:
             top_pick = max(prediction_weights, key=prediction_weights.get)
             agreement_count = prediction_weights[top_pick]
             
+            # Require 2 or more sites to agree
             if agreement_count >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 agreed_matches.append(
@@ -141,7 +142,7 @@ class SimpleConsensusEngine:
         consensus_list = self.process_consensus_signals()
         
         msg = "🤝 **SIMPLE CONSENSUS ENGINE** 🤝\n"
-        msg += "*(Statarea + PredictZ + Vitibet)*\n\n"
+        msg += "*(Statarea + Forebet + Vitibet)*\n\n"
         
         if not consensus_list:
             msg += "No matches found with 2+ sites in agreement today.\n\n"
