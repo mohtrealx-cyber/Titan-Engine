@@ -3,16 +3,17 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: ELITE CORE (48H ACTIONABLE SIEVE)
+# TITAN TRACKER: DUAL-TIER SIEVE (GOLD & STANDARD)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-class GoldTierStakingSieve:
+class DualTierSieve:
     def __init__(self):
         self.anchor_bookie = "pinnacle"
-        self.gold_predictions = []
+        self.gold_preds = []
+        self.std_preds = []
         self.system_stake = "100 KES" 
 
     def fetch_market_data(self):
@@ -32,25 +33,20 @@ class GoldTierStakingSieve:
             except Exception: pass
         return all_matches
 
-    def process_gold_matrix(self):
+    def process_matrix(self):
         matches = self.fetch_market_data()
         if not matches: return
 
-        # Time Horizon: Look at matches starting within the next 48 hours
-        now = datetime.utcnow()
-        limit = now + timedelta(hours=48)
+        now, limit = datetime.utcnow(), datetime.utcnow() + timedelta(hours=48)
 
         for match in matches:
             home, away = match.get("home_team"), match.get("away_team")
             time_str = match.get("commence_time", "")
-            
             try:
                 dt = datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%SZ")
-                if dt < now or dt > limit:
-                    continue
-                formatted_time = dt.strftime("%d %b, %H:%M")
-            except:
-                continue 
+                if dt < now or dt > limit: continue
+                fmt_time = dt.strftime("%d %b, %H:%M")
+            except: continue 
 
             bookmakers = match.get("bookmakers", [])
             home_prices, away_prices, draw_prices = [], [], []
@@ -75,32 +71,36 @@ class GoldTierStakingSieve:
                 avg_home, avg_away, avg_draw = sum(home_prices)/len(home_prices), sum(away_prices)/len(away_prices), sum(draw_prices)/len(draw_prices)
                 
                 if avg_home < avg_away:
-                    fav, avg_fav, pin_fav, symbol = home, avg_home, pin_home, "1"
+                    fav, avg_fav, pin_fav, sym = home, avg_home, pin_home, "1"
                 else:
-                    fav, avg_fav, pin_fav, symbol = away, avg_away, pin_away, "2"
+                    fav, avg_fav, pin_fav, sym = away, avg_away, pin_away, "2"
                 
-                # Triple-Layer Sieve
-                if avg_fav > 1.45 or avg_draw < 4.20 or (pin_fav and pin_fav > avg_fav):
-                    continue
+                # GOLD TIER (Strict)
+                if avg_fav <= 1.45 and avg_draw >= 4.20 and (not pin_fav or pin_fav <= avg_fav):
+                    self.gold_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
                 
-                self.gold_predictions.append(f"📅 **{formatted_time}**\n• {home} vs {away} ➔ {symbol} `[Stake: {self.system_stake}]`\n\n")
+                # STANDARD TIER (Relaxed)
+                elif avg_fav <= 1.65 and avg_draw >= 3.80 and (not pin_fav or pin_fav <= avg_fav):
+                    self.std_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
 
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
-        msg = "🎯 **TITAN ENGINE: ELITE CORE** 🎯\n\n"
-        if self.gold_predictions:
-            msg += f"💎 **GOLD-TIER SELECTIONS ({len(self.gold_predictions)} SECURED)**\n\n"
-            msg += "".join(self.gold_predictions)
-            msg += "📊 **BANKROLL ALLOCATION:** Flat Sizing (100 KES/match)\n"
-            msg += "💡 Strategy: Titan High-Confidence Sieve"
+        msg = "🎯 **TITAN ENGINE: DUAL-TIER CORE** 🎯\n\n"
+        if self.gold_preds:
+            msg += f"💎 **GOLD-TIER ({len(self.gold_preds)})**\n" + "".join(self.gold_preds)
+        if self.std_preds:
+            msg += f"🥈 **STANDARD-TIER ({len(self.std_preds)})**\n" + "".join(self.std_preds)
+        
+        if not self.gold_preds and not self.std_preds:
+            msg += "No actionable matches found for the next 48 hours."
         else:
-            msg += "No actionable matches found for the next 48 hours. Sieve remains tight."
+            msg += "\n📊 **BANKROLL:** 100 KES/match | 💡 Titan Sieve Active"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    engine = GoldTierStakingSieve()
-    engine.process_gold_matrix()
+    engine = DualTierSieve()
+    engine.process_matrix()
     engine.dispatch_alerts()
