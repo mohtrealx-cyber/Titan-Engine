@@ -54,7 +54,7 @@ class GoalMatrixEngine:
             pass
         return []
 
-    def process_matrix(self):
+   def process_matrix(self):
         print("Scanning Global Goal Markets...")
         matches = self.fetch_goal_markets()
         season = self.get_active_season()
@@ -71,43 +71,41 @@ class GoalMatrixEngine:
             if not bookmakers: 
                 continue
             
-            markets = bookmakers[0].get("markets", [])
-            over_2_5_odds = None
-            btts_yes_odds = None
+            best_over_2_5 = 999.0
+            best_btts_yes = 999.0
 
-            # Extract the precise odds for Goals and BTTS
-            for mkt in markets:
-                if mkt.get("key") == "totals":
-                    for outcome in mkt.get("outcomes", []):
-                        if outcome.get("name") == "Over" and outcome.get("point") == 2.5:
-                            over_2_5_odds = outcome.get("price")
-                elif mkt.get("key") == "btts":
-                    for outcome in mkt.get("outcomes", []):
-                        if outcome.get("name") == "Yes":
-                            btts_yes_odds = outcome.get("price")
+            # DEEP SCAN: Iterate through every bookmaker to find the lowest (safest) odds
+            for bookie in bookmakers:
+                markets = bookie.get("markets", [])
+                for mkt in markets:
+                    if mkt.get("key") == "totals":
+                        for outcome in mkt.get("outcomes", []):
+                            if outcome.get("name") == "Over" and outcome.get("point") == 2.5:
+                                price = float(outcome.get("price"))
+                                if price < best_over_2_5: 
+                                    best_over_2_5 = price
+                    elif mkt.get("key") == "btts":
+                        for outcome in mkt.get("outcomes", []):
+                            if outcome.get("name") == "Yes":
+                                price = float(outcome.get("price"))
+                                if price < best_btts_yes: 
+                                    best_btts_yes = price
 
-           # FILTER 1: Safest Accumulator (Over 1.5)
-            # TEMPORARY WORLD CUP ADJUSTMENT: Threshold raised from 1.55 to 1.75
-            if over_2_5_odds and over_2_5_odds <= 1.75:
+            # FILTER 1: Safest Accumulator (Over 1.5)
+            # If Over 2.5 is priced below 1.80 anywhere in the market, 
+            # the bookies expect goals, making Over 1.5 highly secure.
+            if best_over_2_5 != 999.0 and best_over_2_5 <= 1.80:
                 self.safe_over_1_5.append(f"🔒 {home} vs {away}")
                 
                 # FILTER 2: High Yield (Over 2.5 backed by pure xG Math)
-                # Note: This will likely remain quiet for international matches 
-                # because the Understat API strictly tracks domestic league xG.
                 h_xg = self.get_team_xg(home, season)
                 a_xg = self.get_team_xg(away, season)
                 if h_xg and a_xg and (h_xg + a_xg >= 2.8):
-                    self.value_over_2_5.append(f"🔥 {home} vs {away} ➔ Over 2.5 (xG: {h_xg+a_xg:.2f} | Odds: {over_2_5_odds})")
+                    self.value_over_2_5.append(f"🔥 {home} vs {away} ➔ Over 2.5 (xG: {h_xg+a_xg:.2f} | Best Odds: {best_over_2_5})")
 
             # FILTER 3: The BTTS Locks
-            # TEMPORARY WORLD CUP ADJUSTMENT: Threshold raised from 1.65 to 1.85
-            if btts_yes_odds and btts_yes_odds <= 1.85:
-                self.btts_locks.append(f"⚔️ {home} vs {away} ➔ BTTS: Yes (Odds: {btts_yes_odds})")
-
-            # FILTER 3: The BTTS Locks
-            if btts_yes_odds and btts_yes_odds <= 1.65:
-                self.btts_locks.append(f"⚔️ {home} vs {away} ➔ BTTS: Yes (Odds: {btts_yes_odds})")
-
+            if best_btts_yes != 999.0 and best_btts_yes <= 1.95:
+                self.btts_locks.append(f"⚔️ {home} vs {away} ➔ BTTS: Yes (Best Odds: {best_btts_yes})")
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: 
             return
