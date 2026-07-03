@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: STABLE CORE + LIVE ROLLING SCOREBOARD (GOLD ONLY)
+# TITAN TRACKER: DYNAMIC JACKPOT PIPELINE + DRAW CONTRACTION SIEVE
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -17,6 +17,7 @@ class MegaTicketVolumeSieve:
         self.gold_preds = []
         self.combo_candidates = []
         self.mega_combo_candidates = []
+        self.jackpot_candidates = [] # High-volume accumulator for filtered jackpot selections
         self.structured_tickets = [] 
         self.system_stake = "100 KES" 
         self.raw_match_count = 0
@@ -100,7 +101,20 @@ class MegaTicketVolumeSieve:
                 
                 match_title = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
 
-                # Standalone Gold-Tier singles
+                # ==========================================================
+                # GENIUS SIEVE: DRAW CONTRACTION TRAP DETECTOR
+                # ==========================================================
+                is_draw_trap = False
+                if avg_fav <= 1.70 and avg_draw < 3.70:
+                    is_draw_trap = True  # Heavy public favorite, but bookie expects a stalemate
+                elif avg_fav <= 2.20 and avg_draw < 3.10:
+                    is_draw_trap = True  # Standard favorite with high risk of draw contraction
+                
+                # Only feed the jackpot pool if the favorite passes the genius safety test
+                if not is_draw_trap:
+                    self.jackpot_candidates.append({"text": f"{match_title} ({sym})", "odds": avg_fav})
+
+                # Strict Filter: Standalone Gold-Tier singles
                 if avg_fav <= 1.50 and avg_draw >= 4.00:
                     self.gold_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
                     self.combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
@@ -110,7 +124,7 @@ class MegaTicketVolumeSieve:
                         "date": match_date_key, "match": match_title, "prediction": sym, "status": "PENDING", "score": "-"
                     })
                 
-                # Standard-Tier logic hidden from singles, but still fuels the Mega-Combo & Tracker
+                # Standard Filter: Multi-leg support (Hidden from singles layout)
                 elif avg_fav <= 2.10 and avg_draw >= 3.00:
                     self.mega_combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
                     
@@ -264,6 +278,24 @@ class MegaTicketVolumeSieve:
             msg += f"🧨 **TITAN {len(sorted_mega)}-LEG MEGA-TICKET (HIGH RISK)** 🧨\n"
             msg += "\n".join(mega_text_lines) + "\n"
             msg += f"📈 **Estimated Total Odds:** {mega_odds:.2f}\n💰 **Suggested Stake:** 20 KES\n\n"
+
+        # ==========================================================
+        # ELASTIC DYNAMIC JACKPOT SLIP GENERATOR
+        # ==========================================================
+        if self.jackpot_candidates:
+            # Sort all surviving non-trap favorites by relative odd strength
+            sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["odds"])
+            jackpot_odds = 1.0
+            jackpot_text_lines = []
+            for pick in sorted_jackpot:
+                jackpot_odds *= pick["odds"]
+                jackpot_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
+                
+            msg += f"🎰 **TITAN {len(sorted_jackpot)}-LEG ANTI-TRAP JACKPOT SLIP** 🎰\n"
+            msg += "\n".join(jackpot_text_lines) + "\n"
+            msg += f"📈 **Estimated Cumulative Odds:** {jackpot_odds:,.2f}\n💰 **Suggested System Stake:** 10 KES\n\n"
+        else:
+            msg += "🎰 **TITAN ANTI-TRAP JACKPOT** 🎰\n↳ 🟡 All matches on the current 48h slate flagged as potential Draw Traps. Awaiting clean volume...\n\n"
 
         msg += scoreboard_text
 
