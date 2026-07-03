@@ -3,14 +3,13 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: PROFESSIONAL SYNDICATE UPGRADE
-# Features: EV Calculator, Kickoff Countdown, Sharp Steam Detector
+# TITAN TRACKER: STABLE SYNDICATE CORE (MARKDOWN SAFE)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-class MaxVolumeDiagnosticSieve:
+class StableSyndicateSieve:
     def __init__(self):
         self.anchor_bookie = "pinnacle"
         self.gold_preds = []
@@ -35,7 +34,7 @@ class MaxVolumeDiagnosticSieve:
         
         all_matches = []
         for league in target_leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}®ions=eu,uk,us&markets=h2h"
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
             try:
                 r = requests.get(url, timeout=10)
                 if r.status_code == 200:
@@ -64,7 +63,7 @@ class MaxVolumeDiagnosticSieve:
                 if dt < now or dt > limit: continue
                 fmt_time = dt.strftime("%d %b, %H:%M")
                 
-                # Feature 2: Kickoff Countdown
+                # Kickoff Countdown
                 diff = dt - now
                 hours = int(diff.total_seconds() // 3600)
                 minutes = int((diff.total_seconds() % 3600) // 60)
@@ -102,18 +101,18 @@ class MaxVolumeDiagnosticSieve:
                 sharp_alert = ""
 
                 if pin_fav:
-                    # Feature 1: Expected Value (EV) Edge Calculator
+                    # Expected Value (EV) Edge
                     edge_pct = ((avg_fav / pin_fav) - 1) * 100
                     if edge_pct > 0:
-                        edge_tag = f" [Edge: +{edge_pct:.1f}%]"
+                        edge_tag = f" `[Edge: +{edge_pct:.1f}%]`"
                     
-                    # Feature 3: Sharp Steam Detector (5% deviation)
+                    # Sharp Steam Detector (5% drop or more)
                     if pin_fav <= (avg_fav * 0.95):
-                        sharp_alert = "\n🚨 SHARP MONEY DETECTED"
+                        sharp_alert = "\n🚨 *SHARP MONEY DETECTED*"
 
                 match_text = (
-                    f"📅 {fmt_time} | {countdown}\n"
-                    f"• {home} vs {away} ➔ {sym} [Stake: {self.system_stake}]{edge_tag}"
+                    f"📅 **{fmt_time}** | {countdown}\n"
+                    f"• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`{edge_tag}"
                     f"{sharp_alert}\n\n"
                 )
 
@@ -129,16 +128,16 @@ class MaxVolumeDiagnosticSieve:
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
-        msg = "🎯 TITAN ENGINE: SYNDICATE CORE 🎯\n\n"
+        msg = "🎯 **TITAN ENGINE: SYNDICATE CORE** 🎯\n\n"
         if self.gold_preds:
-            msg += f"💎 GOLD-TIER ({len(self.gold_preds)})\n" + "".join(self.gold_preds)
+            msg += f"💎 **GOLD-TIER ({len(self.gold_preds)})**\n" + "".join(self.gold_preds)
         if self.std_preds:
-            msg += f"🥈 STANDARD-TIER ({len(self.std_preds)})\n" + "".join(self.std_preds)
+            msg += f"🥈 **STANDARD-TIER ({len(self.std_preds)})**\n" + "".join(self.std_preds)
         
         if not self.gold_preds and not self.std_preds:
             msg += "No actionable matches found.\n\n"
             
-        # --- AUTOMATED COMBINATION SLIP FILTER ---
+        # AUTOMATED COMBINATION SLIP
         if len(self.combo_candidates) >= 2:
             sorted_candidates = sorted(self.combo_candidates, key=lambda x: x["odds"])
             combo_picks = sorted_candidates[:3]
@@ -149,23 +148,23 @@ class MaxVolumeDiagnosticSieve:
                 total_odds *= pick["odds"]
                 combo_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
                 
-            msg += "🔥 RECOMMENDED TITAN COMBINATION TICKET 🔥\n"
+            msg += "🔥 **RECOMMENDED TITAN COMBINATION TICKET** 🔥\n"
             msg += "\n".join(combo_text_lines) + "\n"
-            msg += f"📈 Estimated Total Odds: {total_odds:.2f}\n"
-            msg += f"💰 Suggested Multi-Bet Stake: 100 KES\n\n"
+            msg += f"📈 **Estimated Total Odds:** {total_odds:.2f}\n"
+            msg += f"💰 **Suggested Multi-Bet Stake:** 100 KES\n\n"
         elif len(self.combo_candidates) == 1:
-            msg += "⚠️ Note: Only 1 Gold match cleared today. Not enough secure data to build a safe Multi-Bet combo.\n\n"
+            msg += "⚠️ *Note: Only 1 Gold match cleared today. Not enough secure data to build a safe Multi-Bet combo.*\n\n"
 
         # SYSTEM DIAGNOSTICS
-        msg += "⚙️ SYSTEM DIAGNOSTICS ⚙️\n"
+        msg += "⚙️ **SYSTEM DIAGNOSTICS** ⚙️\n"
         msg += f"↳ API Status: {self.api_status}\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
         msg += "↳ Bankroll: 100 KES/match"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
-                      json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "HTML"})
+                      json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    engine = MaxVolumeDiagnosticSieve()
+    engine = StableSyndicateSieve()
     engine.process_matrix()
     engine.dispatch_alerts()
