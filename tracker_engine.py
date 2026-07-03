@@ -2,20 +2,30 @@ import os
 import requests
 
 # ==============================================================================
-# TITAN ENGINE (LINE TRACKER VARIANT): STEAM & INEFFICIENCY SCANNER
+# TITAN TRACKER VARIANT: HIGH-CONFIDENCE & STEAM SIEVE
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-class TitanLineTracker:
+class HighConfidenceTracker:
     def __init__(self):
+        # The Sharp Anchor
         self.anchor_bookie = "pinnacle"
-        self.edge_threshold = 0.05 
+        
+        # 1. THE STEAM FILTER (Lowered to 3% to catch early movements on favorites)
+        self.edge_threshold = 0.03 
+        
+        # 2. THE WIN PROBABILITY FILTER (The Odds Ceiling)
+        # Rejects any match where Pinnacle prices the outcome above these numbers.
+        # 1.85 ensures we ONLY look at heavy favorites. 
+        self.max_odds_h2h = 1.85 
+        self.max_odds_over25 = 1.80 
+        
         self.steam_alerts = []
 
     def fetch_market_data(self):
-        print("📡 TITAN VARIANT: Scanning Global Markets for Line Movement...")
+        print("📡 HIGH-CONFIDENCE TRACKER: Scanning Global Markets...")
         if not ODDS_API_KEY: 
             print("❌ CRITICAL: No API Key detected.")
             return []
@@ -30,7 +40,7 @@ class TitanLineTracker:
         
         all_matches = []
         for league in target_leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=totals,h2h"
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}®ions=eu,uk,us&markets=totals,h2h"
             try:
                 r = requests.get(url, timeout=15)
                 if r.status_code == 200:
@@ -39,7 +49,7 @@ class TitanLineTracker:
                 print(f"⚠️ Error pulling {league}: {e}")
         return all_matches
 
-    def calculate_edge(self, outcome_name, bookmakers, market_key):
+    def calculate_edge(self, outcome_name, bookmakers, market_key, max_odds):
         pinnacle_price = None
         market_prices = []
         
@@ -57,7 +67,8 @@ class TitanLineTracker:
                             else:
                                 market_prices.append(price)
                                 
-        if pinnacle_price and len(market_prices) >= 3:
+        # Apply the Win Probability Filter: Only proceed if Pinnacle odds <= max_odds
+        if pinnacle_price and pinnacle_price <= max_odds and len(market_prices) >= 3:
             market_avg = sum(market_prices) / len(market_prices)
             if pinnacle_price < market_avg:
                 edge = (market_avg - pinnacle_price) / pinnacle_price
@@ -75,15 +86,16 @@ class TitanLineTracker:
             home, away = match.get("home_team"), match.get("away_team")
             bookmakers = match.get("bookmakers", [])
             
-            pin_1, avg_1, edge_1 = self.calculate_edge(home, bookmakers, "h2h")
+            # We now pass the max_odds variables into the math engine
+            pin_1, avg_1, edge_1 = self.calculate_edge(home, bookmakers, "h2h", self.max_odds_h2h)
             if edge_1: 
-                self.steam_alerts.append(f"🚨 **{home} (Win)**\n   ↳ Pin: {pin_1:.2f} | Market: {avg_1:.2f} | ⚡ Edge: {edge_1*100:.1f}%")
+                self.steam_alerts.append(f"🟢 **{home} (Win)**\n   ↳ Pin: {pin_1:.2f} | Market: {avg_1:.2f} | ⚡ Edge: {edge_1*100:.1f}%")
 
-            pin_2, avg_2, edge_2 = self.calculate_edge(away, bookmakers, "h2h")
+            pin_2, avg_2, edge_2 = self.calculate_edge(away, bookmakers, "h2h", self.max_odds_h2h)
             if edge_2: 
-                self.steam_alerts.append(f"🚨 **{away} (Win)**\n   ↳ Pin: {pin_2:.2f} | Market: {avg_2:.2f} | ⚡ Edge: {edge_2*100:.1f}%")
+                self.steam_alerts.append(f"🟢 **{away} (Win)**\n   ↳ Pin: {pin_2:.2f} | Market: {avg_2:.2f} | ⚡ Edge: {edge_2*100:.1f}%")
 
-            pin_O, avg_O, edge_O = self.calculate_edge("Over", bookmakers, "totals")
+            pin_O, avg_O, edge_O = self.calculate_edge("Over", bookmakers, "totals", self.max_odds_over25)
             if edge_O: 
                 self.steam_alerts.append(f"🔥 **{home} vs {away} (Over 2.5)**\n   ↳ Pin: {pin_O:.2f} | Market: {avg_O:.2f} | ⚡ Edge: {edge_O*100:.1f}%")
 
@@ -92,17 +104,17 @@ class TitanLineTracker:
             print("❌ Tracker Telegram credentials missing from environment.")
             return
             
-        msg = "⚡ **TITAN ENGINE: LINE TRACKER VARIANT** ⚡\n\n"
+        msg = "⚡ **TITAN TRACKER: HIGH-CONFIDENCE SIEVE** ⚡\n\n"
         if self.steam_alerts:
-            msg += "📉 **SHARP STEAM DETECTED**\n\n"
+            msg += "🛡️ **HEAVY FAVORITES + SHARP STEAM DETECTED**\n\n"
             msg += "\n\n".join(self.steam_alerts[:15])
         else:
-            msg += "No significant sharp line movement detected today. Market is efficient."
+            msg += "No high-probability sharp steam detected today. Sieve remains tight."
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    engine = TitanLineTracker()
+    engine = HighConfidenceTracker()
     engine.process_titan_matrix()
     engine.dispatch_alerts()
