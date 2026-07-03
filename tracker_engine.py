@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: APEX CORE (SHARP MONEY PINNACLE SIEVE + ALPHA-10 CLIPPER)
+# TITAN TRACKER: APEX CORE (SHARP CONSENSUS + ALPHA-10 CLIPPER)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -75,7 +75,6 @@ class MegaTicketVolumeSieve:
 
             bookmakers = match.get("bookmakers", [])
             
-            # THE SHARP MARKET SPLITTER
             pin_home, pin_away, pin_draw = None, None, None
             soft_home, soft_away, soft_draw = [], [], []
             
@@ -96,12 +95,10 @@ class MegaTicketVolumeSieve:
                                 elif name == away: soft_away.append(price)
                                 elif name == "Draw": soft_draw.append(price)
 
-            # ONLY proceed if Pinnacle (Sharp Money) has priced the game, AND public data exists
             if pin_home and pin_away and pin_draw and soft_home and soft_away and soft_draw:
                 avg_soft_home = sum(soft_home) / len(soft_home)
                 avg_soft_away = sum(soft_away) / len(soft_away)
                 
-                # Determine the true favorite based on Pinnacle's billion-dollar algorithm
                 if pin_home < pin_away:
                     fav_team, sharp_fav_odd, public_fav_odd, sym = home, pin_home, avg_soft_home, "1"
                 else:
@@ -113,15 +110,15 @@ class MegaTicketVolumeSieve:
                 # THE APEX SYNDICATE SIEVES
                 # ==========================================================
                 
-                # 1. SHARP MONEY TRACKER: Is Pinnacle pricing the favorite LOWER than the public?
-                # If True: Syndicates are backing this team heavily.
-                is_sharp_backed = sharp_fav_odd < public_fav_odd
+                # 1. SHARP CONSENSUS ALIGNMENT: Pinnacle allows fair odds. We grant a 0.05 buffer 
+                # to ensure Pinnacle agrees with the public and isn't actively fading the favorite.
+                is_sharp_approved = sharp_fav_odd <= (public_fav_odd + 0.05)
 
-                # 2. PANIC SIEVE: Calculated using pure Sharp Odds
+                # 2. PANIC SIEVE: Calculated using pure Sharp Odds (Relaxed to 8.5%)
                 margin = (1.0 / pin_home) + (1.0 / pin_away) + (1.0 / pin_draw) - 1.0
                 is_panic_market = margin > 0.085
                 
-                # 3. HOSTILE TERRITORY
+                # 3. HOSTILE TERRITORY (Relaxed to 1.85)
                 is_weak_away_fav = (sym == "2") and (sharp_fav_odd > 1.85)
 
                 # 4. DRAW TRAP DETECTOR
@@ -134,8 +131,7 @@ class MegaTicketVolumeSieve:
                 # ==========================================================
                 # TICKET ALLOCATION LOGIC
                 # ==========================================================
-                # A match must pass ALL traps AND have institutional Sharp Money backing it
-                passed_jackpot = not is_panic_market and not is_weak_away_fav and not is_draw_trap and is_sharp_backed
+                passed_jackpot = not is_panic_market and not is_weak_away_fav and not is_draw_trap and is_sharp_approved
                 passed_combo = not is_panic_market and not is_weak_away_fav and (sharp_fav_odd <= 1.50 and pin_draw >= 4.00)
 
                 if passed_jackpot:
@@ -295,11 +291,11 @@ class MegaTicketVolumeSieve:
                 jackpot_odds *= pick["odds"]
                 jackpot_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
                 
-            msg += f"🎰 **TITAN {len(final_jackpot)}-LEG SHARP MONEY JACKPOT** 🎰\n"
+            msg += f"🎰 **TITAN {len(final_jackpot)}-LEG SHARP CONSENSUS JACKPOT** 🎰\n"
             msg += "\n".join(jackpot_text_lines) + "\n"
             msg += f"📈 **Estimated Cumulative Odds:** {jackpot_odds:,.2f}\n💰 **Suggested System Stake:** 10 KES\n\n"
         else:
-            msg += "🎰 **TITAN SHARP MONEY JACKPOT** 🎰\n↳ 🟡 No matches currently showing verified institutional Sharp Money backing. Awaiting market shifts...\n\n"
+            msg += "🎰 **TITAN SHARP CONSENSUS JACKPOT** 🎰\n↳ 🟡 No matches passed the Consensus Sieve. Awaiting market stabilization...\n\n"
 
         msg += scoreboard_text
 
@@ -307,7 +303,7 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
-        msg += f"↳ Active Sieves: Sharp Money Tracker (+EV), Panic Tax, Draw Trap\n"
+        msg += f"↳ Active Sieves: Sharp Consensus Sieve, Panic Tax, Draw Trap\n"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
