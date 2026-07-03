@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: PURE COMBINATION CORE (COMBO + ANTI-TRAP JACKPOT)
+# TITAN TRACKER: HEDGE FUND CORE (PANIC SIEVE + HOSTILE TERRITORY + ANTI-TRAP)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -95,25 +95,43 @@ class MegaTicketVolumeSieve:
                 
                 match_title = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
 
-                # 1. DRAW CONTRACTION TRAP DETECTOR
+                # ==========================================================
+                # GENIUS HEDGE FUND SIEVES
+                # ==========================================================
+                
+                # 1. BOOKMAKER PANIC SIEVE (Overround/Vig Filter)
+                # Calculates the hidden mathematical tax. Anything over 5.5% means the bookie expects high volatility.
+                margin = (1.0 / avg_home) + (1.0 / avg_away) + (1.0 / avg_draw) - 1.0
+                is_panic_market = margin > 0.055
+
+                # 2. HOSTILE TERRITORY PENALTY (Away Favorite Filter)
+                # Away teams must be completely dominant (<= 1.45) to be trusted on the road.
+                is_weak_away_fav = (sym == "2") and (avg_fav > 1.45)
+
+                # 3. DRAW CONTRACTION TRAP DETECTOR
                 is_draw_trap = False
                 if avg_fav <= 1.70 and avg_draw < 3.70:
                     is_draw_trap = True 
                 elif avg_fav <= 2.20 and avg_draw < 3.10:
                     is_draw_trap = True 
-                
-                # If it passes the trap test, feed it to the massive Jackpot pool
-                if not is_draw_trap:
+
+                # ==========================================================
+                # TICKET ALLOCATION LOGIC
+                # ==========================================================
+                passed_jackpot = not is_panic_market and not is_weak_away_fav and not is_draw_trap
+                passed_combo = not is_panic_market and not is_weak_away_fav and (avg_fav <= 1.50 and avg_draw >= 4.00)
+
+                if passed_jackpot:
                     self.jackpot_candidates.append({"text": f"{match_title} ({sym})", "odds": avg_fav})
-                    
+                
+                if passed_combo:
+                    self.combo_candidates.append({"text": f"{match_title} ({sym})", "odds": avg_fav})
+
+                if passed_jackpot or passed_combo:
                     # Track it for the scoreboard ledger
                     self.structured_tickets.append({
                         "date": match_date_key, "match": match_title, "prediction": sym, "status": "PENDING", "score": "-"
                     })
-
-                # 2. STRICT COMBO SIFTING (Only the absolute safest 1.50 & 4.00+ Draw games)
-                if avg_fav <= 1.50 and avg_draw >= 4.00:
-                    self.combo_candidates.append({"text": f"{match_title} ({sym})", "odds": avg_fav})
 
     def save_tickets_to_memory(self):
         if not self.structured_tickets: return
@@ -249,7 +267,7 @@ class MegaTicketVolumeSieve:
             msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient high-confidence matches for a safe combo today.\n\n"
 
         if self.jackpot_candidates:
-            # Sort all surviving non-trap favorites by relative odd strength
+            # Sort all surviving God-Tier favorites by relative odd strength
             sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["odds"])
             jackpot_odds = 1.0
             jackpot_text_lines = []
@@ -257,11 +275,11 @@ class MegaTicketVolumeSieve:
                 jackpot_odds *= pick["odds"]
                 jackpot_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
                 
-            msg += f"🎰 **TITAN {len(sorted_jackpot)}-LEG ANTI-TRAP JACKPOT SLIP** 🎰\n"
+            msg += f"🎰 **TITAN {len(sorted_jackpot)}-LEG ELITE JACKPOT SLIP** 🎰\n"
             msg += "\n".join(jackpot_text_lines) + "\n"
             msg += f"📈 **Estimated Cumulative Odds:** {jackpot_odds:,.2f}\n💰 **Suggested System Stake:** 10 KES\n\n"
         else:
-            msg += "🎰 **TITAN ANTI-TRAP JACKPOT** 🎰\n↳ 🟡 All matches on the current 48h slate flagged as potential Draw Traps. Awaiting clean volume...\n\n"
+            msg += "🎰 **TITAN ELITE JACKPOT SLIP** 🎰\n↳ 🟡 All matches neutralized by Panic Margin or Hostile Territory sieves. Awaiting clean volume...\n\n"
 
         msg += scoreboard_text
 
@@ -269,6 +287,7 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
+        msg += f"↳ Active Sieves: Panic Tax (>5.5%), Hostile Away (>1.45), Draw Trap\n"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
