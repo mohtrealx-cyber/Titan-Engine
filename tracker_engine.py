@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: APEX CORE (ELASTIC VALUE DELTA + TRUE SHARP TRACKER)
+# TITAN TRACKER: APEX CORE (GEOMETRIC SAFETY RATIO)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -76,63 +76,54 @@ class MegaTicketVolumeSieve:
             bookmakers = match.get("bookmakers", [])
             
             pin_home, pin_away, pin_draw = None, None, None
-            soft_home, soft_away, soft_draw = [], [], []
             
+            # Isolate Pinnacle Sharp Data
             for bookie in bookmakers:
-                is_pinnacle = (bookie.get("key") == "pinnacle")
-                for mkt in bookie.get("markets", []):
-                    if mkt.get("key") == "h2h":
-                        for outcome in mkt.get("outcomes", []):
-                            price = float(outcome.get("price"))
-                            name = outcome.get("name")
-                            
-                            if is_pinnacle:
+                if bookie.get("key") == "pinnacle":
+                    for mkt in bookie.get("markets", []):
+                        if mkt.get("key") == "h2h":
+                            for outcome in mkt.get("outcomes", []):
+                                price = float(outcome.get("price"))
+                                name = outcome.get("name")
                                 if name == home: pin_home = price
                                 elif name == away: pin_away = price
                                 elif name == "Draw": pin_draw = price
-                            else:
-                                if name == home: soft_home.append(price)
-                                elif name == away: soft_away.append(price)
-                                elif name == "Draw": soft_draw.append(price)
 
-            if pin_home and pin_away and pin_draw and soft_home and soft_away and soft_draw:
-                avg_soft_home = sum(soft_home) / len(soft_home)
-                avg_soft_away = sum(soft_away) / len(soft_away)
-                
+            if pin_home and pin_away and pin_draw:
                 if pin_home < pin_away:
-                    fav_team, sharp_fav_odd, public_fav_odd, sym = home, pin_home, avg_soft_home, "1"
+                    fav_team, sharp_fav_odd, sym = home, pin_home, "1"
                 else:
-                    fav_team, sharp_fav_odd, public_fav_odd, sym = away, pin_away, avg_soft_away, "2"
+                    fav_team, sharp_fav_odd, sym = away, pin_away, "2"
                 
                 match_title = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
 
                 # ==========================================================
-                # THE ELASTIC VALUE DELTA SIEVE
+                # THE GEOMETRIC SAFETY SIEVE
                 # ==========================================================
                 
-                # Calculate the mathematical edge (+EV)
-                value_delta = public_fav_odd - sharp_fav_odd
-                is_value_play = value_delta > 0.00  # Pinnacle MUST be pricing it lower than the public
-
-                # Standard Risk Sieves
+                # Calculate Structural Safety Score (Draw Odds ÷ Favorite Odds)
+                geometric_score = pin_draw / sharp_fav_odd
+                
+                # Calculate Panic Margin
                 margin = (1.0 / pin_home) + (1.0 / pin_away) + (1.0 / pin_draw) - 1.0
                 is_panic_market = margin > 0.085
+                
+                # Hostile Territory
                 is_weak_away_fav = (sym == "2") and (sharp_fav_odd > 1.85)
-
-                is_draw_trap = False
-                if sharp_fav_odd <= 1.70 and pin_draw < 3.50:
-                    is_draw_trap = True 
-                elif sharp_fav_odd <= 2.20 and pin_draw < 3.00:
-                    is_draw_trap = True 
 
                 # ==========================================================
                 # TICKET ALLOCATION LOGIC
                 # ==========================================================
-                passed_jackpot = not is_panic_market and not is_weak_away_fav and not is_draw_trap and is_value_play
-                passed_combo = not is_panic_market and not is_weak_away_fav and (sharp_fav_odd <= 1.50 and pin_draw >= 4.00)
+                # Match must have a Geometric Score over 2.15 to be structurally safe
+                passed_jackpot = not is_panic_market and not is_weak_away_fav and (geometric_score >= 2.15)
+                
+                # Combos require elite geometric structure (Score > 2.80)
+                passed_combo = not is_panic_market and not is_weak_away_fav and (geometric_score >= 2.80) and (sharp_fav_odd <= 1.50)
 
                 if passed_jackpot:
-                    self.jackpot_candidates.append({"text": f"{match_title} ({sym})", "odds": sharp_fav_odd, "edge": value_delta})
+                    self.jackpot_candidates.append({
+                        "text": f"{match_title} ({sym})", "odds": sharp_fav_odd, "score": geometric_score
+                    })
                 
                 if passed_combo:
                     self.combo_candidates.append({"text": f"{match_title} ({sym})", "odds": sharp_fav_odd})
@@ -259,7 +250,7 @@ class MegaTicketVolumeSieve:
     def dispatch_alerts(self, scoreboard_text):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
-        msg = "🎯 **TITAN ENGINE: APEX COMBINATION CORE** 🎯\n\n"
+        msg = "🎯 **TITAN ENGINE: GEOMETRIC APEX CORE** 🎯\n\n"
             
         if len(self.combo_candidates) >= 2:
             sorted_candidates = sorted(self.combo_candidates, key=lambda x: x["odds"])
@@ -273,23 +264,24 @@ class MegaTicketVolumeSieve:
             msg += "\n".join(combo_text_lines) + "\n"
             msg += f"📈 **Estimated Total Odds:** {total_odds:.2f}\n💰 **Suggested Stake:** 100 KES\n\n"
         else:
-            msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient high-confidence matches for a safe combo today.\n\n"
+            msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient mathematically secure matches for a combo today.\n\n"
 
         if self.jackpot_candidates:
-            # Sort strictly by the highest mathematical Value Delta (+EV)
-            sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["edge"], reverse=True)
+            # Sort strictly by the highest Geometric Safety Score
+            sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["score"], reverse=True)
             
             jackpot_odds = 1.0
             jackpot_text_lines = []
             for pick in sorted_jackpot:
                 jackpot_odds *= pick["odds"]
-                jackpot_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f} (Edge: +{pick['edge']:.2f})")
+                # Display the Geometric score to show the true structural safety
+                jackpot_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f} (Struct. Score: {pick['score']:.2f})")
                 
-            msg += f"🎰 **TITAN {len(sorted_jackpot)}-LEG +EV VALUE JACKPOT** 🎰\n"
+            msg += f"🎰 **TITAN {len(sorted_jackpot)}-LEG DYNAMIC GEOMETRIC JACKPOT** 🎰\n"
             msg += "\n".join(jackpot_text_lines) + "\n"
             msg += f"📈 **Estimated Cumulative Odds:** {jackpot_odds:,.2f}\n💰 **Suggested System Stake:** 10 KES\n\n"
         else:
-            msg += "🎰 **TITAN +EV VALUE JACKPOT** 🎰\n↳ 🟡 No matches currently showing a positive Value Delta over the bookmakers. Awaiting edge...\n\n"
+            msg += "🎰 **TITAN GEOMETRIC JACKPOT** 🎰\n↳ 🟡 No matches currently meet the 2.15 Geometric Safety threshold. Awaiting better structures...\n\n"
 
         msg += scoreboard_text
 
@@ -297,7 +289,7 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
-        msg += f"↳ Active Sieves: Elastic Value Delta (>0.00), Panic Tax, Draw Trap\n"
+        msg += f"↳ Active Sieves: Elastic Geometric Ratio (>2.15), Panic Tax, Away Penalty\n"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
