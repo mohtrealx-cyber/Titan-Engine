@@ -2,24 +2,25 @@ import os
 import requests
 
 # ==============================================================================
-# TITAN TRACKER: TRIPLE-LAYER QUANTITATIVE MATRIX (BEST OF THE BEST)
+# TITAN TRACKER: ELITE CORE (WITH SYSTEMATIC FLAT STAKING SELECTIONS)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-class GoldTierSieve:
+class GoldTierStakingSieve:
     def __init__(self):
         self.anchor_bookie = "pinnacle"
         self.gold_predictions = []
+        # Enforcing a strict 1-Unit constant allocations across all selections
+        self.system_stake = "1.0 Unit" 
 
     def fetch_market_data(self):
-        print("📡 TITAN TRACKER: Compiling Massive Global Board...")
+        print("📡 TITAN TRACKER: Fetching high-volume global markets...")
         if not ODDS_API_KEY: 
             print("❌ CRITICAL: No API Key detected.")
             return []
             
-        # Expanded league footprint to capture maximum global volume
         target_leagues = [
             "soccer_fifa_world_cup", 
             "soccer_brazil_campeonato", 
@@ -44,12 +45,10 @@ class GoldTierSieve:
         return all_matches
 
     def process_gold_matrix(self):
-        print("🚀 Running Triple-Layer Sieve Calculations...")
+        print("🚀 Running Triple-Layer Sieve & Allocating Fixed Stakes...")
         matches = self.fetch_market_data()
 
-        if not matches: 
-            print("🛑 Matrix halted: No raw data pulled.")
-            return
+        if not matches: return
 
         for match in matches:
             home = match.get("home_team")
@@ -83,7 +82,6 @@ class GoldTierSieve:
                 avg_away = sum(away_prices) / len(away_prices)
                 avg_draw = sum(draw_prices) / len(draw_prices)
                 
-                # Identify which side the market is backing as the favorite
                 if avg_home < avg_away:
                     fav_team = home
                     avg_fav_odds = avg_home
@@ -95,34 +93,26 @@ class GoldTierSieve:
                     pin_fav_odds = pin_away
                     prediction_symbol = "2"
                 
-                # === THE TRIPLE-LAYER FILTRATION PIPELINE ===
+                # Triple-Layer Sieve Pipelines
+                if avg_fav_odds > 1.45: continue
+                if avg_draw < 4.20: continue
+                if pin_fav_odds and pin_fav_odds > avg_fav_odds: continue
                 
-                # Layer 1: Strictly enforce the raw win probability floor
-                if avg_fav_odds > 1.45:
-                    continue
-                    
-                # Layer 2: Draw Suppression Check (Eliminates low-scoring trap profiles)
-                if avg_draw < 4.20:
-                    continue
-                    
-                # Layer 3: Sharp Convexity Cross-Check (Pinnacle must confirm or beat public price)
-                if pin_fav_odds and pin_fav_odds > avg_fav_odds:
-                    continue
-                
-                # Match successfully cleared all filters -> Gold Tier Status Locked
-                self.gold_predictions.append(f"• {home} vs {away} ➔ {prediction_symbol}")
+                # Append prediction with structural flat stake tracking label
+                self.gold_predictions.append(f"• {home} vs {away} ➔ {prediction_symbol} `[Allocated Stake: {self.system_stake}]`")
 
     def dispatch_alerts(self):
-        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: 
-            print("❌ Telegram credentials missing.")
-            return
+        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
         msg = "🎯 **TITAN ENGINE: ELITE CORE** 🎯\n\n"
         
         if self.gold_predictions:
             msg += f"💎 **GOLD-TIER SELECTIONS ({len(self.gold_predictions)} SECURED)**\n"
-            msg += "*(Filtered using Implied Probability Floors, Draw Suppression, & Sharp Convexity)*\n\n"
+            msg += "*(Filtered: Probability Floors, Draw Suppression & Sharp Convexity)*\n\n"
             msg += "\n".join(self.gold_predictions) + "\n\n"
+            msg += "📊 **BANKROLL ALLOCATION SYSTEM**\n"
+            msg += "↳ Plan: Flat Unit Sizing\n"
+            msg += f"↳ Target Risk: {self.system_stake} per selection consistently.\n\n"
             msg += "💡 Strategy: Titan High-Confidence Sieve"
         else:
             msg += "No matches cleared the Triple-Layer validation checks today. Sieve remained perfectly tight."
@@ -131,6 +121,6 @@ class GoldTierSieve:
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    engine = GoldTierSieve()
+    engine = GoldTierStakingSieve()
     engine.process_gold_matrix()
     engine.dispatch_alerts()
