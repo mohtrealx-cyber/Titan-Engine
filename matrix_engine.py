@@ -2,7 +2,7 @@ import os
 import requests
 
 # ==============================================================================
-# MATRIX V7: THE SHARP BOOKIE SYNDICATE ENGINE
+# MATRIX V7.1: SHARP SYNDICATE WITH DIAGNOSTIC RADAR
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("MATRIX_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("MATRIX_TELEGRAM_CHAT_ID")
@@ -33,14 +33,13 @@ class SharpMatrixEngine:
         
         all_matches = []
         for league in target_leagues:
-            # We request 'eu' and 'uk' regions to ensure we catch our target bookies
             url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk&markets=totals,btts"
             try:
                 r = requests.get(url, timeout=15)
                 if r.status_code == 200:
                     all_matches.extend(r.json())
             except Exception as e:
-                print(f"❌ API Error on {league}: {e}")
+                pass
                 
         return all_matches
 
@@ -58,6 +57,10 @@ class SharpMatrixEngine:
             
             total_sharps_for_over = 0
             total_sharps_for_btts = 0
+            
+            # Diagnostic lists to capture the exact prices
+            over_prices = []
+            btts_prices = []
 
             for bookie in bookmakers:
                 bookie_key = bookie.get("key", "").lower()
@@ -68,22 +71,30 @@ class SharpMatrixEngine:
 
                 for mkt in bookie.get("markets", []):
                     if mkt.get("key") == "totals":
-                        total_sharps_for_over += 1
                         for outcome in mkt.get("outcomes", []):
                             if outcome.get("name") == "Over" and outcome.get("point") == 2.5:
-                                # A sharp bookie dropping Over 2.5 to 1.75 or below is a consensus vote
-                                if float(outcome.get("price")) <= 1.75:
+                                price = float(outcome.get("price"))
+                                over_prices.append(price)
+                                total_sharps_for_over += 1
+                                if price <= 1.75:
                                     sharp_over_votes += 1
                                     
                     elif mkt.get("key") == "btts":
-                        total_sharps_for_btts += 1
                         for outcome in mkt.get("outcomes", []):
                             if outcome.get("name") == "Yes":
-                                # A sharp bookie dropping BTTS to 1.80 or below is a consensus vote
-                                if float(outcome.get("price")) <= 1.80:
+                                price = float(outcome.get("price"))
+                                btts_prices.append(price)
+                                total_sharps_for_btts += 1
+                                if price <= 1.80:
                                     sharp_btts_votes += 1
 
-            # The 2-Vote Math: If at least 2 sharp bookies agree the odds should be heavily slashed
+            # Print the live market data to the GitHub Actions log
+            if over_prices or btts_prices:
+                avg_over = sum(over_prices)/len(over_prices) if over_prices else 0
+                avg_btts = sum(btts_prices)/len(btts_prices) if btts_prices else 0
+                print(f"📊 {home} vs {away} | Sharp Avg Over 2.5: {avg_over:.2f} | Sharp Avg BTTS: {avg_btts:.2f}")
+
+            # The 2-Vote Math
             if sharp_over_votes >= 2:
                 self.over_25_consensus.append(f"🔥 {home} vs {away} ➔ Over 2.5 (Sharp Votes: {sharp_over_votes}/{total_sharps_for_over})")
                 
