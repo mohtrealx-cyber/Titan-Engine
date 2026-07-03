@@ -3,13 +3,13 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: DUAL-TIER SIEVE (GOLD & STANDARD)
+# TITAN TRACKER: HIGH-VOLUME TACTICAL SIEVE
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-class DualTierSieve:
+class HighVolumeSieve:
     def __init__(self):
         self.anchor_bookie = "pinnacle"
         self.gold_preds = []
@@ -18,16 +18,21 @@ class DualTierSieve:
 
     def fetch_market_data(self):
         if not ODDS_API_KEY: return []
+        
+        # Expanded Summer League Pool
         target_leagues = [
             "soccer_fifa_world_cup", "soccer_brazil_campeonato", "soccer_brazil_serie_b", 
             "soccer_usa_mls", "soccer_japan_j_league", "soccer_sweden_allsvenskan",
-            "soccer_ireland_premier_division", "soccer_norway_eliteserien"
+            "soccer_ireland_premier_division", "soccer_norway_eliteserien",
+            "soccer_argentina_primera_division", "soccer_finland_veikkausliiga",
+            "soccer_korea_kleague1", "soccer_china_superleague"
         ]
+        
         all_matches = []
         for league in target_leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}®ions=eu,uk,us&markets=h2h"
             try:
-                r = requests.get(url, timeout=15)
+                r = requests.get(url, timeout=10)
                 if r.status_code == 200:
                     all_matches.extend(r.json())
             except Exception: pass
@@ -75,32 +80,33 @@ class DualTierSieve:
                 else:
                     fav, avg_fav, pin_fav, sym = away, avg_away, pin_away, "2"
                 
-                # GOLD TIER (Strict)
-                if avg_fav <= 1.45 and avg_draw >= 4.20 and (not pin_fav or pin_fav <= avg_fav):
+                # GOLD TIER: Strict constraints & Pinnacle Validation
+                if avg_fav <= 1.50 and avg_draw >= 4.00 and (pin_fav and pin_fav <= avg_fav):
                     self.gold_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
                 
-                # STANDARD TIER (Relaxed)
-                elif avg_fav <= 1.65 and avg_draw >= 3.80 and (not pin_fav or pin_fav <= avg_fav):
+                # STANDARD TIER: High Volume, No Pinnacle bottleneck
+                # Captures solid favorites without requiring blowout odds
+                elif avg_fav <= 1.85 and avg_draw >= 3.30:
                     self.std_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
 
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
-        msg = "🎯 **TITAN ENGINE: DUAL-TIER CORE** 🎯\n\n"
+        msg = "🎯 **TITAN ENGINE: HIGH-VOLUME CORE** 🎯\n\n"
         if self.gold_preds:
             msg += f"💎 **GOLD-TIER ({len(self.gold_preds)})**\n" + "".join(self.gold_preds)
         if self.std_preds:
             msg += f"🥈 **STANDARD-TIER ({len(self.std_preds)})**\n" + "".join(self.std_preds)
         
         if not self.gold_preds and not self.std_preds:
-            msg += "No actionable matches found for the next 48 hours."
+            msg += "No actionable matches found. The global board is mostly coin-flips today."
         else:
-            msg += "\n📊 **BANKROLL:** 100 KES/match | 💡 Titan Sieve Active"
+            msg += "\n📊 **BANKROLL:** 100 KES/match | 💡 Titan Volume Sieve"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    engine = DualTierSieve()
+    engine = HighVolumeSieve()
     engine.process_matrix()
     engine.dispatch_alerts()
