@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: HEDGE FUND CORE (PANIC SIEVE + HOSTILE TERRITORY + ANTI-TRAP)
+# TITAN TRACKER: VOLUME-OPTIMIZED JACKPOT (RELAXED SIEVES)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -96,23 +96,21 @@ class MegaTicketVolumeSieve:
                 match_title = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
 
                 # ==========================================================
-                # GENIUS HEDGE FUND SIEVES
+                # RELAXED VOLUME SIEVES (Maximized for Jackpot Size)
                 # ==========================================================
                 
-                # 1. BOOKMAKER PANIC SIEVE (Overround/Vig Filter)
-                # Calculates the hidden mathematical tax. Anything over 5.5% means the bookie expects high volatility.
+                # 1. RELAXED PANIC SIEVE: Increased to 8.5% to allow MLS and Serie B matches
                 margin = (1.0 / avg_home) + (1.0 / avg_away) + (1.0 / avg_draw) - 1.0
-                is_panic_market = margin > 0.055
+                is_panic_market = margin > 0.085
 
-                # 2. HOSTILE TERRITORY PENALTY (Away Favorite Filter)
-                # Away teams must be completely dominant (<= 1.45) to be trusted on the road.
-                is_weak_away_fav = (sym == "2") and (avg_fav > 1.45)
+                # 2. RELAXED HOSTILE TERRITORY: Away favorites now allowed up to 1.85 odds
+                is_weak_away_fav = (sym == "2") and (avg_fav > 1.85)
 
-                # 3. DRAW CONTRACTION TRAP DETECTOR
+                # 3. RELAXED DRAW TRAP: Slightly widened to allow more natural favorites
                 is_draw_trap = False
-                if avg_fav <= 1.70 and avg_draw < 3.70:
+                if avg_fav <= 1.70 and avg_draw < 3.50:
                     is_draw_trap = True 
-                elif avg_fav <= 2.20 and avg_draw < 3.10:
+                elif avg_fav <= 2.20 and avg_draw < 3.00:
                     is_draw_trap = True 
 
                 # ==========================================================
@@ -128,7 +126,6 @@ class MegaTicketVolumeSieve:
                     self.combo_candidates.append({"text": f"{match_title} ({sym})", "odds": avg_fav})
 
                 if passed_jackpot or passed_combo:
-                    # Track it for the scoreboard ledger
                     self.structured_tickets.append({
                         "date": match_date_key, "match": match_title, "prediction": sym, "status": "PENDING", "score": "-"
                     })
@@ -267,7 +264,7 @@ class MegaTicketVolumeSieve:
             msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient high-confidence matches for a safe combo today.\n\n"
 
         if self.jackpot_candidates:
-            # Sort all surviving God-Tier favorites by relative odd strength
+            # Sort all surviving favorites by relative odd strength
             sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["odds"])
             jackpot_odds = 1.0
             jackpot_text_lines = []
@@ -287,7 +284,7 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
-        msg += f"↳ Active Sieves: Panic Tax (>5.5%), Hostile Away (>1.45), Draw Trap\n"
+        msg += f"↳ Active Sieves: Panic Tax (>8.5%), Hostile Away (>1.85), Draw Trap\n"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
