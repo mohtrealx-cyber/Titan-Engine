@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: DYNAMIC JACKPOT PIPELINE + DRAW CONTRACTION SIEVE
+# TITAN TRACKER: PURE COMBINATION CORE (COMBO + ANTI-TRAP JACKPOT)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -13,13 +13,9 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
 class MegaTicketVolumeSieve:
     def __init__(self):
-        self.anchor_bookie = "pinnacle"
-        self.gold_preds = []
         self.combo_candidates = []
-        self.mega_combo_candidates = []
-        self.jackpot_candidates = [] # High-volume accumulator for filtered jackpot selections
+        self.jackpot_candidates = [] 
         self.structured_tickets = [] 
-        self.system_stake = "100 KES" 
         self.raw_match_count = 0
         self.api_status = "🟢 OK"
         self.api_error_message = None 
@@ -73,8 +69,6 @@ class MegaTicketVolumeSieve:
             try:
                 dt = datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%SZ")
                 if dt < now or dt > limit: continue
-                fmt_time = dt.strftime("%d %b, %H:%M")
-                
                 match_eat = dt + timedelta(hours=3)
                 match_date_key = match_eat.strftime("%Y-%m-%d")
             except: continue 
@@ -101,36 +95,25 @@ class MegaTicketVolumeSieve:
                 
                 match_title = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
 
-                # ==========================================================
-                # GENIUS SIEVE: DRAW CONTRACTION TRAP DETECTOR
-                # ==========================================================
+                # 1. DRAW CONTRACTION TRAP DETECTOR
                 is_draw_trap = False
                 if avg_fav <= 1.70 and avg_draw < 3.70:
-                    is_draw_trap = True  # Heavy public favorite, but bookie expects a stalemate
+                    is_draw_trap = True 
                 elif avg_fav <= 2.20 and avg_draw < 3.10:
-                    is_draw_trap = True  # Standard favorite with high risk of draw contraction
+                    is_draw_trap = True 
                 
-                # Only feed the jackpot pool if the favorite passes the genius safety test
+                # If it passes the trap test, feed it to the massive Jackpot pool
                 if not is_draw_trap:
                     self.jackpot_candidates.append({"text": f"{match_title} ({sym})", "odds": avg_fav})
+                    
+                    # Track it for the scoreboard ledger
+                    self.structured_tickets.append({
+                        "date": match_date_key, "match": match_title, "prediction": sym, "status": "PENDING", "score": "-"
+                    })
 
-                # Strict Filter: Standalone Gold-Tier singles
+                # 2. STRICT COMBO SIFTING (Only the absolute safest 1.50 & 4.00+ Draw games)
                 if avg_fav <= 1.50 and avg_draw >= 4.00:
-                    self.gold_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
-                    self.combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
-                    self.mega_combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
-                    
-                    self.structured_tickets.append({
-                        "date": match_date_key, "match": match_title, "prediction": sym, "status": "PENDING", "score": "-"
-                    })
-                
-                # Standard Filter: Multi-leg support (Hidden from singles layout)
-                elif avg_fav <= 2.10 and avg_draw >= 3.00:
-                    self.mega_combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
-                    
-                    self.structured_tickets.append({
-                        "date": match_date_key, "match": match_title, "prediction": sym, "status": "PENDING", "score": "-"
-                    })
+                    self.combo_candidates.append({"text": f"{match_title} ({sym})", "odds": avg_fav})
 
     def save_tickets_to_memory(self):
         if not self.structured_tickets: return
@@ -249,12 +232,7 @@ class MegaTicketVolumeSieve:
     def dispatch_alerts(self, scoreboard_text):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
-        msg = "🎯 **TITAN ENGINE: HIGH-VOLUME CORE** 🎯\n\n"
-        if self.gold_preds:
-            msg += f"💎 **GOLD-TIER ({len(self.gold_preds)})**\n" + "".join(self.gold_preds)
-        
-        if not self.gold_preds:
-            msg += "No actionable standalone matches found.\n\n"
+        msg = "🎯 **TITAN ENGINE: COMBINATION CORE** 🎯\n\n"
             
         if len(self.combo_candidates) >= 2:
             sorted_candidates = sorted(self.combo_candidates, key=lambda x: x["odds"])
@@ -264,24 +242,12 @@ class MegaTicketVolumeSieve:
             for pick in combo_picks:
                 total_odds *= pick["odds"]
                 combo_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
-            msg += "🔥 **RECOMMENDED TITAN COMBINATION TICKET** 🔥\n"
+            msg += "🔥 **RECOMMENDED 3-LEG COMBINATION TICKET** 🔥\n"
             msg += "\n".join(combo_text_lines) + "\n"
             msg += f"📈 **Estimated Total Odds:** {total_odds:.2f}\n💰 **Suggested Stake:** 100 KES\n\n"
+        else:
+            msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient high-confidence matches for a safe combo today.\n\n"
 
-        if len(self.mega_combo_candidates) >= 4:
-            sorted_mega = sorted(self.mega_combo_candidates, key=lambda x: x["odds"])
-            mega_odds = 1.0
-            mega_text_lines = []
-            for pick in sorted_mega:
-                mega_odds *= pick["odds"]
-                mega_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
-            msg += f"🧨 **TITAN {len(sorted_mega)}-LEG MEGA-TICKET (HIGH RISK)** 🧨\n"
-            msg += "\n".join(mega_text_lines) + "\n"
-            msg += f"📈 **Estimated Total Odds:** {mega_odds:.2f}\n💰 **Suggested Stake:** 20 KES\n\n"
-
-        # ==========================================================
-        # ELASTIC DYNAMIC JACKPOT SLIP GENERATOR
-        # ==========================================================
         if self.jackpot_candidates:
             # Sort all surviving non-trap favorites by relative odd strength
             sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["odds"])
@@ -303,7 +269,6 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
-        msg += "↳ Bankroll: 100 KES/match"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
