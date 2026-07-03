@@ -3,7 +3,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: ELITE CORE (24H ACTIONABLE SIEVE)
+# TITAN TRACKER: ELITE CORE (48H ACTIONABLE SIEVE)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -36,9 +36,9 @@ class GoldTierStakingSieve:
         matches = self.fetch_market_data()
         if not matches: return
 
-        # Time Horizon: Only look at matches starting within the next 24 hours
+        # Time Horizon: Look at matches starting within the next 48 hours
         now = datetime.utcnow()
-        limit = now + timedelta(hours=24)
+        limit = now + timedelta(hours=48)
 
         for match in matches:
             home, away = match.get("home_team"), match.get("away_team")
@@ -95,7 +95,7 @@ class GoldTierStakingSieve:
             msg += "📊 **BANKROLL ALLOCATION:** Flat Sizing (100 KES/match)\n"
             msg += "💡 Strategy: Titan High-Confidence Sieve"
         else:
-            msg += "No actionable matches found for the next 24 hours. Sieve remains tight."
+            msg += "No actionable matches found for the next 48 hours. Sieve remains tight."
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
