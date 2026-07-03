@@ -37,7 +37,6 @@ def get_dynamic_configs():
             "use_zenrows": False
         },
         "PredictZ": {
-            # Removed the ?cb= parameter to keep the ZenRows API request completely clean
             "url": "https://www.predictz.com/predictions/today/", 
             "row_selector": "div", "row_class": "pttr", 
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0, 
@@ -56,7 +55,6 @@ class ZenRowsConsensusEngine:
 
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
-        
         if text in ["home", "home win"]: return "1"
         if text in ["draw", "x", "0"]: return "X"
         if text in ["away", "away win"]: return "2"
@@ -66,7 +64,6 @@ class ZenRowsConsensusEngine:
             if char == "1" or char == "h": return "1"
             if char in ["x", "0", "d"]: return "X"
             if char == "2" or char == "a": return "2"
-            
         return None
 
     def clean_team_name(self, name): 
@@ -93,12 +90,12 @@ class ZenRowsConsensusEngine:
         try:
             if cfg.get("use_zenrows") and ZENROWS_API_KEY:
                 proxy_url = "https://api.zenrows.com/v1/"
-                # Updated ZenRows parameters to fix the HTTP 400 Bad Request error
                 params = {
                     "apikey": ZENROWS_API_KEY,
                     "url": cfg["url"],
                     "js_render": "true", 
-                    "antibot": "true"  # Replaced premium_proxy with antibot bypass
+                    "wait": "3000", # Forces ZenRows to wait 3 seconds for JS tables to load
+                    "antibot": "true" 
                 }
                 r = tls_requests.get(proxy_url, params=params, timeout=60)
             else:
@@ -112,10 +109,19 @@ class ZenRowsConsensusEngine:
                 return
                 
             soup = BeautifulSoup(r.content, 'html.parser')
-            rows = soup.find_all(cfg["row_selector"], class_=cfg["row_class"])
+            
+            # Dynamic regex row finding to catch both desktop and mobile tables
+            row_target = re.compile("pttr|ptrow") if site_name == "PredictZ" else cfg["row_class"]
+            rows = soup.find_all(cfg["row_selector"], class_=row_target)
             
             if not rows:
-                self.diagnostics[site_name] = "🟡 BLOCKED (0 Rows Found)"
+                # X-RAY DIAGNOSTICS: See exactly what page ZenRows downloaded
+                page_title = soup.title.string.strip() if soup.title and soup.title.string else "No Title Found"
+                if "moment" in page_title.lower() or "cloudflare" in page_title.lower():
+                    self.diagnostics[site_name] = f"🟡 BLOCKED (Cloudflare Checkbox Trap)"
+                else:
+                    # Shows the first 25 characters of the page title so we know what loaded
+                    self.diagnostics[site_name] = f"🟡 BLOCKED (Title: {page_title[:25]}...)"
                 return
                 
             valid_count = 0
@@ -172,7 +178,6 @@ class ZenRowsConsensusEngine:
 
     def process_consensus_signals(self):
         agreed_matches = []
-        
         for match, listings in self.master_matrix.items():
             if len(listings) < 2: continue
             
@@ -180,21 +185,17 @@ class ZenRowsConsensusEngine:
             sites_backing = {}
             for site, pick in listings: 
                 prediction_weights[pick] = prediction_weights.get(pick, 0) + 1
-                if pick not in sites_backing:
-                    sites_backing[pick] = []
+                if pick not in sites_backing: sites_backing[pick] = []
                 sites_backing[pick].append(site)
                 
             top_pick = max(prediction_weights, key=prediction_weights.get)
-            agreement_count = prediction_weights[top_pick]
-            
-            if agreement_count >= 2:
+            if prediction_weights[top_pick] >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 agreed_matches.append(
                     f"• **{match}** ➔ {top_pick}\n"
                     f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
                     f"  ↳ 💰 `[Stake: {self.system_stake}]`\n"
                 )
-
         return agreed_matches
 
     def send_telegram_alert(self, msg):
@@ -202,8 +203,7 @@ class ZenRowsConsensusEngine:
             tls_requests.post(
                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                 json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"}, 
-                impersonate="chrome120", 
-                timeout=10
+                impersonate="chrome120", timeout=10
             )
 
     async def run_pipeline(self):
@@ -213,19 +213,16 @@ class ZenRowsConsensusEngine:
         
         consensus_list = self.process_consensus_signals()
         
-        msg = "🤝 **ZENROWS CONSENSUS ENGINE** 🤝\n"
-        msg += "*(Statarea + Vitibet + PredictZ)*\n\n"
+        msg = "🤝 **ZENROWS CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
         
         if not consensus_list:
             msg += "No matches found with 2+ sites in agreement today.\n\n"
         else:
             msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({len(consensus_list)})** 🔥\n\n"
-            for match in consensus_list: 
-                msg += f"{match}\n"
+            for match in consensus_list: msg += f"{match}\n"
                 
         msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-        for site, status in self.diagnostics.items():
-            msg += f"↳ {site}: {status}\n"
+        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
                 
         self.send_telegram_alert(msg)
 
