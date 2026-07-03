@@ -1,137 +1,91 @@
 import os
 import requests
-import datetime
+from bs4 import BeautifulSoup
 from difflib import SequenceMatcher
-from understatapi import UnderstatClient
 
 # ==============================================================================
-# 1. STRICT MATRIX ISOLATION CONFIGURATION
+# 1. MATRIX V2 CONFIGURATION (ALTERNATIVE MARKET AGGREGATOR)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("MATRIX_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("MATRIX_TELEGRAM_CHAT_ID")
-ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-class GoalMatrixEngine:
+class AlternativeMarketMatrix:
     def __init__(self):
-        self.safe_over_1_5 = []
-        self.value_over_2_5 = []
-        self.btts_locks = []
+        self.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        self.btts_consensus = []
+        self.over_25_consensus = []
+        self.double_chance_consensus = []
 
-    def get_active_season(self):
-        now = datetime.datetime.now()
-        return str(now.year - 1) if now.month < 8 else str(now.year)
+    def is_match(self, team_a, team_b):
+        """Cross-references team names between different website formats."""
+        return SequenceMatcher(None, team_a.lower(), team_b.lower()).ratio() > 0.70
 
-    def is_similar_name(self, name_a, name_b):
-        return SequenceMatcher(None, name_a.lower(), name_b.lower()).ratio() > 0.70
-
-    def get_team_xg(self, team_name, season):
-        """Fetches the actual Expected Goals (xG) data to validate the bookies' fear."""
-        formatted_name = team_name.replace(" ", "_")
-        try:
-            with UnderstatClient() as understat:
-                match_data = understat.team(team=formatted_name).get_match_data(season=season)
-                completed = [m for m in match_data if m.get('isResult') == True]
-                if completed:
-                    last = completed[-1]
-                    if last['h']['title'].lower() == team_name.lower():
-                        return float(last['xG']['h'])
-                    return float(last['xG']['a'])
-        except:
-            pass
-        return None
-
-    def fetch_goal_markets(self):
-        """Pulls global Totals and BTTS market liabilities."""
-        if not ODDS_API_KEY: 
-            return []
-        
-        url = f"https://api.the-odds-api.com/v4/sports/upcoming/odds/?apiKey={ODDS_API_KEY}&regions=eu&markets=totals,btts"
-        try:
-            r = requests.get(url, timeout=15)
-            if r.status_code == 200:
-                return r.json()
-        except: 
-            pass
-        return []
+    def scrape_prediction_hub(self, market_type):
+        """
+        Placeholder parser. In a live environment, this requests the specific 
+        HTML tables from the selected prediction websites for the targeted market.
+        """
+        predictions = []
+        # Example structural layout for scraping:
+        # url = "https://www.example-prediction-site.com/btts-tips"
+        # response = requests.get(url, headers=self.headers)
+        # soup = BeautifulSoup(response.text, 'html.parser')
+        # for row in soup.find_all('tr', class_='prediction-row'):
+        #     predictions.append("Home Team vs Away Team")
+        return predictions
 
     def process_matrix(self):
-        print("Scanning Global Goal Markets...")
-        matches = self.fetch_goal_markets()
-        season = self.get_active_season()
+        print("Scraping Prediction Hubs for Alternative Markets...")
+        
+        # 1. Fetch raw lists from Hub A and Hub B for BTTS
+        hub_a_btts = self.scrape_prediction_hub("btts")
+        hub_b_btts = self.scrape_prediction_hub("btts")
+        
+        # Find Consensus: Matches that appear on both sites for BTTS
+        for match_a in hub_a_btts:
+            for match_b in hub_b_btts:
+                if self.is_match(match_a, match_b):
+                    self.btts_consensus.append(f"⚔️ {match_a} ➔ BTTS: Yes")
+                    break
 
-        for match in matches:
-            sport = match.get("sport_key", "")
-            if not sport.startswith("soccer"): 
-                continue
+        # 2. Fetch raw lists from Hub A and Hub B for Over 2.5
+        hub_a_over = self.scrape_prediction_hub("over_2_5")
+        hub_b_over = self.scrape_prediction_hub("over_2_5")
+        
+        # Find Consensus: Matches that appear on both sites for Over 2.5
+        for match_a in hub_a_over:
+            for match_b in hub_b_over:
+                if self.is_match(match_a, match_b):
+                    self.over_25_consensus.append(f"🔥 {match_a} ➔ Over 2.5 Goals")
+                    break
 
-            home = match.get("home_team")
-            away = match.get("away_team")
-            bookmakers = match.get("bookmakers", [])
-            
-            if not bookmakers: 
-                continue
-            
-            best_over_2_5 = 999.0
-            best_btts_yes = 999.0
-
-            # DEEP SCAN: Iterate through every bookmaker to find the lowest (safest) odds
-            for bookie in bookmakers:
-                markets = bookie.get("markets", [])
-                for mkt in markets:
-                    if mkt.get("key") == "totals":
-                        for outcome in mkt.get("outcomes", []):
-                            if outcome.get("name") == "Over" and outcome.get("point") == 2.5:
-                                price = float(outcome.get("price"))
-                                if price < best_over_2_5: 
-                                    best_over_2_5 = price
-                    elif mkt.get("key") == "btts":
-                        for outcome in mkt.get("outcomes", []):
-                            if outcome.get("name") == "Yes":
-                                price = float(outcome.get("price"))
-                                if price < best_btts_yes: 
-                                    best_btts_yes = price
-
-            # FILTER 1: Safest Accumulator (Over 1.5)
-            # Threshold raised to 1.80 for deep comparison market coverage
-            if best_over_2_5 != 999.0 and best_over_2_5 <= 1.80:
-                self.safe_over_1_5.append(f"🔒 {home} vs {away}")
-                
-                # FILTER 2: High Yield (Over 2.5 backed by pure xG Math)
-                h_xg = self.get_team_xg(home, season)
-                a_xg = self.get_team_xg(away, season)
-                if h_xg and a_xg and (h_xg + a_xg >= 2.8):
-                    self.value_over_2_5.append(f"🔥 {home} vs {away} ➔ Over 2.5 (xG: {h_xg+a_xg:.2f} | Best Odds: {best_over_2_5})")
-
-            # FILTER 3: The BTTS Locks
-            # Threshold raised to 1.95 for knockout stage coverage
-            if best_btts_yes != 999.0 and best_btts_yes <= 1.95:
-                self.btts_locks.append(f"⚔️ {home} vs {away} ➔ BTTS: Yes (Best Odds: {best_btts_yes})")
+        # 3. Double Chance (1X / X2) Logic can be added here following the same structure
 
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: 
             return
-        
-        msg = "⚽ **THE GOAL-LINE MATRIX** ⚽\n\n"
-        
-        if self.safe_over_1_5:
-            msg += "🛡️ **SAFEST ACCUMULATOR (OVER 1.5)**\n"
-            msg += "\n".join(self.safe_over_1_5[:8]) + "\n\n" 
             
-        if self.value_over_2_5:
-            msg += "📈 **HIGH YIELD (OVER 2.5 + xG BACKED)**\n"
-            msg += "\n".join(self.value_over_2_5[:5]) + "\n\n"
+        msg = "🎯 **ALTERNATIVE MARKET MATRIX** 🎯\n\n"
+        
+        if self.over_25_consensus:
+            msg += "📈 **CONSENSUS OVER 2.5 GOALS**\n"
+            msg += "\n".join(set(self.over_25_consensus[:8])) + "\n\n"
             
-        if self.btts_locks:
-            msg += "🎯 **BTTS HOTSPOTS**\n"
-            msg += "\n".join(self.btts_locks[:5]) + "\n\n"
+        if self.btts_consensus:
+            msg += "⚔️ **CONSENSUS BTTS: YES**\n"
+            msg += "\n".join(set(self.btts_consensus[:8])) + "\n\n"
+            
+        if self.double_chance_consensus:
+            msg += "🛡️ **CONSENSUS DOUBLE CHANCE (1X/X2)**\n"
+            msg += "\n".join(set(self.double_chance_consensus[:8])) + "\n\n"
 
-        if msg == "⚽ **THE GOAL-LINE MATRIX** ⚽\n\n":
-            msg += "No high-confidence goal markets detected today."
+        if msg == "🎯 **ALTERNATIVE MARKET MATRIX** 🎯\n\n":
+            msg += "No consensus found across hubs for alternative markets today."
 
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    engine = GoalMatrixEngine()
+    engine = AlternativeMarketMatrix()
     engine.process_matrix()
     engine.dispatch_alerts()
