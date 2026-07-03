@@ -21,10 +21,11 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4
+          pip install requests
 
       - name: Execute Goal Matrix
         env:
           MATRIX_TELEGRAM_TOKEN: ${{ secrets.MATRIX_TELEGRAM_TOKEN }}
           MATRIX_TELEGRAM_CHAT_ID: ${{ secrets.MATRIX_TELEGRAM_CHAT_ID }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: python matrix_engine.py
