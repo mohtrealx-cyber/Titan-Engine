@@ -3,7 +3,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: STABLE CORE + UNLIMITED MEGA-TICKET + 401 RESILIENCE
+# TITAN TRACKER: STABLE CORE + 401 DIAGNOSTIC EXPOSURE
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -14,11 +14,12 @@ class MegaTicketVolumeSieve:
         self.anchor_bookie = "pinnacle"
         self.gold_preds = []
         self.std_preds = []
-        self.combo_candidates = []       # For the 3-leg safe combo (Gold only)
-        self.mega_combo_candidates = []  # For the risky combo (Gold + Standard)
+        self.combo_candidates = []
+        self.mega_combo_candidates = []
         self.system_stake = "100 KES" 
         self.raw_match_count = 0
         self.api_status = "🟢 OK"
+        self.api_error_message = None # Added to capture the exact rejection reason
 
     def fetch_market_data(self):
         if not ODDS_API_KEY: 
@@ -35,22 +36,20 @@ class MegaTicketVolumeSieve:
         
         all_matches = []
         for league in target_leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}®ions=eu,uk,us&markets=h2h"
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
             try:
                 r = requests.get(url, timeout=10)
                 if r.status_code == 200:
                     all_matches.extend(r.json())
                 elif r.status_code == 429:
-                    self.api_status = "🔴 QUOTA EXCEEDED (429)"
-                    # Break the loop entirely if we hit a rate limit, as continuing is pointless
+                    self.api_status = "🔴 QUOTA EXCEEDED (429) - Monthly limit reached."
                     break 
                 elif r.status_code == 401:
-                    # Set status to warning, but DO NOT break the loop. 
-                    # Continue to the next league.
-                    self.api_status = "🟡 PARTIAL ACCESS (Some leagues unauthorized)"
-                    continue 
+                    # Capture the exact error JSON from the server and break the loop
+                    self.api_status = "🔴 UNAUTHORIZED (401)"
+                    self.api_error_message = r.text 
+                    break 
             except Exception as e: 
-                print(f"Error fetching {league}: {e}")
                 continue
             
         self.raw_match_count = len(all_matches)
@@ -92,13 +91,11 @@ class MegaTicketVolumeSieve:
                 else:
                     fav, avg_fav, sym = away, avg_away, "2"
                 
-                # GOLD TIER
                 if avg_fav <= 1.50 and avg_draw >= 4.00:
                     self.gold_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
                     self.combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
                     self.mega_combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
                 
-                # STANDARD TIER
                 elif avg_fav <= 2.10 and avg_draw >= 3.00:
                     self.std_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
                     self.mega_combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
@@ -115,43 +112,37 @@ class MegaTicketVolumeSieve:
         if not self.gold_preds and not self.std_preds:
             msg += "No actionable matches found.\n\n"
             
-        # --- AUTOMATED 3-LEG SLIP (SAFE) ---
         if len(self.combo_candidates) >= 2:
             sorted_candidates = sorted(self.combo_candidates, key=lambda x: x["odds"])
             combo_picks = sorted_candidates[:3]
-            
             total_odds = 1.0
             combo_text_lines = []
             for pick in combo_picks:
                 total_odds *= pick["odds"]
                 combo_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
-                
             msg += "🔥 **RECOMMENDED TITAN COMBINATION TICKET** 🔥\n"
             msg += "\n".join(combo_text_lines) + "\n"
-            msg += f"📈 **Estimated Total Odds:** {total_odds:.2f}\n"
-            msg += f"💰 **Suggested Stake:** 100 KES\n\n"
+            msg += f"📈 **Estimated Total Odds:** {total_odds:.2f}\n💰 **Suggested Stake:** 100 KES\n\n"
 
-        # --- AUTOMATED UNLIMITED MEGA-TICKET (HIGH RISK) ---
         if len(self.mega_combo_candidates) >= 4:
-            # Sort all available matches (Gold + Standard) by lowest odds (Safest first)
             sorted_mega = sorted(self.mega_combo_candidates, key=lambda x: x["odds"])
-            # Take ALL matches that cleared the filter (No limit)
-            mega_picks = sorted_mega
-            
             mega_odds = 1.0
             mega_text_lines = []
-            for pick in mega_picks:
+            for pick in sorted_mega:
                 mega_odds *= pick["odds"]
                 mega_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
-                
-            msg += f"🧨 **TITAN {len(mega_picks)}-LEG MEGA-TICKET (HIGH RISK)** 🧨\n"
+            msg += f"🧨 **TITAN {len(sorted_mega)}-LEG MEGA-TICKET (HIGH RISK)** 🧨\n"
             msg += "\n".join(mega_text_lines) + "\n"
-            msg += f"📈 **Estimated Total Odds:** {mega_odds:.2f}\n"
-            msg += f"💰 **Suggested Stake:** 20 KES\n\n"
+            msg += f"📈 **Estimated Total Odds:** {mega_odds:.2f}\n💰 **Suggested Stake:** 20 KES\n\n"
 
         # SYSTEM DIAGNOSTICS
         msg += "⚙️ **SYSTEM DIAGNOSTICS** ⚙️\n"
         msg += f"↳ API Status: {self.api_status}\n"
+        
+        # Print the exact error message if there is one
+        if self.api_error_message:
+            msg += f"↳ Server Response: `{self.api_error_message}`\n"
+            
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
         msg += "↳ Bankroll: 100 KES/match"
 
