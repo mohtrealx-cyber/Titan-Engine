@@ -3,23 +3,26 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: HIGH-VOLUME TACTICAL SIEVE
+# TITAN TRACKER: MAX-VOLUME & DIAGNOSTIC CORE
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-class HighVolumeSieve:
+class MaxVolumeDiagnosticSieve:
     def __init__(self):
         self.anchor_bookie = "pinnacle"
         self.gold_preds = []
         self.std_preds = []
         self.system_stake = "100 KES" 
+        self.raw_match_count = 0
+        self.api_status = "🟢 OK"
 
     def fetch_market_data(self):
-        if not ODDS_API_KEY: return []
-        
-        # Expanded Summer League Pool
+        if not ODDS_API_KEY: 
+            self.api_status = "🔴 MISSING API KEY"
+            return []
+            
         target_leagues = [
             "soccer_fifa_world_cup", "soccer_brazil_campeonato", "soccer_brazil_serie_b", 
             "soccer_usa_mls", "soccer_japan_j_league", "soccer_sweden_allsvenskan",
@@ -30,12 +33,19 @@ class HighVolumeSieve:
         
         all_matches = []
         for league in target_leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}®ions=eu,uk,us&markets=h2h"
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
             try:
                 r = requests.get(url, timeout=10)
                 if r.status_code == 200:
-                    all_matches.extend(r.json())
+                    data = r.json()
+                    all_matches.extend(data)
+                elif r.status_code == 429:
+                    self.api_status = "🔴 QUOTA EXCEEDED (429)"
+                elif r.status_code == 401:
+                    self.api_status = "🔴 UNAUTHORIZED API KEY (401)"
             except Exception: pass
+            
+        self.raw_match_count = len(all_matches)
         return all_matches
 
     def process_matrix(self):
@@ -55,58 +65,54 @@ class HighVolumeSieve:
 
             bookmakers = match.get("bookmakers", [])
             home_prices, away_prices, draw_prices = [], [], []
-            pin_home, pin_away = None, None
             
             for bookie in bookmakers:
-                bookie_key = bookie.get("key", "").lower()
                 for mkt in bookie.get("markets", []):
                     if mkt.get("key") == "h2h":
                         for outcome in mkt.get("outcomes", []):
                             price = float(outcome.get("price"))
-                            if outcome.get("name") == home:
-                                home_prices.append(price)
-                                if bookie_key == self.anchor_bookie: pin_home = price
-                            elif outcome.get("name") == away:
-                                away_prices.append(price)
-                                if bookie_key == self.anchor_bookie: pin_away = price
-                            elif outcome.get("name") == "Draw":
-                                draw_prices.append(price)
+                            if outcome.get("name") == home: home_prices.append(price)
+                            elif outcome.get("name") == away: away_prices.append(price)
+                            elif outcome.get("name") == "Draw": draw_prices.append(price)
 
             if home_prices and away_prices and draw_prices:
                 avg_home, avg_away, avg_draw = sum(home_prices)/len(home_prices), sum(away_prices)/len(away_prices), sum(draw_prices)/len(draw_prices)
                 
                 if avg_home < avg_away:
-                    fav, avg_fav, pin_fav, sym = home, avg_home, pin_home, "1"
+                    fav, avg_fav, sym = home, avg_home, "1"
                 else:
-                    fav, avg_fav, pin_fav, sym = away, avg_away, pin_away, "2"
+                    fav, avg_fav, sym = away, avg_away, "2"
                 
-                # GOLD TIER: Strict constraints & Pinnacle Validation
-                if avg_fav <= 1.50 and avg_draw >= 4.00 and (pin_fav and pin_fav <= avg_fav):
+                # GOLD TIER: Standard strict rules
+                if avg_fav <= 1.50 and avg_draw >= 4.00:
                     self.gold_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
                 
-                # STANDARD TIER: High Volume, No Pinnacle bottleneck
-                # Captures solid favorites without requiring blowout odds
-                elif avg_fav <= 1.85 and avg_draw >= 3.30:
+                # STANDARD TIER: Absolute Max Volume (Any clear favorite)
+                elif avg_fav <= 2.10 and avg_draw >= 3.00:
                     self.std_preds.append(f"📅 **{fmt_time}**\n• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`\n\n")
 
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
-        msg = "🎯 **TITAN ENGINE: HIGH-VOLUME CORE** 🎯\n\n"
+        msg = "🎯 **TITAN ENGINE: X-RAY DIAGNOSTIC** 🎯\n\n"
         if self.gold_preds:
             msg += f"💎 **GOLD-TIER ({len(self.gold_preds)})**\n" + "".join(self.gold_preds)
         if self.std_preds:
             msg += f"🥈 **STANDARD-TIER ({len(self.std_preds)})**\n" + "".join(self.std_preds)
         
         if not self.gold_preds and not self.std_preds:
-            msg += "No actionable matches found. The global board is mostly coin-flips today."
-        else:
-            msg += "\n📊 **BANKROLL:** 100 KES/match | 💡 Titan Volume Sieve"
+            msg += "No actionable matches found.\n\n"
+            
+        # DIAGNOSTIC FOOTER
+        msg += "⚙️ **SYSTEM DIAGNOSTICS** ⚙️\n"
+        msg += f"↳ API Status: {self.api_status}\n"
+        msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
+        msg += "↳ Bankroll: 100 KES/match"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    engine = HighVolumeSieve()
+    engine = MaxVolumeDiagnosticSieve()
     engine.process_matrix()
     engine.dispatch_alerts()
