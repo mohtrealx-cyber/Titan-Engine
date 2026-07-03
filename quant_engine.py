@@ -77,27 +77,28 @@ class OpenConsensusEngine:
             soup = BeautifulSoup(r.content, 'html.parser')
             
             # ==========================================================
-            # SURGICAL ZULUBET PARSER
+            # BULLETPROOF ZULUBET PARSER
             # ==========================================================
             if site_name == "ZuluBet":
                 rows = soup.find_all("tr")
                 valid_rows = 0
                 for row in rows:
                     cols = row.find_all("td")
-                    # ZuluBet match rows always have multiple columns
                     if len(cols) >= 8 and "aver_odds" not in str(row):
                         try:
                             home = cols[1].text.strip()
                             away = cols[2].text.strip()
                             pick = None
                             
-                            # ZuluBet highlights the final prediction with a green font
+                            # Brute-force HTML string check to avoid NoneType errors
                             for col in cols:
-                                green_font = col.find('font', color=lambda c: c and 'green' in c.lower() or '#008000' in c)
-                                if green_font:
-                                    pick = green_font.text.strip()
-                                    break
-                                    
+                                col_html = str(col).lower()
+                                if 'green' in col_html or '#008000' in col_html:
+                                    clean_text = col.text.strip().upper()
+                                    if clean_text in ["1", "X", "2"]:
+                                        pick = clean_text
+                                        break
+                                        
                             if home and away and pick:
                                 self.log_prediction_qa(site_name, home, away, pick)
                                 valid_rows += 1
