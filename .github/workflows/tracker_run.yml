@@ -2,9 +2,9 @@ name: Titan Line Tracker Automation
 
 on:
   schedule:
-    # Runs at 07:00 EAT (04:00 UTC) and 13:00 EAT (10:00 UTC) daily
-    - cron: '0 4,10 * * *'
-  workflow_dispatch: # Allows you to trigger it manually from GitHub anytime
+    # This runs at 6:00 AM and 4:00 PM (EAT) every day
+    - cron: '0 3,13 * * *' 
+  workflow_dispatch: # Keeps your manual run button
 
 jobs:
   run-line-tracker:
