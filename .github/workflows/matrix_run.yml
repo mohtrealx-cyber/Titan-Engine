@@ -1,0 +1,31 @@
+name: Goal-Line Matrix Automator
+
+on:
+  schedule:
+    - cron: '45 5 * * *' # Runs independently at 5:45 AM
+  workflow_dispatch: 
+
+jobs:
+  run-matrix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests understatapi
+
+      - name: Execute Goal Matrix
+        env:
+          MATRIX_TELEGRAM_TOKEN: ${{ secrets.MATRIX_TELEGRAM_TOKEN }}
+          MATRIX_TELEGRAM_CHAT_ID: ${{ secrets.MATRIX_TELEGRAM_CHAT_ID }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python matrix_engine.py
