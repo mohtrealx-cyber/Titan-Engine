@@ -33,9 +33,8 @@ def get_dynamic_configs():
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0
         },
         "ZuluBet": {
-            # ZuluBet has no bot protection, making it perfect for GitHub Actions
             "url": "https://www.zulubet.com/", 
-            "row_selector": "tr", "row_class": "", # ZuluBet uses standard unclassed table rows
+            "row_selector": "tr", "row_class": "", 
             "home_selector": "td", "home_class": "", "home_index": 1, 
             "away_selector": "td", "away_class": "", "away_index": 2, 
             "pick_selector": "td", "pick_class": "", "pick_index": 4 
@@ -77,31 +76,39 @@ class OpenConsensusEngine:
                 
             soup = BeautifulSoup(r.content, 'html.parser')
             
-            # Custom parsing for ZuluBet's older table structure
+            # ==========================================================
+            # SURGICAL ZULUBET PARSER
+            # ==========================================================
             if site_name == "ZuluBet":
                 rows = soup.find_all("tr")
                 valid_rows = 0
                 for row in rows:
                     cols = row.find_all("td")
-                    # Check if it's a valid match row (usually 8+ columns)
+                    # ZuluBet match rows always have multiple columns
                     if len(cols) >= 8 and "aver_odds" not in str(row):
                         try:
                             home = cols[1].text.strip()
                             away = cols[2].text.strip()
-                            # ZuluBet often bolds the winning pick
-                            pick = cols[4].text.strip() if cols[4].find('b') else cols[4].text.strip()
+                            pick = None
+                            
+                            # ZuluBet highlights the final prediction with a green font
+                            for col in cols:
+                                green_font = col.find('font', color=lambda c: c and 'green' in c.lower() or '#008000' in c)
+                                if green_font:
+                                    pick = green_font.text.strip()
+                                    break
+                                    
                             if home and away and pick:
                                 self.log_prediction_qa(site_name, home, away, pick)
                                 valid_rows += 1
                         except: continue
                 
-                if valid_rows == 0:
-                    self.diagnostics[site_name] = "🟡 BLOCKED (0 Rows Found)"
-                else:
-                    self.diagnostics[site_name] = f"🟢 OK ({valid_rows} Matches)"
+                self.diagnostics[site_name] = f"🟢 OK ({valid_rows} Matches)" if valid_rows > 0 else "🟡 BLOCKED (0 Rows Found)"
                 return
 
-            # Standard parsing for Statarea and Vitibet
+            # ==========================================================
+            # STANDARD PARSER (Statarea & Vitibet)
+            # ==========================================================
             rows = soup.find_all(cfg["row_selector"], class_=cfg["row_class"])
             if not rows:
                 self.diagnostics[site_name] = "🟡 BLOCKED (0 Rows Found)"
@@ -126,7 +133,6 @@ class OpenConsensusEngine:
         agreed_matches = []
         
         for match, listings in self.master_matrix.items():
-            # We need at least 2 sites to have scraped the game
             if len(listings) < 2: continue
             
             prediction_weights = {}
@@ -140,7 +146,7 @@ class OpenConsensusEngine:
             top_pick = max(prediction_weights, key=prediction_weights.get)
             agreement_count = prediction_weights[top_pick]
             
-            # If 2 or more sites agree on the EXACT SAME outcome
+            # Requires 2 or more sites to agree
             if agreement_count >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 agreed_matches.append(
