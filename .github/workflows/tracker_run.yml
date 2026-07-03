@@ -2,7 +2,7 @@ name: Titan Engine - Line Tracker
 
 on:
   schedule:
-    # Runs at 05:55 UTC (10 minutes after matrix_run.yml to protect your API limits)
+    # Runs at 05:55 UTC (10 minutes after matrix_run.yml)
     - cron: '55 5 * * *'
   workflow_dispatch: 
 
@@ -26,7 +26,8 @@ jobs:
 
       - name: Execute Titan Line Tracker
         env:
-          MATRIX_TELEGRAM_TOKEN: ${{ secrets.MATRIX_TELEGRAM_TOKEN }}
-          MATRIX_TELEGRAM_CHAT_ID: ${{ secrets.MATRIX_TELEGRAM_CHAT_ID }}
+          # Using isolated secret parameters for the tracker channel
+          TRACKER_TELEGRAM_TOKEN: ${{ secrets.TRACKER_TELEGRAM_TOKEN }}
+          TRACKER_TELEGRAM_CHAT_ID: ${{ secrets.TRACKER_TELEGRAM_CHAT_ID }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: python tracker_engine.py
