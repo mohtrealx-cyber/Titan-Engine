@@ -1,9 +1,9 @@
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: ELITE CORE (KICKOFF-AWARE & SPACED LAYOUT)
+# TITAN TRACKER: ELITE CORE (24H ACTIONABLE SIEVE)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -36,15 +36,21 @@ class GoldTierStakingSieve:
         matches = self.fetch_market_data()
         if not matches: return
 
+        # Time Horizon: Only look at matches starting within the next 24 hours
+        now = datetime.utcnow()
+        limit = now + timedelta(hours=24)
+
         for match in matches:
             home, away = match.get("home_team"), match.get("away_team")
-            # Format time: 2026-07-03T15:00:00Z -> 03 Jul, 15:00
             time_str = match.get("commence_time", "")
+            
             try:
                 dt = datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%SZ")
+                if dt < now or dt > limit:
+                    continue
                 formatted_time = dt.strftime("%d %b, %H:%M")
             except:
-                formatted_time = "TBD"
+                continue 
 
             bookmakers = match.get("bookmakers", [])
             home_prices, away_prices, draw_prices = [], [], []
@@ -74,9 +80,9 @@ class GoldTierStakingSieve:
                     fav, avg_fav, pin_fav, symbol = away, avg_away, pin_away, "2"
                 
                 # Triple-Layer Sieve
-                if avg_fav > 1.45 or avg_draw < 4.20 or (pin_fav and pin_fav > avg_fav): continue
+                if avg_fav > 1.45 or avg_draw < 4.20 or (pin_fav and pin_fav > avg_fav):
+                    continue
                 
-                # Added Spacing (\n\n)
                 self.gold_predictions.append(f"📅 **{formatted_time}**\n• {home} vs {away} ➔ {symbol} `[Stake: {self.system_stake}]`\n\n")
 
     def dispatch_alerts(self):
@@ -89,7 +95,7 @@ class GoldTierStakingSieve:
             msg += "📊 **BANKROLL ALLOCATION:** Flat Sizing (100 KES/match)\n"
             msg += "💡 Strategy: Titan High-Confidence Sieve"
         else:
-            msg += "No matches cleared the Triple-Layer validation checks today. Sieve remained perfectly tight."
+            msg += "No actionable matches found for the next 24 hours. Sieve remains tight."
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
