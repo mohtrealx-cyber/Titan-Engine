@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: VOLUME-OPTIMIZED JACKPOT (RELAXED SIEVES)
+# TITAN TRACKER: APEX CORE (SHARP MONEY PINNACLE SIEVE + ALPHA-10 CLIPPER)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -74,56 +74,75 @@ class MegaTicketVolumeSieve:
             except: continue 
 
             bookmakers = match.get("bookmakers", [])
-            home_prices, away_prices, draw_prices = [], [], []
+            
+            # THE SHARP MARKET SPLITTER
+            pin_home, pin_away, pin_draw = None, None, None
+            soft_home, soft_away, soft_draw = [], [], []
             
             for bookie in bookmakers:
+                is_pinnacle = (bookie.get("key") == "pinnacle")
                 for mkt in bookie.get("markets", []):
                     if mkt.get("key") == "h2h":
                         for outcome in mkt.get("outcomes", []):
                             price = float(outcome.get("price"))
-                            if outcome.get("name") == home: home_prices.append(price)
-                            elif outcome.get("name") == away: away_prices.append(price)
-                            elif outcome.get("name") == "Draw": draw_prices.append(price)
+                            name = outcome.get("name")
+                            
+                            if is_pinnacle:
+                                if name == home: pin_home = price
+                                elif name == away: pin_away = price
+                                elif name == "Draw": pin_draw = price
+                            else:
+                                if name == home: soft_home.append(price)
+                                elif name == away: soft_away.append(price)
+                                elif name == "Draw": soft_draw.append(price)
 
-            if home_prices and away_prices and draw_prices:
-                avg_home, avg_away, avg_draw = sum(home_prices)/len(home_prices), sum(away_prices)/len(away_prices), sum(draw_prices)/len(draw_prices)
+            # ONLY proceed if Pinnacle (Sharp Money) has priced the game, AND public data exists
+            if pin_home and pin_away and pin_draw and soft_home and soft_away and soft_draw:
+                avg_soft_home = sum(soft_home) / len(soft_home)
+                avg_soft_away = sum(soft_away) / len(soft_away)
                 
-                if avg_home < avg_away:
-                    fav, avg_fav, sym = home, avg_home, "1"
+                # Determine the true favorite based on Pinnacle's billion-dollar algorithm
+                if pin_home < pin_away:
+                    fav_team, sharp_fav_odd, public_fav_odd, sym = home, pin_home, avg_soft_home, "1"
                 else:
-                    fav, avg_fav, sym = away, avg_away, "2"
+                    fav_team, sharp_fav_odd, public_fav_odd, sym = away, pin_away, avg_soft_away, "2"
                 
                 match_title = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
 
                 # ==========================================================
-                # RELAXED VOLUME SIEVES (Maximized for Jackpot Size)
+                # THE APEX SYNDICATE SIEVES
                 # ==========================================================
                 
-                # 1. RELAXED PANIC SIEVE: Increased to 8.5% to allow MLS and Serie B matches
-                margin = (1.0 / avg_home) + (1.0 / avg_away) + (1.0 / avg_draw) - 1.0
+                # 1. SHARP MONEY TRACKER: Is Pinnacle pricing the favorite LOWER than the public?
+                # If True: Syndicates are backing this team heavily.
+                is_sharp_backed = sharp_fav_odd < public_fav_odd
+
+                # 2. PANIC SIEVE: Calculated using pure Sharp Odds
+                margin = (1.0 / pin_home) + (1.0 / pin_away) + (1.0 / pin_draw) - 1.0
                 is_panic_market = margin > 0.085
+                
+                # 3. HOSTILE TERRITORY
+                is_weak_away_fav = (sym == "2") and (sharp_fav_odd > 1.85)
 
-                # 2. RELAXED HOSTILE TERRITORY: Away favorites now allowed up to 1.85 odds
-                is_weak_away_fav = (sym == "2") and (avg_fav > 1.85)
-
-                # 3. RELAXED DRAW TRAP: Slightly widened to allow more natural favorites
+                # 4. DRAW TRAP DETECTOR
                 is_draw_trap = False
-                if avg_fav <= 1.70 and avg_draw < 3.50:
+                if sharp_fav_odd <= 1.70 and pin_draw < 3.50:
                     is_draw_trap = True 
-                elif avg_fav <= 2.20 and avg_draw < 3.00:
+                elif sharp_fav_odd <= 2.20 and pin_draw < 3.00:
                     is_draw_trap = True 
 
                 # ==========================================================
                 # TICKET ALLOCATION LOGIC
                 # ==========================================================
-                passed_jackpot = not is_panic_market and not is_weak_away_fav and not is_draw_trap
-                passed_combo = not is_panic_market and not is_weak_away_fav and (avg_fav <= 1.50 and avg_draw >= 4.00)
+                # A match must pass ALL traps AND have institutional Sharp Money backing it
+                passed_jackpot = not is_panic_market and not is_weak_away_fav and not is_draw_trap and is_sharp_backed
+                passed_combo = not is_panic_market and not is_weak_away_fav and (sharp_fav_odd <= 1.50 and pin_draw >= 4.00)
 
                 if passed_jackpot:
-                    self.jackpot_candidates.append({"text": f"{match_title} ({sym})", "odds": avg_fav})
+                    self.jackpot_candidates.append({"text": f"{match_title} ({sym})", "odds": sharp_fav_odd})
                 
                 if passed_combo:
-                    self.combo_candidates.append({"text": f"{match_title} ({sym})", "odds": avg_fav})
+                    self.combo_candidates.append({"text": f"{match_title} ({sym})", "odds": sharp_fav_odd})
 
                 if passed_jackpot or passed_combo:
                     self.structured_tickets.append({
@@ -247,7 +266,7 @@ class MegaTicketVolumeSieve:
     def dispatch_alerts(self, scoreboard_text):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
-        msg = "🎯 **TITAN ENGINE: COMBINATION CORE** 🎯\n\n"
+        msg = "🎯 **TITAN ENGINE: APEX COMBINATION CORE** 🎯\n\n"
             
         if len(self.combo_candidates) >= 2:
             sorted_candidates = sorted(self.combo_candidates, key=lambda x: x["odds"])
@@ -264,19 +283,23 @@ class MegaTicketVolumeSieve:
             msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient high-confidence matches for a safe combo today.\n\n"
 
         if self.jackpot_candidates:
-            # Sort all surviving favorites by relative odd strength
             sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["odds"])
+            
+            # ALPHA-10 CLIPPER
+            MAX_LEGS = 10
+            final_jackpot = sorted_jackpot[:MAX_LEGS]
+            
             jackpot_odds = 1.0
             jackpot_text_lines = []
-            for pick in sorted_jackpot:
+            for pick in final_jackpot:
                 jackpot_odds *= pick["odds"]
                 jackpot_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
                 
-            msg += f"🎰 **TITAN {len(sorted_jackpot)}-LEG ELITE JACKPOT SLIP** 🎰\n"
+            msg += f"🎰 **TITAN {len(final_jackpot)}-LEG SHARP MONEY JACKPOT** 🎰\n"
             msg += "\n".join(jackpot_text_lines) + "\n"
             msg += f"📈 **Estimated Cumulative Odds:** {jackpot_odds:,.2f}\n💰 **Suggested System Stake:** 10 KES\n\n"
         else:
-            msg += "🎰 **TITAN ELITE JACKPOT SLIP** 🎰\n↳ 🟡 All matches neutralized by Panic Margin or Hostile Territory sieves. Awaiting clean volume...\n\n"
+            msg += "🎰 **TITAN SHARP MONEY JACKPOT** 🎰\n↳ 🟡 No matches currently showing verified institutional Sharp Money backing. Awaiting market shifts...\n\n"
 
         msg += scoreboard_text
 
@@ -284,7 +307,7 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
-        msg += f"↳ Active Sieves: Panic Tax (>8.5%), Hostile Away (>1.85), Draw Trap\n"
+        msg += f"↳ Active Sieves: Sharp Money Tracker (+EV), Panic Tax, Draw Trap\n"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
