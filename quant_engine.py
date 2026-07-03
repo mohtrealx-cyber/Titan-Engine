@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import asyncio
 import datetime
@@ -11,7 +12,7 @@ from curl_cffi import requests as tls_requests
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
-ZENROWS_API_KEY = os.environ.get("ZEN_PROXY_KEY") # Looks for your new secret
+ZENROWS_API_KEY = os.environ.get("ZEN_PROXY_KEY") 
 
 def get_dynamic_configs():
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
@@ -41,7 +42,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0, 
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0, 
             "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
-            "use_zenrows": True # Triggers the ZenRows API bypass
+            "use_zenrows": True 
         }
     }
 
@@ -63,6 +64,27 @@ class ZenRowsConsensusEngine:
     def clean_team_name(self, name): 
         return name.strip().title()
 
+    # ==========================================================
+    # TIME-SHIFT FILTER: DETECTS ALREADY KICKED OFF MATCHES
+    # ==========================================================
+    def is_match_active_or_played(self, row):
+        # Extract all text, separated by spaces to avoid mashed words
+        text = row.get_text(separator=" ").upper()
+        
+        # 1. Check for standard "Finished" or "Live" flags used by sites
+        status_flags = [" FT ", " HT ", "CANC", "POSTP", "FINISHED", " LIVE ", "AET ", "PEN "]
+        for flag in status_flags:
+            if flag in f" {text} ":
+                return True
+                
+        # 2. Check for active scorelines (e.g., " 1 - 0 " or " 2-2 ")
+        # The Regex specifically ensures it doesn't accidentally flag dates (2024-05-12)
+        score_pattern = r'(?<!\d|-)\b\d{1,2}\s*-\s*\d{1,2}\b(?!\d|-)'
+        if re.search(score_pattern, text):
+            return True
+            
+        return False
+
     def log_prediction_qa(self, site_name, home, away, raw_prediction):
         if not home or not away or not raw_prediction: return
         normalized_pick = self.normalize_prediction(raw_prediction)
@@ -73,9 +95,6 @@ class ZenRowsConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            # ==========================================================
-            # THE ZENROWS CLOUDFLARE BYPASS
-            # ==========================================================
             if cfg.get("use_zenrows") and ZENROWS_API_KEY:
                 proxy_url = "https://api.zenrows.com/v1/"
                 params = {
@@ -102,17 +121,26 @@ class ZenRowsConsensusEngine:
                 self.diagnostics[site_name] = "🟡 BLOCKED (0 Rows Found)"
                 return
                 
-            self.diagnostics[site_name] = f"🟢 OK ({len(rows)} Matches)"
+            valid_count = 0
+            skipped_count = 0
             
             for row in rows:
                 try: 
+                    # DROP THE MATCH IF IT HAS ALREADY STARTED OR FINISHED
+                    if self.is_match_active_or_played(row):
+                        skipped_count += 1
+                        continue
+                        
                     self.log_prediction_qa(
                         site_name, 
                         row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text, 
                         row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text, 
                         row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
                     )
+                    valid_count += 1
                 except: continue
+                
+            self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
                 
         except Exception as e: 
             self.diagnostics[site_name] = "🔴 TIMEOUT/ERROR"
@@ -167,7 +195,7 @@ class ZenRowsConsensusEngine:
         if not consensus_list:
             msg += "No matches found with 2+ sites in agreement today.\n\n"
         else:
-            msg += f"🔥 **LOCKED CONSENSUS ({len(consensus_list)})** 🔥\n\n"
+            msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({len(consensus_list)})** 🔥\n\n"
             for match in consensus_list: 
                 msg += f"{match}\n"
                 
