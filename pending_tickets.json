@@ -1,0 +1,26 @@
+{
+    "2026-07-03": [
+        {
+            "match": "Kongsvinger vs Sogndal",
+            "prediction": "1",
+            "backed_by": [
+                "Statarea",
+                "Vitibet"
+            ],
+            "status": "PENDING",
+            "home_score": "-",
+            "away_score": "-"
+        },
+        {
+            "match": "Bray Wanderers vs Athlone Town",
+            "prediction": "1",
+            "backed_by": [
+                "Statarea",
+                "Vitibet"
+            ],
+            "status": "PENDING",
+            "home_score": "-",
+            "away_score": "-"
+        }
+    ]
+}
