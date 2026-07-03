@@ -1,33 +1,47 @@
-name: Titan Engine - Line Tracker
+name: Titan Line Tracker Automation
 
 on:
   schedule:
-    # Runs at 05:55 UTC (10 minutes after matrix_run.yml)
-    - cron: '55 5 * * *'
-  workflow_dispatch: 
+    # Runs at 07:00 EAT (04:00 UTC) and 13:00 EAT (10:00 UTC) daily
+    - cron: '0 4,10 * * *'
+  workflow_dispatch: # Allows you to trigger it manually from GitHub anytime
 
 jobs:
-  run-titan-variant:
+  run-line-tracker:
     runs-on: ubuntu-latest
-    
+
+    # Grants write access to push the memory file back to your repository
+    permissions:
+      contents: write
+
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests
+          pip install requests beautifulsoup4
 
-      - name: Execute Titan Line Tracker
+      - name: Run Titan Line Tracker Engine
         env:
-          # Using isolated secret parameters for the tracker channel
+          TRACKER_TRACKER_TELEGRAM_TOKEN: ${{ secrets.TRACKER_TRACKER_TELEGRAM_TOKEN }}
+          TRACKER_TRACKER_TELEGRAM_CHAT_ID: ${{ secrets.TRACKER_TRACKER_TELEGRAM_CHAT_ID }}
           TRACKER_TELEGRAM_TOKEN: ${{ secrets.TRACKER_TELEGRAM_TOKEN }}
           TRACKER_TELEGRAM_CHAT_ID: ${{ secrets.TRACKER_TELEGRAM_CHAT_ID }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: python tracker_engine.py
+
+      - name: Commit Tracker Memory Back to GitHub
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Titan Line Tracker Automator"
+          git add pending_tracker_tickets.json
+          # Skips running actions recursively if a commit is pushed, and handles empty saves gracefully
+          git commit -m "Auto-update Line Tracker memory notebook [skip ci]" || echo "No new tracker selections to save"
+          git push
