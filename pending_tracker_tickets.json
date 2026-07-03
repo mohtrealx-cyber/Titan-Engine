@@ -65,6 +65,54 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Londrina vs Clube De Regatas Brasil",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Degerfors If vs Malmo Ff",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Halmstads Bk vs V\u00e4ster\u00e5s Sk",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Fc Lahti vs If Gnistan",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Fc Anyang vs Pohang Steelers",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Jeonbuk Hyundai Motors vs Gangwon Fc",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Qingdao West Coast Fc vs Shanghai Sipg Fc",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Tianjin Jinmen Tiger Fc vs Shenzhen Peng City Fc",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ],
     "2026-07-05": [
@@ -103,12 +151,30 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Ifk Goteborg vs Aik",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Sangju Sangmu Fc vs Jeju United Fc",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ],
     "2026-07-03": [
         {
             "match": "Ik Sirius vs Mj\u00e4llby Aif",
             "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Australia vs Egypt",
+            "prediction": "2",
             "status": "PENDING",
             "score": "-"
         }
