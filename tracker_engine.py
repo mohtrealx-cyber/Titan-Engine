@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: APEX CORE (SHARP CONSENSUS + ALPHA-10 CLIPPER)
+# TITAN TRACKER: APEX CORE (ELASTIC VALUE DELTA + TRUE SHARP TRACKER)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -107,21 +107,18 @@ class MegaTicketVolumeSieve:
                 match_title = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
 
                 # ==========================================================
-                # THE APEX SYNDICATE SIEVES
+                # THE ELASTIC VALUE DELTA SIEVE
                 # ==========================================================
                 
-                # 1. SHARP CONSENSUS ALIGNMENT: Pinnacle allows fair odds. We grant a 0.05 buffer 
-                # to ensure Pinnacle agrees with the public and isn't actively fading the favorite.
-                is_sharp_approved = sharp_fav_odd <= (public_fav_odd + 0.05)
+                # Calculate the mathematical edge (+EV)
+                value_delta = public_fav_odd - sharp_fav_odd
+                is_value_play = value_delta > 0.00  # Pinnacle MUST be pricing it lower than the public
 
-                # 2. PANIC SIEVE: Calculated using pure Sharp Odds (Relaxed to 8.5%)
+                # Standard Risk Sieves
                 margin = (1.0 / pin_home) + (1.0 / pin_away) + (1.0 / pin_draw) - 1.0
                 is_panic_market = margin > 0.085
-                
-                # 3. HOSTILE TERRITORY (Relaxed to 1.85)
                 is_weak_away_fav = (sym == "2") and (sharp_fav_odd > 1.85)
 
-                # 4. DRAW TRAP DETECTOR
                 is_draw_trap = False
                 if sharp_fav_odd <= 1.70 and pin_draw < 3.50:
                     is_draw_trap = True 
@@ -131,11 +128,11 @@ class MegaTicketVolumeSieve:
                 # ==========================================================
                 # TICKET ALLOCATION LOGIC
                 # ==========================================================
-                passed_jackpot = not is_panic_market and not is_weak_away_fav and not is_draw_trap and is_sharp_approved
+                passed_jackpot = not is_panic_market and not is_weak_away_fav and not is_draw_trap and is_value_play
                 passed_combo = not is_panic_market and not is_weak_away_fav and (sharp_fav_odd <= 1.50 and pin_draw >= 4.00)
 
                 if passed_jackpot:
-                    self.jackpot_candidates.append({"text": f"{match_title} ({sym})", "odds": sharp_fav_odd})
+                    self.jackpot_candidates.append({"text": f"{match_title} ({sym})", "odds": sharp_fav_odd, "edge": value_delta})
                 
                 if passed_combo:
                     self.combo_candidates.append({"text": f"{match_title} ({sym})", "odds": sharp_fav_odd})
@@ -279,23 +276,20 @@ class MegaTicketVolumeSieve:
             msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient high-confidence matches for a safe combo today.\n\n"
 
         if self.jackpot_candidates:
-            sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["odds"])
-            
-            # ALPHA-10 CLIPPER
-            MAX_LEGS = 10
-            final_jackpot = sorted_jackpot[:MAX_LEGS]
+            # Sort strictly by the highest mathematical Value Delta (+EV)
+            sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["edge"], reverse=True)
             
             jackpot_odds = 1.0
             jackpot_text_lines = []
-            for pick in final_jackpot:
+            for pick in sorted_jackpot:
                 jackpot_odds *= pick["odds"]
-                jackpot_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
+                jackpot_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f} (Edge: +{pick['edge']:.2f})")
                 
-            msg += f"🎰 **TITAN {len(final_jackpot)}-LEG SHARP CONSENSUS JACKPOT** 🎰\n"
+            msg += f"🎰 **TITAN {len(sorted_jackpot)}-LEG +EV VALUE JACKPOT** 🎰\n"
             msg += "\n".join(jackpot_text_lines) + "\n"
             msg += f"📈 **Estimated Cumulative Odds:** {jackpot_odds:,.2f}\n💰 **Suggested System Stake:** 10 KES\n\n"
         else:
-            msg += "🎰 **TITAN SHARP CONSENSUS JACKPOT** 🎰\n↳ 🟡 No matches passed the Consensus Sieve. Awaiting market stabilization...\n\n"
+            msg += "🎰 **TITAN +EV VALUE JACKPOT** 🎰\n↳ 🟡 No matches currently showing a positive Value Delta over the bookmakers. Awaiting edge...\n\n"
 
         msg += scoreboard_text
 
@@ -303,7 +297,7 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
-        msg += f"↳ Active Sieves: Sharp Consensus Sieve, Panic Tax, Draw Trap\n"
+        msg += f"↳ Active Sieves: Elastic Value Delta (>0.00), Panic Tax, Draw Trap\n"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
