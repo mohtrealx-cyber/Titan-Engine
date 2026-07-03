@@ -11,7 +11,7 @@ from curl_cffi import requests as tls_requests
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
-ZENROWS_API_KEY = os.environ.get("ZENROWS_API_KEY") # Ensure this is in GitHub Secrets
+ZENROWS_API_KEY = os.environ.get("ZEN_PROXY_KEY") # Looks for your new secret
 
 def get_dynamic_configs():
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
@@ -81,15 +81,13 @@ class ZenRowsConsensusEngine:
                 params = {
                     "apikey": ZENROWS_API_KEY,
                     "url": cfg["url"],
-                    "js_render": "true", # Forces Cloudflare JS challenge to solve
+                    "js_render": "true", 
                     "premium_proxy": "true" 
                 }
-                # ZenRows handles the impersonation, so we use a standard get
                 r = tls_requests.get(proxy_url, params=params, timeout=60)
             else:
-                # Open sites continue to use the standard TLS impersonation
                 if cfg.get("use_zenrows") and not ZENROWS_API_KEY:
-                    self.diagnostics[site_name] = "🔴 MISSING ZENROWS KEY"
+                    self.diagnostics[site_name] = "🔴 MISSING ZEN_PROXY_KEY"
                     return
                 r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
             
