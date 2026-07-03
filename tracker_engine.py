@@ -4,15 +4,13 @@ import requests
 # ==============================================================================
 # TITAN ENGINE (LINE TRACKER VARIANT): STEAM & INEFFICIENCY SCANNER
 # ==============================================================================
-TELEGRAM_TOKEN = os.environ.get("MATRIX_TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("MATRIX_TELEGRAM_CHAT_ID")
+TELEGRAM_TOKEN = os.environ.get("TRACKER_TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
 class TitanLineTracker:
     def __init__(self):
-        # The Sharp Anchor
         self.anchor_bookie = "pinnacle"
-        # 5% Inefficiency Threshold
         self.edge_threshold = 0.05 
         self.steam_alerts = []
 
@@ -77,24 +75,21 @@ class TitanLineTracker:
             home, away = match.get("home_team"), match.get("away_team")
             bookmakers = match.get("bookmakers", [])
             
-            # 1. Scan for Home Win Steam
             pin_1, avg_1, edge_1 = self.calculate_edge(home, bookmakers, "h2h")
             if edge_1: 
                 self.steam_alerts.append(f"🚨 **{home} (Win)**\n   ↳ Pin: {pin_1:.2f} | Market: {avg_1:.2f} | ⚡ Edge: {edge_1*100:.1f}%")
 
-            # 2. Scan for Away Win Steam
             pin_2, avg_2, edge_2 = self.calculate_edge(away, bookmakers, "h2h")
             if edge_2: 
                 self.steam_alerts.append(f"🚨 **{away} (Win)**\n   ↳ Pin: {pin_2:.2f} | Market: {avg_2:.2f} | ⚡ Edge: {edge_2*100:.1f}%")
 
-            # 3. Scan for Over 2.5 Steam
             pin_O, avg_O, edge_O = self.calculate_edge("Over", bookmakers, "totals")
             if edge_O: 
                 self.steam_alerts.append(f"🔥 **{home} vs {away} (Over 2.5)**\n   ↳ Pin: {pin_O:.2f} | Market: {avg_O:.2f} | ⚡ Edge: {edge_O*100:.1f}%")
 
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: 
-            print("❌ Telegram credentials missing.")
+            print("❌ Tracker Telegram credentials missing from environment.")
             return
             
         msg = "⚡ **TITAN ENGINE: LINE TRACKER VARIANT** ⚡\n\n"
