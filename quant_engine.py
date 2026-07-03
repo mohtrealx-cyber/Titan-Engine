@@ -49,8 +49,12 @@ class OpenConsensusEngine:
         self.diagnostics = {} 
 
     def normalize_prediction(self, raw_text):
+        # Strips out all hidden whitespace, line breaks, etc.
         text = str(raw_text).strip().lower()
-        matrix = {"1": ["1", "home", "home win"], "X": ["x", "draw"], "2": ["2", "away", "away win"]}
+        # Takes the first character if there are multiple (e.g., "1x" becomes "1")
+        if len(text) > 0: text = text[0]
+        
+        matrix = {"1": ["1", "home"], "X": ["x", "draw", "0"], "2": ["2", "away"]}
         for tag, vars in matrix.items():
             if text in vars: return tag
         return None
@@ -77,30 +81,32 @@ class OpenConsensusEngine:
             soup = BeautifulSoup(r.content, 'html.parser')
             
             # ==========================================================
-            # BULLETPROOF ZULUBET PARSER
+            # ZULUBET OVERRIDE PARSER
             # ==========================================================
             if site_name == "ZuluBet":
                 rows = soup.find_all("tr")
                 valid_rows = 0
                 for row in rows:
                     cols = row.find_all("td")
-                    if len(cols) >= 8 and "aver_odds" not in str(row):
+                    # Relaxed column check in case table format shifted
+                    if len(cols) >= 5 and "aver_odds" not in str(row):
                         try:
                             home = cols[1].text.strip()
                             away = cols[2].text.strip()
                             pick = None
                             
-                            # Brute-force HTML string check to avoid NoneType errors
                             for col in cols:
                                 col_html = str(col).lower()
                                 if 'green' in col_html or '#008000' in col_html:
-                                    clean_text = col.text.strip().upper()
-                                    if clean_text in ["1", "X", "2"]:
-                                        pick = clean_text
-                                        break
+                                    # Send directly to the normalizer to handle messy spacing
+                                    pick = self.normalize_prediction(col.text)
+                                    if pick: break
                                         
                             if home and away and pick:
-                                self.log_prediction_qa(site_name, home, away, pick)
+                                # We don't need to normalize again here since we just did
+                                match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
+                                if match_key not in self.master_matrix: self.master_matrix[match_key] = []
+                                self.master_matrix[match_key].append((site_name, pick))
                                 valid_rows += 1
                         except: continue
                 
@@ -147,7 +153,6 @@ class OpenConsensusEngine:
             top_pick = max(prediction_weights, key=prediction_weights.get)
             agreement_count = prediction_weights[top_pick]
             
-            # Requires 2 or more sites to agree
             if agreement_count >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 agreed_matches.append(
