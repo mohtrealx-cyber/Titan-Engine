@@ -2,7 +2,7 @@ import os
 import requests
 
 # ==============================================================================
-# TITAN TRACKER: ELITE CORE (WITH SYSTEMATIC FLAT STAKING SELECTIONS)
+# TITAN TRACKER: ELITE CORE (WITH FIXED KES STAKING)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -12,8 +12,8 @@ class GoldTierStakingSieve:
     def __init__(self):
         self.anchor_bookie = "pinnacle"
         self.gold_predictions = []
-        # Enforcing a strict 1-Unit constant allocations across all selections
-        self.system_stake = "1.0 Unit" 
+        # Hardcoded to your specific baseline stake
+        self.system_stake = "100 KES" 
 
     def fetch_market_data(self):
         print("📡 TITAN TRACKER: Fetching high-volume global markets...")
@@ -34,7 +34,7 @@ class GoldTierStakingSieve:
         
         all_matches = []
         for league in target_leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}®ions=eu,uk,us&markets=h2h"
             try:
                 r = requests.get(url, timeout=15)
                 if r.status_code == 200:
@@ -45,7 +45,7 @@ class GoldTierStakingSieve:
         return all_matches
 
     def process_gold_matrix(self):
-        print("🚀 Running Triple-Layer Sieve & Allocating Fixed Stakes...")
+        print("🚀 Running Triple-Layer Sieve & Allocating 100 KES Stakes...")
         matches = self.fetch_market_data()
 
         if not matches: return
@@ -98,8 +98,7 @@ class GoldTierStakingSieve:
                 if avg_draw < 4.20: continue
                 if pin_fav_odds and pin_fav_odds > avg_fav_odds: continue
                 
-                # Append prediction with structural flat stake tracking label
-                self.gold_predictions.append(f"• {home} vs {away} ➔ {prediction_symbol} `[Allocated Stake: {self.system_stake}]`")
+                self.gold_predictions.append(f"• {home} vs {away} ➔ {prediction_symbol} `[Stake: {self.system_stake}]`")
 
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
@@ -111,7 +110,7 @@ class GoldTierStakingSieve:
             msg += "*(Filtered: Probability Floors, Draw Suppression & Sharp Convexity)*\n\n"
             msg += "\n".join(self.gold_predictions) + "\n\n"
             msg += "📊 **BANKROLL ALLOCATION SYSTEM**\n"
-            msg += "↳ Plan: Flat Unit Sizing\n"
+            msg += "↳ Plan: Flat Sizing\n"
             msg += f"↳ Target Risk: {self.system_stake} per selection consistently.\n\n"
             msg += "💡 Strategy: Titan High-Confidence Sieve"
         else:
