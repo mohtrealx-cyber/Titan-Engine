@@ -2,7 +2,7 @@ import os
 import requests
 
 # ==============================================================================
-# MATRIX V7.1: SHARP SYNDICATE WITH DIAGNOSTIC RADAR
+# MATRIX V7.2: SHARP SYNDICATE WITH ERROR CATCHING
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("MATRIX_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("MATRIX_TELEGRAM_CHAT_ID")
@@ -10,7 +10,6 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
 class SharpMatrixEngine:
     def __init__(self):
-        # We exclusively track the most ruthless, accurate bookmakers on earth.
         self.sharp_bookies = [
             "pinnacle", "bet365", "unibet", "matchbook", 
             "betfair_ex_eu", "betonlineag", "williamhill"
@@ -21,6 +20,7 @@ class SharpMatrixEngine:
     def fetch_sharp_markets(self):
         print("📡 Pinging Global API for Sharp Syndicate Data...")
         if not ODDS_API_KEY: 
+            print("❌ CRITICAL: No API Key detected in environment variables.")
             return []
             
         target_leagues = [
@@ -37,36 +37,37 @@ class SharpMatrixEngine:
             try:
                 r = requests.get(url, timeout=15)
                 if r.status_code == 200:
-                    all_matches.extend(r.json())
+                    data = r.json()
+                    print(f"✅ {league}: Successfully pulled {len(data)} matches.")
+                    all_matches.extend(data)
+                else:
+                    # This will catch the exact error (like 429 Quota Exceeded or 401 Unauthorized)
+                    print(f"⚠️ API ERROR on {league}: HTTP {r.status_code} - {r.text}")
             except Exception as e:
-                pass
+                print(f"❌ NETWORK ERROR on {league}: {e}")
                 
+        print(f"🔍 Total matches successfully pulled into the Matrix: {len(all_matches)}")
         return all_matches
 
     def process_matrix(self):
         print("🚀 Executing V7 Sharp Bookie Consensus...")
         matches = self.fetch_sharp_markets()
 
+        if not matches:
+            print("🛑 Matrix halted: No matches available to process.")
+            return
+
         for match in matches:
             home = match.get("home_team")
             away = match.get("away_team")
             bookmakers = match.get("bookmakers", [])
             
-            sharp_over_votes = 0
-            sharp_btts_votes = 0
-            
-            total_sharps_for_over = 0
-            total_sharps_for_btts = 0
-            
-            # Diagnostic lists to capture the exact prices
-            over_prices = []
-            btts_prices = []
+            sharp_over_votes, sharp_btts_votes = 0, 0
+            total_sharps_for_over, total_sharps_for_btts = 0, 0
+            over_prices, btts_prices = [], []
 
             for bookie in bookmakers:
-                bookie_key = bookie.get("key", "").lower()
-                
-                # Ignore public/soft bookies. Only the sharp money matters.
-                if bookie_key not in self.sharp_bookies:
+                if bookie.get("key", "").lower() not in self.sharp_bookies:
                     continue
 
                 for mkt in bookie.get("markets", []):
@@ -88,13 +89,11 @@ class SharpMatrixEngine:
                                 if price <= 1.80:
                                     sharp_btts_votes += 1
 
-            # Print the live market data to the GitHub Actions log
             if over_prices or btts_prices:
                 avg_over = sum(over_prices)/len(over_prices) if over_prices else 0
                 avg_btts = sum(btts_prices)/len(btts_prices) if btts_prices else 0
-                print(f"📊 {home} vs {away} | Sharp Avg Over 2.5: {avg_over:.2f} | Sharp Avg BTTS: {avg_btts:.2f}")
+                print(f"📊 {home} vs {away} | Sharp Avg Over: {avg_over:.2f} | Sharp Avg BTTS: {avg_btts:.2f}")
 
-            # The 2-Vote Math
             if sharp_over_votes >= 2:
                 self.over_25_consensus.append(f"🔥 {home} vs {away} ➔ Over 2.5 (Sharp Votes: {sharp_over_votes}/{total_sharps_for_over})")
                 
@@ -118,8 +117,8 @@ class SharpMatrixEngine:
         if not self.over_25_consensus and not self.btts_consensus:
             msg += "No sharp money consensus detected in the global market today."
 
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
+        requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
+                      json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
     engine = SharpMatrixEngine()
