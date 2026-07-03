@@ -64,18 +64,25 @@ class ZenRowsConsensusEngine:
     def clean_team_name(self, name): 
         return name.strip().title()
 
-    # ==========================================================
+   # ==========================================================
     # TIME-SHIFT FILTER: DETECTS ALREADY KICKED OFF MATCHES
     # ==========================================================
     def is_match_active_or_played(self, row):
-        # Extract all text, separated by spaces to avoid mashed words
         text = row.get_text(separator=" ").upper()
         
-        # 1. Check for standard "Finished" or "Live" flags used by sites
-        status_flags = [" FT ", " HT ", "CANC", "POSTP", "FINISHED", " LIVE ", "AET ", "PEN "]
+        # 1. Check strictly for explicit "Finished" or "Live" flags 
+        # We pad the text with spaces to ensure we don't accidentally match words containing these letters
+        padded_text = f" {text} "
+        status_flags = [" FT ", " HT ", "CANC", "POSTP", "FINISHED", " LIVE ", "AET ", "PEN ", "DELAYED"]
+        
         for flag in status_flags:
-            if flag in f" {text} ":
+            if flag in padded_text:
                 return True
+                
+        # We removed the Regex score pattern here. It was generating false positives 
+        # by flagging dates (e.g., "03-07") and odds strings on PredictZ and Vitibet.
+            
+        return False
                 
         # 2. Check for active scorelines (e.g., " 1 - 0 " or " 2-2 ")
         # The Regex specifically ensures it doesn't accidentally flag dates (2024-05-12)
