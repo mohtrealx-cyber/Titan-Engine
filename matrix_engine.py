@@ -4,89 +4,91 @@ from bs4 import BeautifulSoup
 from difflib import SequenceMatcher
 
 # ==============================================================================
-# 1. MATRIX V2: FOREBET & PREDICTZ CONSENSUS AGGREGATOR
+# MATRIX V2: DIAGNOSTIC CONSENSUS ENGINE
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("MATRIX_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("MATRIX_TELEGRAM_CHAT_ID")
 
 class AlternativeMarketMatrix:
     def __init__(self):
-        # Spoofing a real browser to bypass basic bot-protection
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.5"
         }
         self.btts_consensus = []
         self.over_25_consensus = []
 
     def is_match(self, team_a, team_b):
-        """Matches team names between Forebet and PredictZ despite spelling differences."""
-        return SequenceMatcher(None, team_a.lower(), team_b.lower()).ratio() > 0.70
+        return SequenceMatcher(None, team_a.lower(), team_b.lower()).ratio() > 0.65
 
     def scrape_forebet(self, market):
-        """Scrapes Forebet's mathematical prediction tables."""
         predictions = []
         url = "https://www.forebet.com/en/football-predictions/both-to-score" if market == "btts" else "https://www.forebet.com/en/football-predictions/under-over-25-goals"
         
         try:
             r = requests.get(url, headers=self.headers, timeout=15)
-            soup = BeautifulSoup(r.text, 'html.parser')
+            print(f"📡 Forebet HTTP Status Code ({market}): {r.status_code}")
             
-            # Forebet wraps their matches in rows with the class 'tr_0' and 'tr_1'
-            for row in soup.find_all('div', class_=['tr_0', 'tr_1']):
-                home = row.find('span', class_='homeTeam')
-                away = row.find('span', class_='awayTeam')
-                predict_box = row.find('div', class_='predict')
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, 'html.parser')
+                rows = soup.find_all('div', class_=['tr_0', 'tr_1'])
+                print(f"📊 Forebet raw rows detected: {len(rows)}")
                 
-                if home and away and predict_box:
-                    home_name = home.text.strip()
-                    away_name = away.text.strip()
-                    prediction = predict_box.text.strip()
+                for row in rows:
+                    home = row.find('span', class_='homeTeam')
+                    away = row.find('span', class_='awayTeam')
+                    predict_box = row.find('div', class_='predict')
                     
-                    # Ensure Forebet's algorithm is actually predicting 'Yes' or 'Over'
-                    if market == "btts" and "yes" in prediction.lower():
-                        predictions.append(f"{home_name} vs {away_name}")
-                    elif market == "over" and "over" in prediction.lower():
-                        predictions.append(f"{home_name} vs {away_name}")
+                    if home and away and predict_box:
+                        home_name = home.text.strip()
+                        away_name = away.text.strip()
+                        prediction = predict_box.text.strip()
+                        
+                        if market == "btts" and "yes" in prediction.lower():
+                            predictions.append(f"{home_name} vs {away_name}")
+                        elif market == "over" and "over" in prediction.lower():
+                            predictions.append(f"{home_name} vs {away_name}")
         except Exception as e:
-            print(f"Forebet Scrape Error: {e}")
+            print(f"❌ Forebet Scrape Error: {e}")
             
+        print(f"✅ Forebet extracted {len(predictions)} matches for {market}")
         return predictions
 
     def scrape_predictz(self, market):
-        """Scrapes PredictZ's form-based prediction tables."""
         predictions = []
-        # PredictZ uses today's specific URL routing for their tips
         url = "https://www.predictz.com/predictions/btts/" if market == "btts" else "https://www.predictz.com/predictions/over-under-2-5/"
         
         try:
             r = requests.get(url, headers=self.headers, timeout=15)
-            soup = BeautifulSoup(r.text, 'html.parser')
+            print(f"📡 PredictZ HTTP Status Code ({market}): {r.status_code}")
             
-            # PredictZ typically lists matches in a table structure 
-            for div in soup.find_all('div', class_='pttr'):
-                teams = div.find('div', class_='ptcteams')
-                pred_div = div.find('div', class_='ptcpred')
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, 'html.parser')
+                divs = soup.find_all('div', class_='pttr')
+                print(f"📊 PredictZ raw elements detected: {len(divs)}")
                 
-                if teams and pred_div:
-                    match_string = teams.text.strip() # Usually "Team A v Team B"
-                    prediction = pred_div.text.strip()
+                for div in divs:
+                    teams = div.find('div', class_='ptcteams')
+                    pred_div = div.find('div', class_='ptcpred')
                     
-                    if market == "btts" and "yes" in prediction.lower():
-                        predictions.append(match_string.replace(" v ", " vs "))
-                    elif market == "over" and "over" in prediction.lower():
-                        predictions.append(match_string.replace(" v ", " vs "))
+                    if teams and pred_div:
+                        match_string = teams.text.strip()
+                        prediction = pred_div.text.strip()
+                        
+                        if market == "btts" and "yes" in prediction.lower():
+                            predictions.append(match_string.replace(" v ", " vs "))
+                        elif market == "over" and "over" in prediction.lower():
+                            predictions.append(match_string.replace(" v ", " vs "))
         except Exception as e:
-            print(f"PredictZ Scrape Error: {e}")
+            print(f"❌ PredictZ Scrape Error: {e}")
             
+        print(f"✅ PredictZ extracted {len(predictions)} matches for {market}")
         return predictions
 
     def process_matrix(self):
-        print("Scraping Forebet and PredictZ Hubs...")
+        print("🚀 Starting Matrix Deep Scan...")
         
-        # 1. Fetch & Cross-Reference BTTS Market
-        print("Scanning BTTS Markets...")
         forebet_btts = self.scrape_forebet("btts")
         predictz_btts = self.scrape_predictz("btts")
         
@@ -96,8 +98,6 @@ class AlternativeMarketMatrix:
                     self.btts_consensus.append(f"⚔️ {fb_match} ➔ BTTS: Yes")
                     break
 
-        # 2. Fetch & Cross-Reference Over 2.5 Market
-        print("Scanning Over 2.5 Markets...")
         forebet_over = self.scrape_forebet("over")
         predictz_over = self.scrape_predictz("over")
         
@@ -106,6 +106,8 @@ class AlternativeMarketMatrix:
                 if self.is_match(fb_match, pz_match):
                     self.over_25_consensus.append(f"🔥 {fb_match} ➔ Over 2.5 Goals")
                     break
+        
+        print(f"📉 Final Matched Consensus - Over 2.5: {len(self.over_25_consensus)} | BTTS: {len(self.btts_consensus)}")
 
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: 
@@ -115,7 +117,6 @@ class AlternativeMarketMatrix:
         
         if self.over_25_consensus:
             msg += "📈 **FOREBET + PREDICTZ: OVER 2.5 GOALS**\n"
-            # Using set() to prevent any duplicate matches in the final list
             msg += "\n".join(list(set(self.over_25_consensus))[:10]) + "\n\n"
             
         if self.btts_consensus:
