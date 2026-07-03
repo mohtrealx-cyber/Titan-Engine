@@ -37,7 +37,8 @@ def get_dynamic_configs():
             "use_zenrows": False
         },
         "PredictZ": {
-            "url": f"https://www.predictz.com/predictions/today/?cb={cb}", 
+            # Removed the ?cb= parameter to keep the ZenRows API request completely clean
+            "url": "https://www.predictz.com/predictions/today/", 
             "row_selector": "div", "row_class": "pttr", 
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0, 
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0, 
@@ -56,12 +57,10 @@ class ZenRowsConsensusEngine:
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
         
-        # 1. Check exact word matches first
         if text in ["home", "home win"]: return "1"
         if text in ["draw", "x", "0"]: return "X"
         if text in ["away", "away win"]: return "2"
         
-        # 2. Check leading characters (handles "1X", "Home (2.10)", etc)
         if len(text) > 0:
             char = text[0]
             if char == "1" or char == "h": return "1"
@@ -73,9 +72,6 @@ class ZenRowsConsensusEngine:
     def clean_team_name(self, name): 
         return name.strip().title()
 
-    # ==========================================================
-    # TIME-SHIFT FILTER: DETECTS ALREADY KICKED OFF MATCHES
-    # ==========================================================
     def is_match_active_or_played(self, row):
         text = row.get_text(separator=" ").upper()
         padded_text = f" {text} "
@@ -95,16 +91,14 @@ class ZenRowsConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            # ==========================================================
-            # ZENROWS TUNNEL
-            # ==========================================================
             if cfg.get("use_zenrows") and ZENROWS_API_KEY:
                 proxy_url = "https://api.zenrows.com/v1/"
+                # Updated ZenRows parameters to fix the HTTP 400 Bad Request error
                 params = {
                     "apikey": ZENROWS_API_KEY,
                     "url": cfg["url"],
                     "js_render": "true", 
-                    "premium_proxy": "true" 
+                    "antibot": "true"  # Replaced premium_proxy with antibot bypass
                 }
                 r = tls_requests.get(proxy_url, params=params, timeout=60)
             else:
@@ -129,18 +123,13 @@ class ZenRowsConsensusEngine:
             
             for row in rows:
                 try: 
-                    # DROP THE MATCH IF IT HAS ALREADY STARTED OR FINISHED
                     if self.is_match_active_or_played(row):
                         skipped_count += 1
                         continue
 
                     home, away, pick = None, None, None
                     
-                    # ==========================================================
-                    # INTELLIGENT DUAL-PARSER FOR PREDICTZ
-                    # ==========================================================
                     if site_name == "PredictZ":
-                        # Try Mobile Classes First
                         h_elem = row.find(class_="pttmobh")
                         a_elem = row.find(class_="pttmoba")
                         p_elem = row.find(class_=re.compile("ptoddsdesc|ptmobpred"))
@@ -150,7 +139,6 @@ class ZenRowsConsensusEngine:
                             away = a_elem.text
                             pick = p_elem.text
                         else:
-                            # Fallback to Desktop Tag Search
                             links = row.find_all("a")
                             if len(links) >= 2:
                                 home = links[0].text
@@ -159,14 +147,12 @@ class ZenRowsConsensusEngine:
                                 if p_div:
                                     pick = p_div.text
                                 else:
-                                    # Brute force column scan
                                     for td in row.find_all("div", class_="pttd"):
                                         norm = self.normalize_prediction(td.text)
                                         if norm:
                                             pick = norm
                                             break
                     else:
-                        # STANDARD PARSER FOR STATAREA & VITIBET
                         home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
                         away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
                         pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
