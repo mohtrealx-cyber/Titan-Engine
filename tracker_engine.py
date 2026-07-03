@@ -1,8 +1,9 @@
 import os
 import requests
+from datetime import datetime
 
 # ==============================================================================
-# TITAN TRACKER: ELITE CORE (WITH FIXED KES STAKING)
+# TITAN TRACKER: ELITE CORE (KICKOFF-AWARE & SPACED LAYOUT)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -12,53 +13,41 @@ class GoldTierStakingSieve:
     def __init__(self):
         self.anchor_bookie = "pinnacle"
         self.gold_predictions = []
-        # Hardcoded to your specific baseline stake
         self.system_stake = "100 KES" 
 
     def fetch_market_data(self):
-        print("📡 TITAN TRACKER: Fetching high-volume global markets...")
-        if not ODDS_API_KEY: 
-            print("❌ CRITICAL: No API Key detected.")
-            return []
-            
+        if not ODDS_API_KEY: return []
         target_leagues = [
-            "soccer_fifa_world_cup", 
-            "soccer_brazil_campeonato", 
-            "soccer_brazil_serie_b", 
-            "soccer_usa_mls", 
-            "soccer_japan_j_league",
-            "soccer_sweden_allsvenskan",
-            "soccer_ireland_premier_division",
-            "soccer_norway_eliteserien"
+            "soccer_fifa_world_cup", "soccer_brazil_campeonato", "soccer_brazil_serie_b", 
+            "soccer_usa_mls", "soccer_japan_j_league", "soccer_sweden_allsvenskan",
+            "soccer_ireland_premier_division", "soccer_norway_eliteserien"
         ]
-        
         all_matches = []
         for league in target_leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}®ions=eu,uk,us&markets=h2h"
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
             try:
                 r = requests.get(url, timeout=15)
                 if r.status_code == 200:
                     all_matches.extend(r.json())
-            except Exception:
-                pass
-                
+            except Exception: pass
         return all_matches
 
     def process_gold_matrix(self):
-        print("🚀 Running Triple-Layer Sieve & Allocating 100 KES Stakes...")
         matches = self.fetch_market_data()
-
         if not matches: return
 
         for match in matches:
-            home = match.get("home_team")
-            away = match.get("away_team")
+            home, away = match.get("home_team"), match.get("away_team")
+            # Format time: 2026-07-03T15:00:00Z -> 03 Jul, 15:00
+            time_str = match.get("commence_time", "")
+            try:
+                dt = datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%SZ")
+                formatted_time = dt.strftime("%d %b, %H:%M")
+            except:
+                formatted_time = "TBD"
+
             bookmakers = match.get("bookmakers", [])
-            
-            home_prices = []
-            away_prices = []
-            draw_prices = []
-            
+            home_prices, away_prices, draw_prices = [], [], []
             pin_home, pin_away = None, None
             
             for bookie in bookmakers:
@@ -67,7 +56,6 @@ class GoldTierStakingSieve:
                     if mkt.get("key") == "h2h":
                         for outcome in mkt.get("outcomes", []):
                             price = float(outcome.get("price"))
-                            
                             if outcome.get("name") == home:
                                 home_prices.append(price)
                                 if bookie_key == self.anchor_bookie: pin_home = price
@@ -78,40 +66,27 @@ class GoldTierStakingSieve:
                                 draw_prices.append(price)
 
             if home_prices and away_prices and draw_prices:
-                avg_home = sum(home_prices) / len(home_prices)
-                avg_away = sum(away_prices) / len(away_prices)
-                avg_draw = sum(draw_prices) / len(draw_prices)
+                avg_home, avg_away, avg_draw = sum(home_prices)/len(home_prices), sum(away_prices)/len(away_prices), sum(draw_prices)/len(draw_prices)
                 
                 if avg_home < avg_away:
-                    fav_team = home
-                    avg_fav_odds = avg_home
-                    pin_fav_odds = pin_home
-                    prediction_symbol = "1"
+                    fav, avg_fav, pin_fav, symbol = home, avg_home, pin_home, "1"
                 else:
-                    fav_team = away
-                    avg_fav_odds = avg_away
-                    pin_fav_odds = pin_away
-                    prediction_symbol = "2"
+                    fav, avg_fav, pin_fav, symbol = away, avg_away, pin_away, "2"
                 
-                # Triple-Layer Sieve Pipelines
-                if avg_fav_odds > 1.45: continue
-                if avg_draw < 4.20: continue
-                if pin_fav_odds and pin_fav_odds > avg_fav_odds: continue
+                # Triple-Layer Sieve
+                if avg_fav > 1.45 or avg_draw < 4.20 or (pin_fav and pin_fav > avg_fav): continue
                 
-                self.gold_predictions.append(f"• {home} vs {away} ➔ {prediction_symbol} `[Stake: {self.system_stake}]`")
+                # Added Spacing (\n\n)
+                self.gold_predictions.append(f"📅 **{formatted_time}**\n• {home} vs {away} ➔ {symbol} `[Stake: {self.system_stake}]`\n\n")
 
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
         msg = "🎯 **TITAN ENGINE: ELITE CORE** 🎯\n\n"
-        
         if self.gold_predictions:
-            msg += f"💎 **GOLD-TIER SELECTIONS ({len(self.gold_predictions)} SECURED)**\n"
-            msg += "*(Filtered: Probability Floors, Draw Suppression & Sharp Convexity)*\n\n"
-            msg += "\n".join(self.gold_predictions) + "\n\n"
-            msg += "📊 **BANKROLL ALLOCATION SYSTEM**\n"
-            msg += "↳ Plan: Flat Sizing\n"
-            msg += f"↳ Target Risk: {self.system_stake} per selection consistently.\n\n"
+            msg += f"💎 **GOLD-TIER SELECTIONS ({len(self.gold_predictions)} SECURED)**\n\n"
+            msg += "".join(self.gold_predictions)
+            msg += "📊 **BANKROLL ALLOCATION:** Flat Sizing (100 KES/match)\n"
             msg += "💡 Strategy: Titan High-Confidence Sieve"
         else:
             msg += "No matches cleared the Triple-Layer validation checks today. Sieve remained perfectly tight."
