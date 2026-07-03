@@ -1,135 +1,133 @@
 import os
-import requests
+from curl_cffi import requests
+from bs4 import BeautifulSoup
+from difflib import SequenceMatcher
+from collections import defaultdict
 
 # ==============================================================================
-# MATRIX V4: TRUE GLOBAL TARGETING
+# MATRIX V5: STEALTH MULTI-HUB CONSENSUS
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("MATRIX_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("MATRIX_TELEGRAM_CHAT_ID")
-ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-class GlobalOddsMatrix:
+class ConsensusScraper:
     def __init__(self):
-        self.over_25_consensus = []
-        self.btts_consensus = []
-        self.double_chance_consensus = []
+        # Chrome impersonation smashes through Cloudflare's 403 blocks
+        self.session = requests.Session(impersonate="chrome")
         
-        # Targeting specific high-liquidity active leagues to bypass the 8-game limit
-        self.target_leagues = [
-            "soccer_fifa_world_cup",
-            "soccer_brazil_campeonato",
-            "soccer_brazil_serie_b",
-            "soccer_usa_mls",
-            "soccer_japan_j_league"
-        ]
+        # Dictionaries to track how many sites predict the exact same match
+        self.btts_counts = defaultdict(int)
+        self.over25_counts = defaultdict(int)
+        
+    def normalize_name(self, name):
+        """Strips out words that cause mismatching between sites."""
+        return name.lower().replace(" fc", "").replace(" united", "").replace(" city", "").strip()
 
-    def fetch_league_markets(self, sport_key):
-        """Pulls H2H, Totals, and BTTS market liabilities for a specific league."""
-        if not ODDS_API_KEY: 
-            return []
+    def add_prediction(self, market, home, away):
+        """Cross-references the match and adds a +1 to the consensus counter."""
+        match_name = f"{self.normalize_name(home)} vs {self.normalize_name(away)}"
+        target_dict = self.btts_counts if market == "btts" else self.over25_counts
         
-        url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={ODDS_API_KEY}®ions=eu&markets=h2h,totals,btts"
+        # Fuzzy matching ensures different spellings count as the exact same match
+        matched_key = None
+        for existing_match in target_dict.keys():
+            if SequenceMatcher(None, match_name, existing_match).ratio() > 0.70:
+                matched_key = existing_match
+                break
+                
+        if matched_key:
+            target_dict[matched_key] += 1
+        else:
+            target_dict[match_name] += 1
+
+    def scrape_forebet(self):
+        print("📡 Scraping Forebet with Stealth Browser...")
         try:
-            r = requests.get(url, timeout=15)
+            # BTTS Market
+            r = self.session.get("https://www.forebet.com/en/football-predictions/both-to-score", timeout=15)
             if r.status_code == 200:
-                return r.json()
-        except Exception:
-            pass
-        return []
+                soup = BeautifulSoup(r.text, 'html.parser')
+                for row in soup.find_all('div', class_=['tr_0', 'tr_1']):
+                    home = row.find('span', class_='homeTeam')
+                    away = row.find('span', class_='awayTeam')
+                    predict = row.find('div', class_='predict')
+                    if home and away and predict and "yes" in predict.text.lower():
+                        self.add_prediction("btts", home.text, away.text)
+                        
+            # Over 2.5 Market
+            r2 = self.session.get("https://www.forebet.com/en/football-predictions/under-over-25-goals", timeout=15)
+            if r2.status_code == 200:
+                soup = BeautifulSoup(r2.text, 'html.parser')
+                for row in soup.find_all('div', class_=['tr_0', 'tr_1']):
+                    home = row.find('span', class_='homeTeam')
+                    away = row.find('span', class_='awayTeam')
+                    predict = row.find('div', class_='predict')
+                    if home and away and predict and "over" in predict.text.lower():
+                        self.add_prediction("over", home.text, away.text)
+        except Exception as e:
+            print(f"❌ Forebet Scrape Error: {e}")
+
+    def scrape_predictz(self):
+        print("📡 Scraping PredictZ with Stealth Browser...")
+        try:
+            # BTTS Market
+            r = self.session.get("https://www.predictz.com/predictions/btts/", timeout=15)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, 'html.parser')
+                for div in soup.find_all('div', class_='pttr'):
+                    teams = div.find('div', class_='ptcteams')
+                    pred = div.find('div', class_='ptcpred')
+                    if teams and pred and "yes" in pred.text.lower():
+                        parts = teams.text.split(' v ')
+                        if len(parts) == 2:
+                            self.add_prediction("btts", parts[0], parts[1])
+                            
+            # Over 2.5 Market
+            r2 = self.session.get("https://www.predictz.com/predictions/over-under-2-5/", timeout=15)
+            if r2.status_code == 200:
+                soup = BeautifulSoup(r2.text, 'html.parser')
+                for div in soup.find_all('div', class_='pttr'):
+                    teams = div.find('div', class_='ptcteams')
+                    pred = div.find('div', class_='ptcpred')
+                    if teams and pred and "over" in pred.text.lower():
+                        parts = teams.text.split(' v ')
+                        if len(parts) == 2:
+                            self.add_prediction("over", parts[0], parts[1])
+        except Exception as e:
+            print(f"❌ PredictZ Scrape Error: {e}")
 
     def process_matrix(self):
-        print("🚀 Scanning Global Bookmaker Consensus for Alternative Markets...")
+        print("🚀 Launching Multi-Hub Scraper...")
+        self.scrape_forebet()
+        self.scrape_predictz()
         
-        for league in self.target_leagues:
-            print(f"📡 Scanning {league}...")
-            matches = self.fetch_league_markets(league)
-
-            for match in matches:
-                home = match.get("home_team")
-                away = match.get("away_team")
-                bookmakers = match.get("bookmakers", [])
-                
-                if not bookmakers: 
-                    continue
-                
-                over_2_5_prices = []
-                btts_yes_prices = []
-                home_win_prices = []
-                draw_prices = []
-                away_win_prices = []
-
-                for bookie in bookmakers:
-                    markets = bookie.get("markets", [])
-                    for mkt in markets:
-                        if mkt.get("key") == "totals":
-                            for outcome in mkt.get("outcomes", []):
-                                if outcome.get("name") == "Over" and outcome.get("point") == 2.5:
-                                    over_2_5_prices.append(float(outcome.get("price")))
-                        elif mkt.get("key") == "btts":
-                            for outcome in mkt.get("outcomes", []):
-                                if outcome.get("name") == "Yes":
-                                    btts_yes_prices.append(float(outcome.get("price")))
-                        elif mkt.get("key") == "h2h":
-                            for outcome in mkt.get("outcomes", []):
-                                if outcome.get("name") == home:
-                                    home_win_prices.append(float(outcome.get("price")))
-                                elif outcome.get("name") == away:
-                                    away_win_prices.append(float(outcome.get("price")))
-                                elif outcome.get("name") == "Draw":
-                                    draw_prices.append(float(outcome.get("price")))
-
-                # 1. OVER 2.5 CONSENSUS
-                # Requires at least 2 bookmakers offering odds to confirm consensus
-                if over_2_5_prices and len(over_2_5_prices) >= 2:
-                    avg_over = sum(over_2_5_prices) / len(over_2_5_prices)
-                    if avg_over <= 1.75: 
-                        self.over_25_consensus.append(f"🔥 {home} vs {away} ➔ Over 2.5 Goals (Avg: {avg_over:.2f})")
-
-                # 2. BTTS YES CONSENSUS
-                if btts_yes_prices and len(btts_yes_prices) >= 2:
-                    avg_btts = sum(btts_yes_prices) / len(btts_yes_prices)
-                    if avg_btts <= 1.80:
-                        self.btts_consensus.append(f"⚔️ {home} vs {away} ➔ BTTS: Yes (Avg: {avg_btts:.2f})")
-
-                # 3. DOUBLE CHANCE CONSENSUS 
-                if home_win_prices and draw_prices and away_win_prices:
-                    avg_1 = sum(home_win_prices) / len(home_win_prices)
-                    avg_X = sum(draw_prices) / len(draw_prices)
-                    avg_2 = sum(away_win_prices) / len(away_win_prices)
-
-                    implied_1X = (1 / avg_1) + (1 / avg_X)
-                    implied_X2 = (1 / avg_2) + (1 / avg_X)
-
-                    if implied_1X >= 0.85:
-                        self.double_chance_consensus.append(f"🛡️ {home} or Draw (1X) ➔ (Lock: {implied_1X*100:.1f}%)")
-                    elif implied_X2 >= 0.85:
-                        self.double_chance_consensus.append(f"🛡️ {away} or Draw (X2) ➔ (Lock: {implied_X2*100:.1f}%)")
-
     def dispatch_alerts(self):
-        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: 
+        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
             return
             
-        msg = "🎯 **MATRIX V4: TRUE GLOBAL AGGREGATOR** 🎯\n\n"
+        msg = "🎯 **MATRIX V5: MULTI-HUB CONSENSUS** 🎯\n\n"
         
-        if self.double_chance_consensus:
-            msg += "🛡️ **DOUBLE CHANCE LOCKS (1X / X2)**\n"
-            msg += "\n".join(self.double_chance_consensus[:8]) + "\n\n"
+        # Extract matches that appeared on BOTH sites (Count >= 2)
+        btts_locks = [match.title() for match, count in self.btts_counts.items() if count >= 2]
+        over_locks = [match.title() for match, count in self.over25_counts.items() if count >= 2]
         
-        if self.over_25_consensus:
-            msg += "📈 **MARKET CONSENSUS: OVER 2.5 GOALS**\n"
-            msg += "\n".join(self.over_25_consensus[:8]) + "\n\n"
+        if over_locks:
+            msg += "📈 **2/2 SITES AGREE: OVER 2.5 GOALS**\n"
+            msg += "\n".join([f"🔥 {m}" for m in over_locks[:15]]) + "\n\n"
             
-        if self.btts_consensus:
-            msg += "⚔️ **MARKET CONSENSUS: BTTS YES**\n"
-            msg += "\n".join(self.btts_consensus[:8]) + "\n\n"
+        if btts_locks:
+            msg += "⚔️ **2/2 SITES AGREE: BTTS YES**\n"
+            msg += "\n".join([f"🔒 {m}" for m in btts_locks[:15]]) + "\n\n"
 
-        if msg == "🎯 **MATRIX V4: TRUE GLOBAL AGGREGATOR** 🎯\n\n":
-            msg += "No market consensus found for alternative markets today."
+        if not over_locks and not btts_locks:
+            msg += "No 2-site consensus found for alternative markets today."
 
+        # Send payload to Telegram using standard requests
+        import requests as standard_requests
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
+        standard_requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    engine = GlobalOddsMatrix()
+    engine = ConsensusScraper()
     engine.process_matrix()
     engine.dispatch_alerts()
