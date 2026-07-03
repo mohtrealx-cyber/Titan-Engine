@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import time
 import asyncio
 import datetime
@@ -94,7 +95,7 @@ class ZenRowsConsensusEngine:
                     "apikey": ZENROWS_API_KEY,
                     "url": cfg["url"],
                     "js_render": "true", 
-                    "wait": "3000", # Forces ZenRows to wait 3 seconds for JS tables to load
+                    "wait": "3000",
                     "antibot": "true" 
                 }
                 r = tls_requests.get(proxy_url, params=params, timeout=60)
@@ -109,18 +110,14 @@ class ZenRowsConsensusEngine:
                 return
                 
             soup = BeautifulSoup(r.content, 'html.parser')
-            
-            # Dynamic regex row finding to catch both desktop and mobile tables
             row_target = re.compile("pttr|ptrow") if site_name == "PredictZ" else cfg["row_class"]
             rows = soup.find_all(cfg["row_selector"], class_=row_target)
             
             if not rows:
-                # X-RAY DIAGNOSTICS: See exactly what page ZenRows downloaded
                 page_title = soup.title.string.strip() if soup.title and soup.title.string else "No Title Found"
                 if "moment" in page_title.lower() or "cloudflare" in page_title.lower():
                     self.diagnostics[site_name] = f"🟡 BLOCKED (Cloudflare Checkbox Trap)"
                 else:
-                    # Shows the first 25 characters of the page title so we know what loaded
                     self.diagnostics[site_name] = f"🟡 BLOCKED (Title: {page_title[:25]}...)"
                 return
                 
@@ -178,6 +175,8 @@ class ZenRowsConsensusEngine:
 
     def process_consensus_signals(self):
         agreed_matches = []
+        structured_tickets = [] # For the memory file
+        
         for match, listings in self.master_matrix.items():
             if len(listings) < 2: continue
             
@@ -191,12 +190,48 @@ class ZenRowsConsensusEngine:
             top_pick = max(prediction_weights, key=prediction_weights.get)
             if prediction_weights[top_pick] >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
+                
+                # Standard Telegram format
                 agreed_matches.append(
                     f"• **{match}** ➔ {top_pick}\n"
                     f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
                     f"  ↳ 💰 `[Stake: {self.system_stake}]`\n"
                 )
-        return agreed_matches
+                
+                # Structured JSON format for memory
+                structured_tickets.append({
+                    "match": match,
+                    "prediction": top_pick,
+                    "backed_by": sites_backing[top_pick],
+                    "status": "PENDING",
+                    "home_score": "-",
+                    "away_score": "-"
+                })
+                
+        return agreed_matches, structured_tickets
+
+    # ==========================================================
+    # PHASE 1: DIGITAL NOTEBOOK (SAVES MATCHES TO JSON)
+    # ==========================================================
+    def save_tickets_to_memory(self, new_tickets):
+        file_path = "pending_tickets.json"
+        try:
+            if os.path.exists(file_path):
+                with open(file_path, "r") as f:
+                    memory = json.load(f)
+            else:
+                memory = {}
+                
+            # Use East Africa Time (EAT) for the date key
+            today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
+            
+            # Save or overwrite today's tickets in the dictionary
+            memory[today_date] = new_tickets
+            
+            with open(file_path, "w") as f:
+                json.dump(memory, f, indent=4)
+        except Exception as e:
+            pass
 
     def send_telegram_alert(self, msg):
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
@@ -211,7 +246,11 @@ class ZenRowsConsensusEngine:
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
         
-        consensus_list = self.process_consensus_signals()
+        consensus_list, structured_tickets = self.process_consensus_signals()
+        
+        # Save matches to memory notebook before ending the script
+        if structured_tickets:
+            self.save_tickets_to_memory(structured_tickets)
         
         msg = "🤝 **ZENROWS CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
         
