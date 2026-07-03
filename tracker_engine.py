@@ -3,7 +3,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: STABLE SYNDICATE CORE (MARKDOWN SAFE)
+# TITAN TRACKER: STABLE SYNDICATE CORE (AM/PM FORMAT)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -34,7 +34,7 @@ class StableSyndicateSieve:
         
         all_matches = []
         for league in target_leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}®ions=eu,uk,us&markets=h2h"
             try:
                 r = requests.get(url, timeout=10)
                 if r.status_code == 200:
@@ -61,7 +61,9 @@ class StableSyndicateSieve:
             try:
                 dt = datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%SZ")
                 if dt < now or dt > limit: continue
-                fmt_time = dt.strftime("%d %b, %H:%M")
+                
+                # UPDATED: Format to dd/mm/yyyy HH:MM AM/PM
+                fmt_time = dt.strftime("%d/%m/%Y %I:%M %p")
                 
                 # Kickoff Countdown
                 diff = dt - now
@@ -89,41 +91,41 @@ class StableSyndicateSieve:
                             elif outcome.get("name") == "Draw": 
                                 draw_prices.append(price)
 
-            if home_prices and away_prices and draw_prices:
-                avg_home, avg_away, avg_draw = sum(home_prices)/len(home_prices), sum(away_prices)/len(away_prices), sum(draw_prices)/len(draw_prices)
-                
-                if avg_home < avg_away:
-                    fav, avg_fav, pin_fav, sym = home, avg_home, pin_home, "1"
-                else:
-                    fav, avg_fav, pin_fav, sym = away, avg_away, pin_away, "2"
-                
-                edge_tag = ""
-                sharp_alert = ""
+        if home_prices and away_prices and draw_prices:
+            avg_home, avg_away, avg_draw = sum(home_prices)/len(home_prices), sum(away_prices)/len(away_prices), sum(draw_prices)/len(draw_prices)
+            
+            if avg_home < avg_away:
+                fav, avg_fav, pin_fav, sym = home, avg_home, pin_home, "1"
+            else:
+                fav, avg_fav, pin_fav, sym = away, avg_away, pin_away, "2"
+            
+            edge_tag = ""
+            sharp_alert = ""
 
-                if pin_fav:
-                    # Expected Value (EV) Edge
-                    edge_pct = ((avg_fav / pin_fav) - 1) * 100
-                    if edge_pct > 0:
-                        edge_tag = f" `[Edge: +{edge_pct:.1f}%]`"
-                    
-                    # Sharp Steam Detector (5% drop or more)
-                    if pin_fav <= (avg_fav * 0.95):
-                        sharp_alert = "\n🚨 *SHARP MONEY DETECTED*"
-
-                match_text = (
-                    f"📅 **{fmt_time}** | {countdown}\n"
-                    f"• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`{edge_tag}"
-                    f"{sharp_alert}\n\n"
-                )
-
-                # GOLD TIER
-                if avg_fav <= 1.50 and avg_draw >= 4.00:
-                    self.gold_preds.append(match_text)
-                    self.combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
+            if pin_fav:
+                # Expected Value (EV) Edge
+                edge_pct = ((avg_fav / pin_fav) - 1) * 100
+                if edge_pct > 0:
+                    edge_tag = f" `[Edge: +{edge_pct:.1f}%]`"
                 
-                # STANDARD TIER
-                elif avg_fav <= 2.10 and avg_draw >= 3.00:
-                    self.std_preds.append(match_text)
+                # Sharp Steam Detector (5% drop or more)
+                if pin_fav <= (avg_fav * 0.95):
+                    sharp_alert = "\n🚨 *SHARP MONEY DETECTED*"
+
+            match_text = (
+                f"📅 **{fmt_time}** | {countdown}\n"
+                f"• {home} vs {away} ➔ {sym} `[Stake: {self.system_stake}]`{edge_tag}"
+                f"{sharp_alert}\n\n"
+            )
+
+            # GOLD TIER
+            if avg_fav <= 1.50 and avg_draw >= 4.00:
+                self.gold_preds.append(match_text)
+                self.combo_candidates.append({"text": f"{home} vs {away} ({sym})", "odds": avg_fav})
+            
+            # STANDARD TIER
+            elif avg_fav <= 2.10 and avg_draw >= 3.00:
+                self.std_preds.append(match_text)
 
     def dispatch_alerts(self):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
