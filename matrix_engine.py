@@ -1,149 +1,116 @@
 import os
 import requests
-from curl_cffi import requests as cffi_requests
-from bs4 import BeautifulSoup
-from difflib import SequenceMatcher
-from collections import defaultdict
 
 # ==============================================================================
-# MATRIX V6: ENSEMBLE VOTING ENGINE (2-out-of-3)
+# MATRIX V7: THE SHARP BOOKIE SYNDICATE ENGINE
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("MATRIX_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("MATRIX_TELEGRAM_CHAT_ID")
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
-class SyndicateVotingEngine:
+class SharpMatrixEngine:
     def __init__(self):
-        self.session = cffi_requests.Session(impersonate="chrome")
-        # Tracks how many "Votes" a match receives from the 3 Hubs
-        self.btts_votes = defaultdict(int)
-        self.over25_votes = defaultdict(int)
+        # We exclusively track the most ruthless, accurate bookmakers on earth.
+        self.sharp_bookies = [
+            "pinnacle", "bet365", "unibet", "matchbook", 
+            "betfair_ex_eu", "betonlineag", "williamhill"
+        ]
+        self.over_25_consensus = []
+        self.btts_consensus = []
+
+    def fetch_sharp_markets(self):
+        print("📡 Pinging Global API for Sharp Syndicate Data...")
+        if not ODDS_API_KEY: 
+            return []
+            
+        target_leagues = [
+            "soccer_fifa_world_cup", 
+            "soccer_brazil_campeonato", 
+            "soccer_brazil_serie_b", 
+            "soccer_usa_mls", 
+            "soccer_japan_j_league"
+        ]
         
-    def normalize_name(self, name):
-        """Strips useless words so cross-referencing between APIs and scrapers is bulletproof."""
-        return name.lower().replace(" fc", "").replace(" united", "").replace(" national football team", "").replace(" men's", "").strip()
-
-    def cast_vote(self, market, home, away):
-        """Casts a +1 Vote for a specific match market."""
-        match_name = f"{self.normalize_name(home).title()} vs {self.normalize_name(away).title()}"
-        target_dict = self.btts_votes if market == "btts" else self.over25_votes
-        
-        matched_key = None
-        for existing_match in target_dict.keys():
-            if SequenceMatcher(None, match_name.lower(), existing_match.lower()).ratio() > 0.65:
-                matched_key = existing_match
-                break
-                
-        if matched_key:
-            target_dict[matched_key] += 1
-        else:
-            target_dict[match_name] += 1
-
-    def scrape_forebet(self):
-        print("📡 Voter 1: Asking Forebet...")
-        try:
-            r = self.session.get("https://www.forebet.com/en/football-predictions/under-over-25-goals", timeout=15)
-            if r.status_code == 200:
-                soup = BeautifulSoup(r.text, 'html.parser')
-                for row in soup.find_all('div', class_=['tr_0', 'tr_1']):
-                    home, away, predict = row.find('span', class_='homeTeam'), row.find('span', class_='awayTeam'), row.find('div', class_='predict')
-                    if home and away and predict and "over" in predict.text.lower():
-                        self.cast_vote("over", home.text, away.text)
-                        
-            r2 = self.session.get("https://www.forebet.com/en/football-predictions/both-to-score", timeout=15)
-            if r2.status_code == 200:
-                soup = BeautifulSoup(r2.text, 'html.parser')
-                for row in soup.find_all('div', class_=['tr_0', 'tr_1']):
-                    home, away, predict = row.find('span', class_='homeTeam'), row.find('span', class_='awayTeam'), row.find('div', class_='predict')
-                    if home and away and predict and "yes" in predict.text.lower():
-                        self.cast_vote("btts", home.text, away.text)
-        except Exception as e:
-            print(f"Forebet Error: {e}")
-
-    def scrape_predictz(self):
-        print("📡 Voter 2: Asking PredictZ...")
-        try:
-            r = self.session.get("https://www.predictz.com/predictions/over-under-2-5/", timeout=15)
-            if r.status_code == 200:
-                soup = BeautifulSoup(r.text, 'html.parser')
-                for div in soup.find_all('div', class_='pttr'):
-                    teams, pred = div.find('div', class_='ptcteams'), div.find('div', class_='ptcpred')
-                    if teams and pred and "over" in pred.text.lower():
-                        parts = teams.text.split(' v ')
-                        if len(parts) == 2:
-                            self.cast_vote("over", parts[0], parts[1])
-                            
-            r2 = self.session.get("https://www.predictz.com/predictions/btts/", timeout=15)
-            if r2.status_code == 200:
-                soup = BeautifulSoup(r2.text, 'html.parser')
-                for div in soup.find_all('div', class_='pttr'):
-                    teams, pred = div.find('div', class_='ptcteams'), div.find('div', class_='ptcpred')
-                    if teams and pred and "yes" in pred.text.lower():
-                        parts = teams.text.split(' v ')
-                        if len(parts) == 2:
-                            self.cast_vote("btts", parts[0], parts[1])
-        except Exception as e:
-            print(f"PredictZ Error: {e}")
-
-    def fetch_odds_api(self):
-        print("📡 Voter 3: Asking the Smart Money (Global Odds API)...")
-        if not ODDS_API_KEY: return
-        target_leagues = ["soccer_fifa_world_cup", "soccer_brazil_campeonato", "soccer_brazil_serie_b", "soccer_usa_mls", "soccer_japan_j_league"]
+        all_matches = []
         for league in target_leagues:
+            # We request 'eu' and 'uk' regions to ensure we catch our target bookies
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk&markets=totals,btts"
             try:
-                url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu&markets=totals,btts"
-                r = requests.get(url, timeout=10)
+                r = requests.get(url, timeout=15)
                 if r.status_code == 200:
-                    for match in r.json():
-                        home, away = match.get("home_team"), match.get("away_team")
-                        over_prices, btts_prices = [], []
-                        for bookie in match.get("bookmakers", []):
-                            for mkt in bookie.get("markets", []):
-                                if mkt.get("key") == "totals":
-                                    for outcome in mkt.get("outcomes", []):
-                                        if outcome.get("name") == "Over" and outcome.get("point") == 2.5: over_prices.append(float(outcome.get("price")))
-                                elif mkt.get("key") == "btts":
-                                    for outcome in mkt.get("outcomes", []):
-                                        if outcome.get("name") == "Yes": btts_prices.append(float(outcome.get("price")))
-                        
-                        # If the global bookies price it under 1.75, the API casts a vote
-                        if over_prices and (sum(over_prices)/len(over_prices)) <= 1.75:
-                            self.cast_vote("over", home, away)
-                        if btts_prices and (sum(btts_prices)/len(btts_prices)) <= 1.80:
-                            self.cast_vote("btts", home, away)
+                    all_matches.extend(r.json())
             except Exception as e:
-                print(f"API Error: {e}")
+                print(f"❌ API Error on {league}: {e}")
+                
+        return all_matches
 
     def process_matrix(self):
-        print("🚀 Launching V6 Ensemble Voting Engine...")
-        self.scrape_forebet()
-        self.scrape_predictz()
-        self.fetch_odds_api()
-        
-    def dispatch_alerts(self):
-        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
-            
-        msg = "🎯 **MATRIX V6: ENSEMBLE VOTING ENGINE** 🎯\n\n"
-        
-        # We only need 2 out of 3 votes to publish the lock!
-        over_locks = [m for m, votes in self.over25_votes.items() if votes >= 2]
-        btts_locks = [m for m, votes in self.btts_votes.items() if votes >= 2]
-        
-        if over_locks:
-            msg += "📈 **2+ VOTES SECURED: OVER 2.5 GOALS**\n"
-            msg += "\n".join([f"🔥 {m}" for m in over_locks[:15]]) + "\n\n"
-            
-        if btts_locks:
-            msg += "⚔️ **2+ VOTES SECURED: BTTS YES**\n"
-            msg += "\n".join([f"🔒 {m}" for m in btts_locks[:15]]) + "\n\n"
+        print("🚀 Executing V7 Sharp Bookie Consensus...")
+        matches = self.fetch_sharp_markets()
 
-        if not over_locks and not btts_locks:
-            msg += "No 2-vote consensus found across the network today."
+        for match in matches:
+            home = match.get("home_team")
+            away = match.get("away_team")
+            bookmakers = match.get("bookmakers", [])
+            
+            sharp_over_votes = 0
+            sharp_btts_votes = 0
+            
+            total_sharps_for_over = 0
+            total_sharps_for_btts = 0
+
+            for bookie in bookmakers:
+                bookie_key = bookie.get("key", "").lower()
+                
+                # Ignore public/soft bookies. Only the sharp money matters.
+                if bookie_key not in self.sharp_bookies:
+                    continue
+
+                for mkt in bookie.get("markets", []):
+                    if mkt.get("key") == "totals":
+                        total_sharps_for_over += 1
+                        for outcome in mkt.get("outcomes", []):
+                            if outcome.get("name") == "Over" and outcome.get("point") == 2.5:
+                                # A sharp bookie dropping Over 2.5 to 1.75 or below is a consensus vote
+                                if float(outcome.get("price")) <= 1.75:
+                                    sharp_over_votes += 1
+                                    
+                    elif mkt.get("key") == "btts":
+                        total_sharps_for_btts += 1
+                        for outcome in mkt.get("outcomes", []):
+                            if outcome.get("name") == "Yes":
+                                # A sharp bookie dropping BTTS to 1.80 or below is a consensus vote
+                                if float(outcome.get("price")) <= 1.80:
+                                    sharp_btts_votes += 1
+
+            # The 2-Vote Math: If at least 2 sharp bookies agree the odds should be heavily slashed
+            if sharp_over_votes >= 2:
+                self.over_25_consensus.append(f"🔥 {home} vs {away} ➔ Over 2.5 (Sharp Votes: {sharp_over_votes}/{total_sharps_for_over})")
+                
+            if sharp_btts_votes >= 2:
+                self.btts_consensus.append(f"⚔️ {home} vs {away} ➔ BTTS: Yes (Sharp Votes: {sharp_btts_votes}/{total_sharps_for_btts})")
+
+    def dispatch_alerts(self):
+        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: 
+            return
+            
+        msg = "🎯 **MATRIX V7: SHARP MONEY SYNDICATE** 🎯\n\n"
+        
+        if self.over_25_consensus:
+            msg += "📈 **SHARP CONSENSUS: OVER 2.5 GOALS**\n"
+            msg += "\n".join(self.over_25_consensus[:15]) + "\n\n"
+            
+        if self.btts_consensus:
+            msg += "⚔️ **SHARP CONSENSUS: BTTS YES**\n"
+            msg += "\n".join(self.btts_consensus[:15]) + "\n\n"
+
+        if not self.over_25_consensus and not self.btts_consensus:
+            msg += "No sharp money consensus detected in the global market today."
 
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
 if __name__ == "__main__":
-    engine = SyndicateVotingEngine()
+    engine = SharpMatrixEngine()
     engine.process_matrix()
     engine.dispatch_alerts()
