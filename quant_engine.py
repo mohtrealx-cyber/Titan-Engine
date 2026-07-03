@@ -11,6 +11,7 @@ from curl_cffi import requests as tls_requests
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
+ZENROWS_API_KEY = os.environ.get("ZENROWS_API_KEY") # Ensure this is in GitHub Secrets
 
 def get_dynamic_configs():
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
@@ -23,25 +24,28 @@ def get_dynamic_configs():
             "row_selector": "div", "row_class": "matchrow", 
             "home_selector": "div", "home_class": "name", "home_index": 0, 
             "away_selector": "div", "away_class": "name", "away_index": 1, 
-            "pick_selector": "div", "pick_class": "type1", "pick_index": 0
+            "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
+            "use_zenrows": False
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}", 
             "row_selector": "a", "row_class": "livescore-match-row", 
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0, 
             "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1, 
-            "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0
+            "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
+            "use_zenrows": False
         },
-        "ZuluBet": {
-            "url": "https://www.zulubet.com/", 
-            "row_selector": "tr", "row_class": "", 
-            "home_selector": "td", "home_class": "", "home_index": 1, 
-            "away_selector": "td", "away_class": "", "away_index": 2, 
-            "pick_selector": "td", "pick_class": "", "pick_index": 4 
+        "PredictZ": {
+            "url": f"https://www.predictz.com/predictions/today/?cb={cb}", 
+            "row_selector": "div", "row_class": "pttr", 
+            "home_selector": "div", "home_class": "pttmobh", "home_index": 0, 
+            "away_selector": "div", "away_class": "pttmoba", "away_index": 0, 
+            "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
+            "use_zenrows": True # Triggers the ZenRows API bypass
         }
     }
 
-class OpenConsensusEngine:
+class ZenRowsConsensusEngine:
     def __init__(self, configs):
         self.configs = configs
         self.master_matrix = {}
@@ -49,11 +53,8 @@ class OpenConsensusEngine:
         self.diagnostics = {} 
 
     def normalize_prediction(self, raw_text):
-        # Strips out all hidden whitespace, line breaks, etc.
         text = str(raw_text).strip().lower()
-        # Takes the first character if there are multiple (e.g., "1x" becomes "1")
         if len(text) > 0: text = text[0]
-        
         matrix = {"1": ["1", "home"], "X": ["x", "draw", "0"], "2": ["2", "away"]}
         for tag, vars in matrix.items():
             if text in vars: return tag
@@ -72,51 +73,33 @@ class OpenConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
+            # ==========================================================
+            # THE ZENROWS CLOUDFLARE BYPASS
+            # ==========================================================
+            if cfg.get("use_zenrows") and ZENROWS_API_KEY:
+                proxy_url = "https://api.zenrows.com/v1/"
+                params = {
+                    "apikey": ZENROWS_API_KEY,
+                    "url": cfg["url"],
+                    "js_render": "true", # Forces Cloudflare JS challenge to solve
+                    "premium_proxy": "true" 
+                }
+                # ZenRows handles the impersonation, so we use a standard get
+                r = tls_requests.get(proxy_url, params=params, timeout=60)
+            else:
+                # Open sites continue to use the standard TLS impersonation
+                if cfg.get("use_zenrows") and not ZENROWS_API_KEY:
+                    self.diagnostics[site_name] = "🔴 MISSING ZENROWS KEY"
+                    return
+                r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
             
             if r.status_code != 200: 
                 self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
                 return
                 
             soup = BeautifulSoup(r.content, 'html.parser')
-            
-            # ==========================================================
-            # ZULUBET OVERRIDE PARSER
-            # ==========================================================
-            if site_name == "ZuluBet":
-                rows = soup.find_all("tr")
-                valid_rows = 0
-                for row in rows:
-                    cols = row.find_all("td")
-                    # Relaxed column check in case table format shifted
-                    if len(cols) >= 5 and "aver_odds" not in str(row):
-                        try:
-                            home = cols[1].text.strip()
-                            away = cols[2].text.strip()
-                            pick = None
-                            
-                            for col in cols:
-                                col_html = str(col).lower()
-                                if 'green' in col_html or '#008000' in col_html:
-                                    # Send directly to the normalizer to handle messy spacing
-                                    pick = self.normalize_prediction(col.text)
-                                    if pick: break
-                                        
-                            if home and away and pick:
-                                # We don't need to normalize again here since we just did
-                                match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
-                                if match_key not in self.master_matrix: self.master_matrix[match_key] = []
-                                self.master_matrix[match_key].append((site_name, pick))
-                                valid_rows += 1
-                        except: continue
-                
-                self.diagnostics[site_name] = f"🟢 OK ({valid_rows} Matches)" if valid_rows > 0 else "🟡 BLOCKED (0 Rows Found)"
-                return
-
-            # ==========================================================
-            # STANDARD PARSER (Statarea & Vitibet)
-            # ==========================================================
             rows = soup.find_all(cfg["row_selector"], class_=cfg["row_class"])
+            
             if not rows:
                 self.diagnostics[site_name] = "🟡 BLOCKED (0 Rows Found)"
                 return
@@ -132,6 +115,7 @@ class OpenConsensusEngine:
                         row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
                     )
                 except: continue
+                
         except Exception as e: 
             self.diagnostics[site_name] = "🔴 TIMEOUT/ERROR"
             return
@@ -179,8 +163,8 @@ class OpenConsensusEngine:
         
         consensus_list = self.process_consensus_signals()
         
-        msg = "🤝 **OPEN-DATA CONSENSUS ENGINE** 🤝\n"
-        msg += "*(Statarea + Vitibet + ZuluBet)*\n\n"
+        msg = "🤝 **ZENROWS CONSENSUS ENGINE** 🤝\n"
+        msg += "*(Statarea + Vitibet + PredictZ)*\n\n"
         
         if not consensus_list:
             msg += "No matches found with 2+ sites in agreement today.\n\n"
@@ -197,4 +181,4 @@ class OpenConsensusEngine:
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
-    asyncio.run(OpenConsensusEngine(live_configs).run_pipeline())
+    asyncio.run(ZenRowsConsensusEngine(live_configs).run_pipeline())
