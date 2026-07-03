@@ -13,7 +13,6 @@ TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACK
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 
 def get_dynamic_configs():
-    # Force Timezone to UTC+3 (East Africa Time) to prevent server-time mismatch
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
     today_date = eat_time.strftime('%Y-%m-%d')
     cb = int(time.time()) 
@@ -26,28 +25,29 @@ def get_dynamic_configs():
             "away_selector": "div", "away_class": "name", "away_index": 1, 
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0
         },
-        "Forebet": {
-            "url": "https://www.forebet.com/en/football-predictions.html", 
-            "row_selector": "div", "row_class": "rcnt", 
-            "home_selector": "span", "home_class": "homeTeam", "home_index": 0, 
-            "away_selector": "span", "away_class": "awayTeam", "away_index": 0, 
-            "pick_selector": "span", "pick_class": "forepr", "pick_index": 0
-        },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}", 
             "row_selector": "a", "row_class": "livescore-match-row", 
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0, 
             "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1, 
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0
+        },
+        "ZuluBet": {
+            # ZuluBet has no bot protection, making it perfect for GitHub Actions
+            "url": "https://www.zulubet.com/", 
+            "row_selector": "tr", "row_class": "", # ZuluBet uses standard unclassed table rows
+            "home_selector": "td", "home_class": "", "home_index": 1, 
+            "away_selector": "td", "away_class": "", "away_index": 2, 
+            "pick_selector": "td", "pick_class": "", "pick_index": 4 
         }
     }
 
-class SimpleConsensusEngine:
+class OpenConsensusEngine:
     def __init__(self, configs):
         self.configs = configs
         self.master_matrix = {}
         self.system_stake = "100 KES"
-        self.diagnostics = {} # Tracks the success/failure of each scraper
+        self.diagnostics = {} 
 
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
@@ -69,15 +69,40 @@ class SimpleConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            # Impersonating Safari to bypass basic bot checks
-            r = tls_requests.get(cfg["url"], impersonate="safari15_5", timeout=20)
+            r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
             
             if r.status_code != 200: 
                 self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
                 return
                 
-            rows = BeautifulSoup(r.content, 'html.parser').find_all(cfg["row_selector"], class_=cfg["row_class"])
+            soup = BeautifulSoup(r.content, 'html.parser')
             
+            # Custom parsing for ZuluBet's older table structure
+            if site_name == "ZuluBet":
+                rows = soup.find_all("tr")
+                valid_rows = 0
+                for row in rows:
+                    cols = row.find_all("td")
+                    # Check if it's a valid match row (usually 8+ columns)
+                    if len(cols) >= 8 and "aver_odds" not in str(row):
+                        try:
+                            home = cols[1].text.strip()
+                            away = cols[2].text.strip()
+                            # ZuluBet often bolds the winning pick
+                            pick = cols[4].text.strip() if cols[4].find('b') else cols[4].text.strip()
+                            if home and away and pick:
+                                self.log_prediction_qa(site_name, home, away, pick)
+                                valid_rows += 1
+                        except: continue
+                
+                if valid_rows == 0:
+                    self.diagnostics[site_name] = "🟡 BLOCKED (0 Rows Found)"
+                else:
+                    self.diagnostics[site_name] = f"🟢 OK ({valid_rows} Matches)"
+                return
+
+            # Standard parsing for Statarea and Vitibet
+            rows = soup.find_all(cfg["row_selector"], class_=cfg["row_class"])
             if not rows:
                 self.diagnostics[site_name] = "🟡 BLOCKED (0 Rows Found)"
                 return
@@ -101,6 +126,7 @@ class SimpleConsensusEngine:
         agreed_matches = []
         
         for match, listings in self.master_matrix.items():
+            # We need at least 2 sites to have scraped the game
             if len(listings) < 2: continue
             
             prediction_weights = {}
@@ -114,7 +140,7 @@ class SimpleConsensusEngine:
             top_pick = max(prediction_weights, key=prediction_weights.get)
             agreement_count = prediction_weights[top_pick]
             
-            # Require 2 or more sites to agree
+            # If 2 or more sites agree on the EXACT SAME outcome
             if agreement_count >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 agreed_matches.append(
@@ -141,8 +167,8 @@ class SimpleConsensusEngine:
         
         consensus_list = self.process_consensus_signals()
         
-        msg = "🤝 **SIMPLE CONSENSUS ENGINE** 🤝\n"
-        msg += "*(Statarea + Forebet + Vitibet)*\n\n"
+        msg = "🤝 **OPEN-DATA CONSENSUS ENGINE** 🤝\n"
+        msg += "*(Statarea + Vitibet + ZuluBet)*\n\n"
         
         if not consensus_list:
             msg += "No matches found with 2+ sites in agreement today.\n\n"
@@ -151,7 +177,6 @@ class SimpleConsensusEngine:
             for match in consensus_list: 
                 msg += f"{match}\n"
                 
-        # APPEND DIAGNOSTICS TO TELEGRAM MESSAGE
         msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
         for site, status in self.diagnostics.items():
             msg += f"↳ {site}: {status}\n"
@@ -160,4 +185,4 @@ class SimpleConsensusEngine:
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
-    asyncio.run(SimpleConsensusEngine(live_configs).run_pipeline())
+    asyncio.run(OpenConsensusEngine(live_configs).run_pipeline())
