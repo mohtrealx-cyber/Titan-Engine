@@ -2,13 +2,16 @@ name: Quant Engine Automation
 
 on:
   schedule:
-    # Runs at 08:00 EAT (05:00 UTC) and 14:00 EAT (11:00 UTC)
     - cron: '0 5,11 * * *'
-  workflow_dispatch: # Allows you to trigger it manually
+  workflow_dispatch: 
 
 jobs:
   run-quant-engine:
     runs-on: ubuntu-latest
+
+    # This grants the workflow permission to push files back to the repository
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -32,3 +35,12 @@ jobs:
           QUANT_TELEGRAM_CHAT_ID: ${{ secrets.QUANT_TELEGRAM_CHAT_ID }}
           ZEN_PROXY_KEY: ${{ secrets.ZEN_PROXY_KEY }}
         run: python quant_engine.py
+
+      - name: Commit Memory File Back to GitHub
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Titan Automator"
+          git add pending_tickets.json
+          # If there are no new matches, it skips the commit gracefully
+          git commit -m "Auto-update memory notebook with today's locked matches" || echo "No new matches to save today"
+          git push
