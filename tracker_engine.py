@@ -3,7 +3,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: STABLE CORE + MEGA-TICKET UPGRADE
+# TITAN TRACKER: STABLE CORE + UNLIMITED MEGA-TICKET
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -15,7 +15,7 @@ class MegaTicketVolumeSieve:
         self.gold_preds = []
         self.std_preds = []
         self.combo_candidates = []       # For the 3-leg safe combo (Gold only)
-        self.mega_combo_candidates = []  # For the 8-leg risky combo (Gold + Standard)
+        self.mega_combo_candidates = []  # For the risky combo (Gold + Standard)
         self.system_stake = "100 KES" 
         self.raw_match_count = 0
         self.api_status = "🟢 OK"
@@ -35,7 +35,7 @@ class MegaTicketVolumeSieve:
         
         all_matches = []
         for league in target_leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}®ions=eu,uk,us&markets=h2h"
             try:
                 r = requests.get(url, timeout=10)
                 if r.status_code == 200:
@@ -124,12 +124,12 @@ class MegaTicketVolumeSieve:
             msg += f"📈 **Estimated Total Odds:** {total_odds:.2f}\n"
             msg += f"💰 **Suggested Stake:** 100 KES\n\n"
 
-        # --- AUTOMATED 8-LEG MEGA-TICKET (RISKY) ---
+        # --- AUTOMATED UNLIMITED MEGA-TICKET (HIGH RISK) ---
         if len(self.mega_combo_candidates) >= 4:
-            # Sort all available matches (Gold + Standard) by lowest odds
+            # Sort all available matches (Gold + Standard) by lowest odds (Safest first)
             sorted_mega = sorted(self.mega_combo_candidates, key=lambda x: x["odds"])
-            # Take up to 8 matches
-            mega_picks = sorted_mega[:8]
+            # Take ALL matches that cleared the filter (No limit)
+            mega_picks = sorted_mega
             
             mega_odds = 1.0
             mega_text_lines = []
@@ -137,7 +137,7 @@ class MegaTicketVolumeSieve:
                 mega_odds *= pick["odds"]
                 mega_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f}")
                 
-            msg += "🧨 **TITAN 8-LEG MEGA-TICKET (HIGH RISK)** 🧨\n"
+            msg += f"🧨 **TITAN {len(mega_picks)}-LEG MEGA-TICKET (HIGH RISK)** 🧨\n"
             msg += "\n".join(mega_text_lines) + "\n"
             msg += f"📈 **Estimated Total Odds:** {mega_odds:.2f}\n"
             msg += f"💰 **Suggested Stake:** 20 KES\n\n"
