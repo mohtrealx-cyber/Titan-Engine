@@ -3,7 +3,7 @@ import requests
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: STABLE CORE + UNLIMITED MEGA-TICKET
+# TITAN TRACKER: STABLE CORE + UNLIMITED MEGA-TICKET + 401 RESILIENCE
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -42,9 +42,16 @@ class MegaTicketVolumeSieve:
                     all_matches.extend(r.json())
                 elif r.status_code == 429:
                     self.api_status = "🔴 QUOTA EXCEEDED (429)"
+                    # Break the loop entirely if we hit a rate limit, as continuing is pointless
+                    break 
                 elif r.status_code == 401:
-                    self.api_status = "🔴 UNAUTHORIZED API KEY (401)"
-            except Exception: pass
+                    # Set status to warning, but DO NOT break the loop. 
+                    # Continue to the next league.
+                    self.api_status = "🟡 PARTIAL ACCESS (Some leagues unauthorized)"
+                    continue 
+            except Exception as e: 
+                print(f"Error fetching {league}: {e}")
+                continue
             
         self.raw_match_count = len(all_matches)
         return all_matches
