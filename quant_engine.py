@@ -87,6 +87,9 @@ class ZenRowsConsensusEngine:
         if match_key not in self.master_matrix: self.master_matrix[match_key] = []
         self.master_matrix[match_key].append((site_name, normalized_pick))
 
+    # ==========================================================
+    # FORECASTER: LIVE SCRAPE ENGINE
+    # ==========================================================
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
             if cfg.get("use_zenrows") and ZENROWS_API_KEY:
@@ -147,8 +150,7 @@ class ZenRowsConsensusEngine:
                                 home = links[0].text
                                 away = links[1].text
                                 p_div = row.find(class_=re.compile("ptprd|ptpred"))
-                                if p_div:
-                                    pick = p_div.text
+                                if p_div: pick = p_div.text
                                 else:
                                     for td in row.find_all("div", class_="pttd"):
                                         norm = self.normalize_prediction(td.text)
@@ -175,7 +177,7 @@ class ZenRowsConsensusEngine:
 
     def process_consensus_signals(self):
         agreed_matches = []
-        structured_tickets = [] # For the memory file
+        structured_tickets = [] 
         
         for match, listings in self.master_matrix.items():
             if len(listings) < 2: continue
@@ -191,47 +193,139 @@ class ZenRowsConsensusEngine:
             if prediction_weights[top_pick] >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 
-                # Standard Telegram format
                 agreed_matches.append(
                     f"• **{match}** ➔ {top_pick}\n"
                     f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
                     f"  ↳ 💰 `[Stake: {self.system_stake}]`\n"
                 )
                 
-                # Structured JSON format for memory
                 structured_tickets.append({
                     "match": match,
                     "prediction": top_pick,
-                    "backed_by": sites_backing[top_pick],
                     "status": "PENDING",
-                    "home_score": "-",
-                    "away_score": "-"
+                    "score": "-"
                 })
                 
         return agreed_matches, structured_tickets
 
     # ==========================================================
-    # PHASE 1: DIGITAL NOTEBOOK (SAVES MATCHES TO JSON)
+    # ACCOUNTANT: MEMORY & SETTLEMENT ENGINE
     # ==========================================================
     def save_tickets_to_memory(self, new_tickets):
         file_path = "pending_tickets.json"
-        try:
-            if os.path.exists(file_path):
+        memory = {}
+        if os.path.exists(file_path):
+            try:
                 with open(file_path, "r") as f:
                     memory = json.load(f)
-            else:
-                memory = {}
+            except: pass
+            
+        today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
+        if today_date not in memory:
+            memory[today_date] = []
+            
+        # Add matches without duplicating them
+        existing_matches = [t["match"] for t in memory[today_date]]
+        for t in new_tickets:
+            if t["match"] not in existing_matches:
+                memory[today_date].append(t)
                 
-            # Use East Africa Time (EAT) for the date key
-            today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
-            
-            # Save or overwrite today's tickets in the dictionary
-            memory[today_date] = new_tickets
-            
+        try:
             with open(file_path, "w") as f:
                 json.dump(memory, f, indent=4)
-        except Exception as e:
-            pass
+        except: pass
+
+    def fetch_results_from_statarea(self, target_date):
+        results = {}
+        url = f"https://www.statarea.com/predictions/date/{target_date}/"
+        try:
+            r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.content, 'html.parser')
+                for row in soup.find_all("div", class_="matchrow"):
+                    text = row.get_text(separator=" ").upper()
+                    padded_text = f" {text} "
+                    
+                    # Ensure match is actually completed
+                    if any(flag in padded_text for flag in [" FT ", "FINISHED", " AET ", " PEN "]):
+                        home_elems = row.find_all("div", class_="name")
+                        if len(home_elems) >= 2:
+                            home = self.clean_team_name(home_elems[0].text)
+                            away = self.clean_team_name(home_elems[1].text)
+                            
+                            # Extract the exact score format (e.g. 2 - 1)
+                            score_match = re.search(r'\b(\d{1,2})\s*-\s*(\d{1,2})\b', text)
+                            if score_match:
+                                score = f"{score_match.group(1)}-{score_match.group(2)}"
+                                results[f"{home} vs {away}"] = score
+        except: pass
+        return results
+
+    def settle_pending_tickets(self):
+        memory_path = "pending_tickets.json"
+        if not os.path.exists(memory_path): return []
+        
+        try:
+            with open(memory_path, "r") as f:
+                memory = json.load(f)
+        except: return []
+            
+        settled_reports = []
+        needs_save = False
+        
+        # 1. Find dates that contain unresolved matches
+        dates_to_check = set()
+        for date_str, tickets in memory.items():
+            for t in tickets:
+                if t.get("status") == "PENDING":
+                    dates_to_check.add(date_str)
+                    
+        if not dates_to_check: return []
+        
+        # 2. Fetch official scores for those dates
+        results_matrix = {}
+        for d in dates_to_check:
+            results_matrix.update(self.fetch_results_from_statarea(d))
+            
+        # 3. Cross-reference and calculate Win/Loss
+        for date_str, tickets in memory.items():
+            for t in tickets:
+                if t.get("status") == "PENDING":
+                    match_key = t["match"]
+                    prediction = t["prediction"]
+                    
+                    score = None
+                    for res_key, res_score in results_matrix.items():
+                        if res_key.lower() == match_key.lower():
+                            score = res_score
+                            break
+                            
+                    if score:
+                        try:
+                            home_g, away_g = map(int, score.split("-"))
+                            if home_g > away_g: actual = "1"
+                            elif home_g == away_g: actual = "X"
+                            else: actual = "2"
+                            
+                            if prediction == actual: t["status"] = "WON 🟢"
+                            else: t["status"] = "LOST 🔴"
+                                
+                            t["score"] = score
+                            needs_save = True
+                            
+                            settled_reports.append(
+                                f"• **{match_key}** ➔ **{t['status']}** (Score: {score})"
+                            )
+                        except: pass
+                            
+        # 4. Save updated results to the notebook
+        if needs_save:
+            try:
+                with open(memory_path, "w") as f:
+                    json.dump(memory, f, indent=4)
+            except: pass
+                
+        return settled_reports
 
     def send_telegram_alert(self, msg):
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
@@ -248,10 +342,14 @@ class ZenRowsConsensusEngine:
         
         consensus_list, structured_tickets = self.process_consensus_signals()
         
-        # Save matches to memory notebook before ending the script
+        # Phase 1: Save today's matches
         if structured_tickets:
             self.save_tickets_to_memory(structured_tickets)
+            
+        # Phase 2: Calculate and log completed match results
+        settled_reports = self.settle_pending_tickets()
         
+        # Phase 3: Construct the final unified Telegram message
         msg = "🤝 **ZENROWS CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
         
         if not consensus_list:
@@ -259,6 +357,11 @@ class ZenRowsConsensusEngine:
         else:
             msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({len(consensus_list)})** 🔥\n\n"
             for match in consensus_list: msg += f"{match}\n"
+                
+        if settled_reports:
+            msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
+            for rep in settled_reports: msg += f"{rep}\n"
+            msg += "\n"
                 
         msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
         for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
