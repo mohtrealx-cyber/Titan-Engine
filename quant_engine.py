@@ -9,13 +9,15 @@ from curl_cffi import requests as tls_requests
 # ==============================================================================
 # CONFIGURATION & SECURE ROUTING FALLBACKS
 # ==============================================================================
-# Tries QUANT tokens first, falls back to TRACKER tokens naturally
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 
 def get_dynamic_configs():
-    today_date = datetime.datetime.now().strftime('%Y-%m-%d')
+    # Force Timezone to UTC+3 (East Africa Time) to prevent server-time mismatch
+    eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
+    today_date = eat_time.strftime('%Y-%m-%d')
     cb = int(time.time()) 
+    
     return {
         "Statarea": {
             "url": f"https://www.statarea.com/predictions/date/{today_date}/", 
@@ -45,6 +47,7 @@ class SimpleConsensusEngine:
         self.configs = configs
         self.master_matrix = {}
         self.system_stake = "100 KES"
+        self.diagnostics = {} # Tracks the success/failure of each scraper
 
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
@@ -66,9 +69,22 @@ class SimpleConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
-            if r.status_code != 200: return
-            for row in BeautifulSoup(r.content, 'html.parser').find_all(cfg["row_selector"], class_=cfg["row_class"]):
+            # Impersonating Safari here as it sometimes bypasses Cloudflare better than Chrome
+            r = tls_requests.get(cfg["url"], impersonate="safari15_5", timeout=20)
+            
+            if r.status_code != 200: 
+                self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
+                return
+                
+            rows = BeautifulSoup(r.content, 'html.parser').find_all(cfg["row_selector"], class_=cfg["row_class"])
+            
+            if not rows:
+                self.diagnostics[site_name] = "🟡 BLOCKED (0 Rows Found)"
+                return
+                
+            self.diagnostics[site_name] = f"🟢 OK ({len(rows)} Matches)"
+            
+            for row in rows:
                 try: 
                     self.log_prediction_qa(
                         site_name, 
@@ -77,13 +93,14 @@ class SimpleConsensusEngine:
                         row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
                     )
                 except: continue
-        except: return
+        except Exception as e: 
+            self.diagnostics[site_name] = "🔴 TIMEOUT/ERROR"
+            return
 
     def process_consensus_signals(self):
         agreed_matches = []
         
         for match, listings in self.master_matrix.items():
-            # We need at least 2 predictions registered for this match
             if len(listings) < 2: continue
             
             prediction_weights = {}
@@ -94,11 +111,9 @@ class SimpleConsensusEngine:
                     sites_backing[pick] = []
                 sites_backing[pick].append(site)
                 
-            # Find the most agreed-upon prediction
             top_pick = max(prediction_weights, key=prediction_weights.get)
             agreement_count = prediction_weights[top_pick]
             
-            # If 2 or more sites agree on the EXACT SAME outcome (e.g., "1")
             if agreement_count >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 agreed_matches.append(
@@ -129,11 +144,16 @@ class SimpleConsensusEngine:
         msg += "*(Statarea + PredictZ + Vitibet)*\n\n"
         
         if not consensus_list:
-            msg += "No matches found with 2+ sites in agreement today."
+            msg += "No matches found with 2+ sites in agreement today.\n\n"
         else:
             msg += f"🔥 **LOCKED CONSENSUS ({len(consensus_list)})** 🔥\n\n"
             for match in consensus_list: 
                 msg += f"{match}\n"
+                
+        # APPEND DIAGNOSTICS TO TELEGRAM MESSAGE
+        msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
+        for site, status in self.diagnostics.items():
+            msg += f"↳ {site}: {status}\n"
                 
         self.send_telegram_alert(msg)
 
