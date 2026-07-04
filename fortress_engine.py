@@ -2,7 +2,7 @@ import os
 import time
 import asyncio
 import datetime
-import requests # Brought in standard requests for Telegram
+import requests
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
@@ -11,10 +11,15 @@ import google.generativeai as genai
 # ==============================================================================
 # 1. CONFIGURATION & SECURITY
 # ==============================================================================
-# Hardcoded to guarantee delivery
-TELEGRAM_TOKEN = "8970975457:AAEoqpJzuBIrYz672f71FvCWC3sEzLacRik"
-TELEGRAM_CHAT_ID = "5876539862"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+print("--- SYSTEM DIAGNOSTICS ---")
+print(f"Bot Token Loaded: {'YES' if TELEGRAM_TOKEN else 'NO'}")
+print(f"Chat ID Loaded: {'YES' if TELEGRAM_CHAT_ID else 'NO'}")
+print(f"Gemini API Key Loaded: {'YES' if GEMINI_API_KEY else 'NO'}")
+print("--------------------------\n")
 
 ACTIVE_STRATEGY = "Titan LLM Reasoning"
 
@@ -71,7 +76,7 @@ class TitanMasterEngine:
 
     def analyze_with_llm(self, raw_match_data):
         if not GEMINI_API_KEY:
-            return "⚠️ GEMINI_API_KEY is missing from environment. Cannot execute reasoning layer."
+            return "⚠️ GEMINI_API_KEY is missing from environment."
 
         prompt = f"""
         You are an elite football quantitative analyst specializing in risk mitigation.
@@ -120,25 +125,37 @@ class TitanMasterEngine:
         return match_summary, valid_matches_found
 
     def send_telegram_alert(self, msg):
+        if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+            print("ERROR: Missing Telegram Tokens. Cannot send.")
+            return
+
+        print("Attempting to push message to Telegram API...")
         try:
-            # Using standard requests to guarantee Telegram delivery
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
             payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg}
-            requests.post(url, json=payload, timeout=10)
+            response = requests.post(url, json=payload, timeout=10)
+            print(f"Telegram API Response Status Code: {response.status_code}")
+            if response.status_code != 200:
+                print(f"Telegram API Error Data: {response.text}")
+            else:
+                print("✅ Payload successfully delivered to Telegram!")
         except Exception as e:
             print(f"Failed to send Telegram message: {e}")
 
     async def run_pipeline(self):
+        print("Starting Scrapers...")
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
         
         match_summary, count = self.process_signals()
+        print(f"Scrape Complete. Matches passed to AI: {count}")
         
         if count == 0: 
             self.send_telegram_alert("🛡️ TITAN LLM ENGINE: Scrape finalized. Zero high-consensus matches detected today. Capital preserved.")
             return
         
+        print("Executing Gemini LLM Reasoning...")
         llm_formatted_message = self.analyze_with_llm(match_summary)
         
         final_msg = f"🧠 **TITAN REASONING ENGINE AUTOMATOR** 🧠\n\n{llm_formatted_message}\n\n📊 Engine Strategy: {ACTIVE_STRATEGY}"
