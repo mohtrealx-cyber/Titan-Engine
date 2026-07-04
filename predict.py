@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import time
 import requests
 from google import genai
 from datetime import datetime
@@ -60,6 +61,10 @@ def main():
         model=model_id,
         contents=analyst_prompt
     ).text
+
+    # --- THE FIX: RATE LIMIT COOLDOWN ---
+    print("\n⏳ Initiating 65-second cooldown to completely reset Google API RPM limit...")
+    time.sleep(65)
 
     # 4. Agent 2: The Judge / Strategy Refiner (CRITICAL NO-EXPLANATION OVERHAUL)
     print("Filter 2: Refining strategy...")
