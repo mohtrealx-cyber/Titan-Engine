@@ -23,7 +23,7 @@ print(f"Gemini API Key Loaded: {'YES' if GEMINI_API_KEY else 'NO'}")
 print(f"Groq API Key Loaded: {'YES' if GROQ_API_KEY else 'NO'}")
 print("--------------------------\n")
 
-ACTIVE_STRATEGY = "Cross-Model Consensus (Gemini vs Llama 3)"
+ACTIVE_STRATEGY = "Multi-Agent Sequential Debate (Gemini vs Llama 3)"
 
 def get_dynamic_configs():
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -74,64 +74,60 @@ class TitanMasterEngine:
                 except: continue
         except: return
 
-    def ask_gemini(self, data):
+    # STEP 1: GEMINI PROPOSES
+    def gemini_opening_statement(self, data):
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
-        prompt = f"Analyze these football matches. Pick the 12 absolute safest matches to bet on, prioritizing Over/Under, BTTS, or Double Chance. Format exactly as 'Match Name ➔ Market'. No other text.\n\nData:\n{data}"
+        prompt = f"You are an aggressive Value Hunter. Review these 30 football matches. Pick your top 12 safest matches. Provide a 1-sentence analytical reason for why each is safe. Do not hold back.\n\nData:\n{data}"
         try:
-            response = self.gemini_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt
-            )
+            response = self.gemini_client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
             return response.text.strip()
-        except Exception as e:
-            return f"⚠️ Gemini Error: {str(e)}"
+        except Exception as e: return f"⚠️ Gemini Error: {str(e)}"
 
-    def ask_llama3(self, data):
+    # STEP 2: LLAMA 3 CRITIQUES
+    def llama3_rebuttal(self, data, gemini_proposal):
         if not GROQ_API_KEY: return "⚠️ Groq API Key missing."
-        prompt = f"Analyze these football matches. Pick the 12 absolute safest matches to bet on, prioritizing Over/Under, BTTS, or Double Chance. Format exactly as 'Match Name ➔ Market'. No other text.\n\nData:\n{data}"
+        prompt = f"""You are a ruthless Risk Manager. Your colleague just proposed 12 betting picks. 
+        Read their proposal carefully. Tear down any pick that has high variance or trap potential. Reject weak logic. 
+        Then, based on the original 30 matches, counter-propose the absolute safest 10 to 12 matches, including any of their picks you agree with. Provide a 1-sentence reason for your picks.
+        
+        Original Data:
+        {data}
+        
+        Colleague's Proposal:
+        {gemini_proposal}
+        """
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        payload = {
-            "model": "llama3-70b-8192",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.2
-        }
+        payload = {"model": "llama3-70b-8192", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3}
         try:
             r = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=15)
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"].strip()
-        except Exception as e:
-            return f"⚠️ Llama 3 Error: {str(e)}"
+        except Exception as e: return f"⚠️ Llama 3 Error: {str(e)}"
 
-    def execute_consensus_arbitrator(self, list_a, list_b):
+    # STEP 3: ARBITRATOR VERDICT
+    def final_verdict(self, gemini_proposal, llama_critique):
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         prompt = f"""
-        You are the Final Arbitrator. I am giving you two lists of betting predictions generated independently by Gemini and Llama 3.
+        You are the Executive Arbitrator. Two highly intelligent AI agents just debated today's football fixtures.
         
-        List A (Gemini):
-        {list_a}
+        Agent 1 (Value Hunter) Proposal:
+        {gemini_proposal}
         
-        List B (Llama 3):
-        {list_b}
+        Agent 2 (Risk Manager) Rebuttal:
+        {llama_critique}
         
         YOUR INSTRUCTIONS:
-        1. Compare the lists and pull out 8 to 10 matches total.
-        2. First, extract the exact matches where they completely agree on both the fixture and the market line.
-        3. Second, look for fixtures that appear on BOTH lists but have slightly different lines. Force a compromise to the safest alternative market direction (e.g., if one says Home Win and the other says Over 1.5, compromise on Double Chance 1X or Over 1.5 Goals).
-        4. If after checking compromises you still have fewer than 8 matches, pull the highest confidence entries from List A to fill the remaining slots up to a minimum of 8 fixtures.
-        5. Format the final selections beautifully for Telegram using clear emojis.
-        6. CRITICAL: Provide ZERO explanations, intro text, or reasoning dialogue. I only want the raw final predictions.
+        1. Review the debate. Find the 8 to 10 matches that BOTH agents fundamentally agreed were safe, or where Agent 2 accepted Agent 1's logic.
+        2. Format these 8 to 10 surviving matches beautifully for Telegram using clear emojis.
+        3. CRITICAL: I DO NOT want to see the debate text. I DO NOT want reasons. I only want the raw final predictions.
         
         Format:
-        ⚽ Match Name ➔ [Agreed Market]
+        ⚽ Match Name ➔ [Safest Agreed Market]
         """
         try:
-            response = self.gemini_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt
-            )
+            response = self.gemini_client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
             return response.text.strip()
-        except Exception as e:
-            return f"⚠️ Arbitrator Engine Failed: {str(e)}"
+        except Exception as e: return f"⚠️ Arbitrator Error: {str(e)}"
 
     def process_signals(self):
         valid_matches = []
@@ -157,8 +153,7 @@ class TitanMasterEngine:
         try:
             for index, part in enumerate([msg[i:i+4000] for i in range(0, len(msg), 4000)]):
                 requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": TELEGRAM_CHAT_ID, "text": part}, timeout=10)
-        except Exception as e:
-            print(f"Failed to send Telegram message: {e}")
+        except Exception as e: print(f"Failed to send Telegram message: {e}")
 
     async def run_pipeline(self):
         print("Starting Scrapers...")
@@ -171,23 +166,23 @@ class TitanMasterEngine:
             self.send_telegram_alert("🛡️ TITAN: Scrape finalized. Zero matches detected.")
             return
             
-        print("\n=== MODEL A (GEMINI) GENERATING PICKS ===")
-        gemini_picks = self.ask_gemini(match_summary)
-        print(gemini_picks)
+        print("\n=== STEP 1: GEMINI DRAFTS PROPOSAL ===")
+        proposal = self.gemini_opening_statement(match_summary)
+        print("Gemini Proposal logged.")
         
-        print("\n=== MODEL B (LLAMA 3) GENERATING PICKS ===")
-        llama_picks = self.ask_llama3(match_summary)
-        print(llama_picks)
+        print("\n=== STEP 2: LLAMA 3 READS & CRITIQUES ===")
+        rebuttal = self.llama3_rebuttal(match_summary, proposal)
+        print("Llama 3 Rebuttal logged.")
         
-        print("\n=== EXECUTING FINAL ARBITRATOR PROTOCOL ===")
-        final_ticket = self.execute_consensus_arbitrator(gemini_picks, llama_picks)
+        print("\n=== STEP 3: ARBITRATOR EXTRACTS CONSENSUS ===")
+        final_ticket = self.final_verdict(proposal, rebuttal)
         
         if final_ticket.lower() == "none" or not final_ticket or "ZERO_CONSENSUS" in final_ticket:
-            final_msg = f"🛡️ **TITAN SAFETY PROTOCOL ACTIVATED** 🛡️\n\nZero consensus reached today. Gemini and Llama 3 completely disagreed on the safest paths. No Mega-Ticket generated. Capital preserved.\n\n📊 Strategy: {ACTIVE_STRATEGY}"
+            final_msg = f"🛡️ **TITAN SAFETY PROTOCOL ACTIVATED** 🛡️\n\nDebate collapsed. The AI agents could not find common ground. No Mega-Ticket generated.\n\n📊 Strategy: {ACTIVE_STRATEGY}"
         elif "⚠️" in final_ticket:
             final_msg = final_ticket 
         else:
-            final_msg = f"🧠 **TITAN CROSS-MODEL CONSENSUS ENGINE** 🧠\n\n{final_ticket}\n\n📊 Strategy: {ACTIVE_STRATEGY}"
+            final_msg = f"🧠 **TITAN CROSS-MODEL DEBATE ENGINE** 🧠\n\n{final_ticket}\n\n📊 Strategy: {ACTIVE_STRATEGY}"
             
         self.send_telegram_alert(final_msg)
 
