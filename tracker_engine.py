@@ -6,7 +6,7 @@ import itertools
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: APEX CORE (GEOMETRIC N-2 SYSTEM MATRIX)
+# TITAN TRACKER: APEX CORE (MUTUALLY EXCLUSIVE MATRIX)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -229,11 +229,17 @@ class MegaTicketVolumeSieve:
     def dispatch_alerts(self, scoreboard_text):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
-        msg = "🎯 **TITAN ENGINE: GEOMETRIC MATRIX CORE** 🎯\n\n"
+        msg = "🎯 **TITAN ENGINE: MUTUALLY EXCLUSIVE MATRIX CORE** 🎯\n\n"
             
+        # 1. PROCESS COMBO TICKET FIRST
+        combo_exclusion_list = []
         if len(self.combo_candidates) >= 2:
             sorted_candidates = sorted(self.combo_candidates, key=lambda x: x["odds"])
             combo_picks = sorted_candidates[:3]
+            
+            # Store these exact matches to exclude them from the Jackpot
+            combo_exclusion_list = [pick['text'] for pick in combo_picks]
+            
             total_odds = 1.0
             combo_text_lines = []
             for pick in combo_picks:
@@ -245,9 +251,13 @@ class MegaTicketVolumeSieve:
         else:
             msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient mathematically secure matches for a combo today.\n\n"
 
-        if self.jackpot_candidates:
+        # 2. FILTER JACKPOT POOL (Remove the matches used above)
+        filtered_jackpot_pool = [pick for pick in self.jackpot_candidates if pick["text"] not in combo_exclusion_list]
+
+        # 3. PROCESS JACKPOT MATRIX
+        if filtered_jackpot_pool:
             # Sort strictly by Geometric Score and cap at top 10
-            sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["score"], reverse=True)[:10]
+            sorted_jackpot = sorted(filtered_jackpot_pool, key=lambda x: x["score"], reverse=True)[:10]
             n_total = len(sorted_jackpot)
             
             if n_total > 2:
@@ -273,9 +283,9 @@ class MegaTicketVolumeSieve:
                     msg += " | ".join(drop_lines[i:i+3]) + "\n"
                 msg += "\n"
             else:
-                 msg += "🎰 **TITAN SYSTEM MATRIX** 🎰\n↳ 🟡 Not enough matches to build a Drop-2 System today.\n\n"
+                 msg += "🎰 **TITAN SYSTEM MATRIX** 🎰\n↳ 🟡 Not enough unique matches to build a Drop-2 System today after combo exclusion.\n\n"
         else:
-            msg += "🎰 **TITAN GEOMETRIC JACKPOT** 🎰\n↳ 🟡 No matches currently meet the 2.15 Geometric Safety threshold.\n\n"
+            msg += "🎰 **TITAN GEOMETRIC JACKPOT** 🎰\n↳ 🟡 No unique matches currently meet the 2.15 Geometric Safety threshold.\n\n"
 
         msg += scoreboard_text
 
@@ -283,7 +293,7 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
-        msg += f"↳ Active Sieves: Geometric Matrix (N-2), Panic Tax, Away Penalty\n"
+        msg += f"↳ Active Sieves: Mutually Exclusive Matrix (N-2), Panic Tax, Away Penalty\n"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
