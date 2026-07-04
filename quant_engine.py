@@ -51,7 +51,6 @@ class ZenRowsConsensusEngine:
     def __init__(self, configs):
         self.configs = configs
         self.master_matrix = {}
-        self.system_stake = "100 KES"
         self.diagnostics = {} 
 
     def normalize_prediction(self, raw_text):
@@ -193,10 +192,10 @@ class ZenRowsConsensusEngine:
             if prediction_weights[top_pick] >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 
+                # Formatted purely for the match list, staking logic moved to final compiler
                 agreed_matches.append(
                     f"• **{match}** ➔ {top_pick}\n"
                     f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
-                    f"  ↳ 💰 `[Stake: {self.system_stake}]`\n"
                 )
                 
                 structured_tickets.append({
@@ -357,6 +356,18 @@ class ZenRowsConsensusEngine:
         else:
             msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({len(consensus_list)})** 🔥\n\n"
             for match in consensus_list: msg += f"{match}\n"
+            
+            # --- NEW SYSTEMATIC STAKING CALCULATION ---
+            total_matches = len(consensus_list)
+            if total_matches >= 2:
+                half_idx = total_matches // 2
+                msg += "💰 **RECOMMENDED STAKING PLAN (250 KES TOTAL)** 💰\n"
+                msg += f"🎟️ **Ticket 1 (Mega Acca - All {total_matches} Matches):** 50 KES\n"
+                msg += f"🎟️ **Ticket 2 (Half 1 - First {half_idx} Matches):** 100 KES\n"
+                msg += f"🎟️ **Ticket 3 (Half 2 - Last {total_matches - half_idx} Matches):** 100 KES\n\n"
+            else:
+                msg += "💰 **RECOMMENDED STAKING PLAN:**\n"
+                msg += "🎟️ **Single Ticket:** 250 KES\n\n"
                 
         if settled_reports:
             msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
