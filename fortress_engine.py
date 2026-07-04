@@ -21,7 +21,7 @@ print(f"Chat ID Loaded: {'YES' if TELEGRAM_CHAT_ID else 'NO'}")
 print(f"Gemini API Key Loaded: {'YES' if GEMINI_API_KEY else 'NO'}")
 print("--------------------------\n")
 
-ACTIVE_STRATEGY = "Titan LLM Reasoning"
+ACTIVE_STRATEGY = "Titan Multi-Agent Debate Engine"
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -79,20 +79,23 @@ class TitanMasterEngine:
             return "⚠️ GEMINI_API_KEY is missing from environment."
 
         prompt = f"""
-        You are an elite football quantitative analyst specializing in risk mitigation.
-        I am providing you with today's matches and consensus predictions from 3 automated scraping pipelines.
+        You are the Master Arbitrator overseeing a quantitative debate between two elite football AI models.
+        I am providing you with today's Top 30 safest matches, scraped from consensus algorithms.
         
-        Your instructions:
-        1. Evaluate each fixture carefully.
-        2. IMMEDIATELY REMOVE/DROP any highly volatile, risky, or unstable trap games.
-        3. DIVERSIFY YOUR MARKETS: Do NOT just return 'Double Chance (1X/X2)'. You must actively analyze and provide a wide variety of broader markets. Prioritize goal-based markets like 'Over 1.5 Goals', 'Over 2.5 Goals', 'Under 3.5 Goals', and 'BTTS (Yes/No)' whenever the data supports it. 
-        4. STRICT LIMIT: You must filter the list down to a MAXIMUM of the Top 15 safest matches. Do not return more than 15 fixtures.
-        5. CRITICAL OUTPUT RULE: DO NOT provide any explanations, reasoning, or analysis. I only want the raw predictions.
+        THE DEBATE PROTOCOL (Execute this internally, do not output your reasoning):
+        1. PERSONA 1 (The Value Hunter) internally reviews the list and selects matches with high probability for goal markets (Over 1.5/2.5, BTTS).
+        2. PERSONA 2 (The Risk Manager) internally reviews the list and selects matches strictly for absolute mathematical safety (Double Chance 1X/X2, Under Totals).
+        3. THE ARBITRATOR (You) must cross-reference both internal lists. You are only allowed to pass a match if both the Value Hunter and Risk Manager agree on a compromised, mathematically flawless market for it.
+        
+        STRICT RULES:
+        - You must filter these 30 matches down to ONLY the absolute best 1 to 3 matches that survive the debate.
+        - DIVERSIFY MARKETS: Do not just output Double Chance. Find the best possible market for the surviving match(es).
+        - CRITICAL OUTPUT RULE: DO NOT provide any explanations, reasoning, or debate dialogue. I only want the raw final predictions.
 
-        Scraped Input Data:
+        Scraped Input Data (Top 30):
         {raw_match_data}
         
-        Format your response beautifully for Telegram as a 'MEGA-TICKET'. Use crisp formatting and clear emojis. Do not abuse asterisks or complex headings.
+        Format your response beautifully for Telegram. Do not abuse asterisks.
         Expected Output Layout Structure:
         ⚽ Match Name ➔ [Safest Suggested Market]
         """
@@ -105,8 +108,7 @@ class TitanMasterEngine:
             return f"⚠️ LLM Analysis Failed: {str(e)}"
 
     def process_signals(self):
-        match_summary = ""
-        valid_matches_found = 0
+        valid_matches = []
 
         for match, listings in self.master_matrix.items():
             if len(listings) == 0: continue
@@ -119,10 +121,20 @@ class TitanMasterEngine:
             confidence_pct = (prediction_weights[top_pick] / len(listings)) * 100
             
             if confidence_pct >= 66:
-                match_summary += f"- {match} | Algorithmic Picks: {top_pick} | Consensus: {confidence_pct:.0f}%\n"
-                valid_matches_found += 1
+                valid_matches.append({
+                    "match": match,
+                    "pick": top_pick,
+                    "confidence": confidence_pct
+                })
 
-        return match_summary, valid_matches_found
+        # Sort mathematically to find the absolute strongest 30 matches for the AI to debate
+        valid_matches = sorted(valid_matches, key=lambda x: x["confidence"], reverse=True)[:30]
+        
+        match_summary = ""
+        for v in valid_matches:
+            match_summary += f"- {v['match']} | Algorithmic Pick: {v['pick']} | Consensus: {v['confidence']:.0f}%\n"
+
+        return match_summary, len(valid_matches)
 
     def send_telegram_alert(self, msg):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
@@ -155,16 +167,16 @@ class TitanMasterEngine:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
         
         match_summary, count = self.process_signals()
-        print(f"Scrape Complete. Matches passed to AI: {count}")
+        print(f"Scrape Complete. Top {count} matches passed to Multi-Agent Debate.")
         
         if count == 0: 
             self.send_telegram_alert("🛡️ TITAN LLM ENGINE: Scrape finalized. Zero high-consensus matches detected today. Capital preserved.")
             return
         
-        print("Executing Gemini LLM Reasoning...")
+        print("Executing Multi-Agent LLM Debate...")
         llm_formatted_message = self.analyze_with_llm(match_summary)
         
-        final_msg = f"🧠 **TITAN REASONING ENGINE AUTOMATOR** 🧠\n\n{llm_formatted_message}\n\n📊 Engine Strategy: {ACTIVE_STRATEGY}"
+        final_msg = f"🧠 **TITAN MULTI-AGENT DEBATE ENGINE** 🧠\n\n{llm_formatted_message}\n\n📊 Strategy: {ACTIVE_STRATEGY}"
         self.send_telegram_alert(final_msg)
 
 if __name__ == "__main__":
