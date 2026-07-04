@@ -87,7 +87,8 @@ class TitanMasterEngine:
         2. IMMEDIATELY REMOVE/DROP any highly volatile, risky, or unstable trap games.
         3. For the remaining matches, determine the ABSOLUTE SAFEST betting market option. Do not restrict yourself to standard 1X2. Safely expand the prediction to alternative markets: 'Over 1.5 Goals', 'Under 3.5 Goals', 'BTTS (GG/NO)', or 'Double Chance (1X/X2)' if it severely lowers risk.
         4. Provide a quick 1-sentence analytical reason for each decision.
-        
+        5. STRICT LIMIT: You must filter the list down to a MAXIMUM of the Top 15 safest matches. Do not return more than 15 fixtures.
+
         Scraped Input Data:
         {raw_match_data}
         
@@ -130,15 +131,22 @@ class TitanMasterEngine:
             return
 
         print("Attempting to push message to Telegram API...")
+        
+        # Telegram character limit is 4096. Chunking at 4000 to be perfectly safe.
+        max_length = 4000
+        parts = [msg[i:i+max_length] for i in range(0, len(msg), max_length)]
+        
         try:
-            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg}
-            response = requests.post(url, json=payload, timeout=10)
-            print(f"Telegram API Response Status Code: {response.status_code}")
-            if response.status_code != 200:
-                print(f"Telegram API Error Data: {response.text}")
-            else:
-                print("✅ Payload successfully delivered to Telegram!")
+            for index, part in enumerate(parts):
+                url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+                payload = {"chat_id": TELEGRAM_CHAT_ID, "text": part}
+                response = requests.post(url, json=payload, timeout=10)
+                
+                print(f"Message Chunk {index+1}/{len(parts)} Status: {response.status_code}")
+                if response.status_code != 200:
+                    print(f"Telegram API Error Data: {response.text}")
+                    
+            print("✅ Payload successfully delivered to Telegram!")
         except Exception as e:
             print(f"Failed to send Telegram message: {e}")
 
