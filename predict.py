@@ -15,10 +15,8 @@ def main():
     model_id = 'gemini-3.5-flash'
 
     # 2. Fetch today's matches
-    # TESTING MODE: We use a historical active match date from April to test the statistics engine.
-    # Once the regular season kicks off, delete the line below and uncomment the datetime line.
-    today = "2026-04-15" 
-    # today = datetime.now().strftime("%Y-%m-%d")
+    # The pipeline is now LIVE and fetching real-time daily fixtures
+    today = datetime.now().strftime("%Y-%m-%d")
     
     url = f"https://sportapi7.p.rapidapi.com/api/v1/category/1/scheduled-events/{today}"
 
