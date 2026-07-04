@@ -1,10 +1,27 @@
 import os
-import re
-import json
 import time
 import requests
 from google import genai
+from google.genai import errors
 from datetime import datetime
+
+def safe_generate(client, model_id, prompt, max_retries=3):
+    """Wraps the Gemini API call in a protective retry loop to survive 429 Rate Limits."""
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=model_id,
+                contents=prompt
+            )
+            return response.text
+        except errors.ClientError as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                print(f"⚠️ API Rate Limit hit! (Attempt {attempt + 1}/{max_retries}). Sleeping for 45 seconds to let the quota reset...")
+                time.sleep(45)
+            else:
+                # If it's a different error, raise it normally
+                raise e
+    return "⚠️ Error: Max retries exceeded due to rate limits."
 
 def main():
     # 1. Load keys from the secure GitHub environment
@@ -51,22 +68,25 @@ def main():
     print(f"API RAW RESPONSE (First 500 chars): {match_data[:500]}")
 
     # 3. Agent 1: The Statistical Analyst
-    print("Filter 1: Analyzing raw statistics...")
+    print("\nFilter 1: Analyzing raw statistics...")
     analyst_prompt = f"""
     You are a purely data-driven sports analyst. 
     Review this raw API match data for today: {match_data[:12000]} 
     Ignore team names, biases, or external news. Based solely on the statistical metrics provided in the dataset, identify the 3 matches with the clearest data and write a brief analysis of their most statistically likely outcomes.
     """
-    analyst_response = client.models.generate_content(
-        model=model_id,
-        contents=analyst_prompt
-    ).text
+    
+    # Using the safe retry function
+    analyst_response = safe_generate(client, model_id, analyst_prompt)
+    
+    if "⚠️ Error" in analyst_response:
+        print("Pipeline aborted due to persistent API rate limits.")
+        return
 
-    # --- THE FIX: RATE LIMIT COOLDOWN ---
-    print("\n⏳ Initiating 65-second cooldown to completely reset Google API RPM limit...")
-    time.sleep(65)
+    # Standard cooldown just to be safe before the next prompt
+    print("\n⏳ Initiating standard 45-second cooldown between agents...")
+    time.sleep(45)
 
-    # 4. Agent 2: The Judge / Strategy Refiner (CRITICAL NO-EXPLANATION OVERHAUL)
+    # 4. Agent 2: The Judge / Strategy Refiner
     print("Filter 2: Refining strategy...")
     refiner_prompt = f"""
     You are the lead strategist for a 30-round betting performance challenge. 
@@ -86,13 +106,16 @@ def main():
     📊 **Confidence:** [1-100]%
     💰 **Allocation:** [1 to 5] Points (Strictly use a 1-5 scale based on confidence)
     """
-    final_prediction = client.models.generate_content(
-        model=model_id,
-        contents=refiner_prompt
-    ).text
+    
+    # Using the safe retry function
+    final_prediction = safe_generate(client, model_id, refiner_prompt)
+
+    if "⚠️ Error" in final_prediction:
+        print("Pipeline aborted due to persistent API rate limits.")
+        return
 
     # 5. Send to Telegram
-    print("Sending prediction to Telegram...")
+    print("\nSending prediction to Telegram...")
     telegram_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         "chat_id": channel_id,
