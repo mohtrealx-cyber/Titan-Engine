@@ -15,7 +15,11 @@ def main():
     model_id = 'gemini-3.5-flash'
 
     # 2. Fetch today's matches
-    today = datetime.now().strftime("%Y-%m-%d")
+    # TESTING MODE: We use a historical active match date from April to test the statistics engine.
+    # Once the regular season kicks off, delete the line below and uncomment the datetime line.
+    today = "2026-04-15" 
+    # today = datetime.now().strftime("%Y-%m-%d")
+    
     url = f"https://sportapi7.p.rapidapi.com/api/v1/category/1/scheduled-events/{today}"
 
     headers = {
@@ -26,13 +30,20 @@ def main():
     print(f"Fetching match data for {today}...")
     response = requests.get(url, headers=headers)
     match_data = response.text 
-    print(f"API RAW RESPONSE: {match_data[:500]}")
+    
+    print(f"API RAW RESPONSE (First 500 chars): {match_data[:500]}")
+
+    # Check if data is empty or null to avoid the AI betting on "Null Activity"
+    if not match_data or '"events":[]' in match_data.replace(" ", ""):
+        print("No active fixtures found in the dataset for this date. Exiting pipeline safely.")
+        return
+
     # 3. Agent 1: The Statistical Analyst
     print("Filter 1: Analyzing raw statistics...")
     analyst_prompt = f"""
     You are a purely data-driven sports analyst. 
-    Review this raw API match data for today: {match_data[:10000]} 
-    Ignore team names, biases, or external news. Based solely on the statistics provided, write a brief analysis of the 3 most statistically likely outcomes.
+    Review this raw API match data for today: {match_data[:12000]} 
+    Ignore team names, biases, or external news. Based solely on the statistical metrics provided in the dataset, identify the 3 matches with the clearest data and write a brief analysis of their most statistically likely outcomes.
     """
     analyst_response = client.models.generate_content(
         model=model_id,
@@ -46,8 +57,12 @@ def main():
     Review this statistical analysis: 
     {analyst_response}
     
-    Your job is to stress-test these picks, filter out the noise, and select the single best prediction. 
-    Output the final prediction formatted cleanly for a Telegram message. You must include a confidence percentage and a suggested point-allocation for the challenge's point-based tracking system.
+    Your job is to stress-test these picks, filter out the noise, and select the single best prediction for the day. Do not select a 'null' or 'no bet' option if active data is present above.
+    Output the final prediction formatted cleanly for a Telegram message using Markdown. You must include:
+    - Match details (Teams, competition)
+    - Selection / Predicted Outcome
+    - Confidence percentage (1-100%)
+    - Suggested point-allocation for the challenge's point-based tracking system.
     """
     final_prediction = client.models.generate_content(
         model=model_id,
