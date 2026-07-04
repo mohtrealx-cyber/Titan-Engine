@@ -263,9 +263,11 @@ class MegaTicketVolumeSieve:
             if n_total > 2:
                 combo_size = n_total - 2
                 all_combos = list(itertools.combinations(sorted_jackpot, combo_size))
+                total_matrix_cost = len(all_combos) * 40
                 
                 msg += f"🎰 **TITAN {combo_size}/{n_total} SYSTEM MATRIX (Drop 2 Matches)** 🎰\n"
-                msg += f"↳ *{len(all_combos)} Total Tickets Required*\n\n"
+                msg += f"↳ *{len(all_combos)} Total Tickets Required*\n"
+                msg += f"💰 **Stake:** 40 KES per ticket (Total Matrix Cost: {total_matrix_cost} KES)\n\n"
                 
                 msg += "📋 **MASTER MATCH LIST:**\n"
                 for i, pick in enumerate(sorted_jackpot, 1):
