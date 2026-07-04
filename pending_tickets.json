@@ -22,5 +22,31 @@
             "home_score": "-",
             "away_score": "-"
         }
+    ],
+    "2026-07-04": [
+        {
+            "match": "Beijing Guoan vs Shandong Luneng",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Dalian Zhixing vs Wuhan Three Towns",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Jeonbuk Motors vs Gangwon Fc",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Egersund vs Moss",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
