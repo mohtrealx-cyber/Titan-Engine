@@ -88,8 +88,8 @@ class TitanMasterEngine:
         3. THE ARBITRATOR (You) must cross-reference both internal lists. You are only allowed to pass a match if both the Value Hunter and Risk Manager agree on a compromised, mathematically flawless market for it.
         
         STRICT RULES:
-        - You must filter these 30 matches down to ONLY the absolute best 1 to 3 matches that survive the debate.
-        - DIVERSIFY MARKETS: Do not just output Double Chance. Find the best possible market for the surviving match(es).
+        - TARGET QUOTA: You must filter these 30 matches down to EXACTLY 8 to 10 of the absolute best matches that survive the debate. Do not provide fewer than 8 or more than 10.
+        - DIVERSIFY MARKETS: Do not just output Double Chance. Find the best possible market for the surviving matches.
         - CRITICAL OUTPUT RULE: DO NOT provide any explanations, reasoning, or debate dialogue. I only want the raw final predictions.
 
         Scraped Input Data (Top 30):
