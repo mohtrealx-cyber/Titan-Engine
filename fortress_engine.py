@@ -26,7 +26,7 @@ print(f"Groq API Key Loaded: {'YES' if GROQ_API_KEY else 'NO'}")
 print(f"Odds API Key Loaded: {'YES' if ODDS_API_KEY else 'NO'}")
 print("--------------------------\n")
 
-ACTIVE_STRATEGY = "Titan Apex: Debate + Live EV Odds Filtration"
+ACTIVE_STRATEGY = "Titan Apex: Debate + Proportional EV Micro-Staking (39 KES/Day)"
 
 def get_dynamic_configs():
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -150,54 +150,75 @@ class TitanMasterEngine:
         except: return []
 
     def apply_ev_and_format(self, raw_ticket, odds_matrix):
-        """Cross-references the AI ticket with live odds to calculate Value and Kelly Staking."""
+        """Cross-references the AI ticket with live odds to calculate Proportional Staking exactly totaling 39 KES."""
         if "⚠️" in raw_ticket: return raw_ticket
         
-        final_output = ""
+        DAILY_BUDGET_KES = 39
         lines = raw_ticket.split('\n')
         
+        accepted_matches = []
+        rejected_matches = []
+        total_units = 0.0
+        
+        # Pass 1: Filter matches and calculate raw EV weights
         for line in lines:
             if "|" not in line: continue
             parts = line.split("|")
             match_name = parts[0].strip()
             market = parts[1].strip()
             
-            odds_display = "Live Odds Pending"
-            staking_rec = "1.0 Unit (100 KES)"
-            
-            # Fuzzy match the AI's match name with the Odds API data
+            best_price = None
             if odds_matrix:
                 for game in odds_matrix:
                     api_match_name = f"{game.get('home_team', '')} vs {game.get('away_team', '')}"
                     similarity = difflib.SequenceMatcher(None, match_name.lower(), api_match_name.lower()).ratio()
                     
-                    if similarity > 0.6: # Found a match
+                    if similarity > 0.6: 
                         try:
-                            # Extracting the favorite's odds to calculate general implied probability of the fixture
                             outcomes = game['bookmakers'][0]['markets'][0]['outcomes']
                             prices = [o['price'] for o in outcomes]
                             best_price = min(prices) 
-                            
-                            # EV Rule: Reject anything worse than 1.15
-                            if best_price < 1.15:
-                                odds_display = f"🚫 ABORT (Odds {best_price} - No Value)"
-                                continue 
-                            
-                            odds_display = f"Estimated Odds: {best_price}"
-                            
-                            # Calculates Units, then translates directly to KES
-                            units = round((best_price - 1) * 2.5, 1)
-                            if units <= 0: units = 1.0 # Floor failsafe
-                            kes_amount = int(units * 100) 
-                            staking_rec = f"{units} Units ({kes_amount} KES)"
                             break
                         except: pass
             
-            if "🚫" not in odds_display:
-                final_output += f"⚽ **{match_name}**\n   ➔ {market}\n   📊 {odds_display} | 💰 Stake: {staking_rec}\n\n"
+            if best_price and best_price >= 1.15:
+                units = round((best_price - 1) * 2.5, 1)
+                if units <= 0: units = 1.0 
+                total_units += units
+                accepted_matches.append({"name": match_name, "market": market, "odds": best_price, "units": units})
+            elif best_price and best_price < 1.15:
+                rejected_matches.append({"name": match_name, "reason": f"Odds {best_price}"})
             else:
-                final_output += f"🗑️ ~~{match_name}~~ *(Rejected by EV Filter)*\n\n"
-                
+                # Fallback if odds not found but match survives consensus
+                accepted_matches.append({"name": match_name, "market": market, "odds": None, "units": 1.0})
+                total_units += 1.0
+
+        # Pass 2: Distribute exactly 39 KES proportionally
+        final_output = ""
+        kes_distributed = 0
+        
+        for i, match in enumerate(accepted_matches):
+            if total_units > 0:
+                if i == len(accepted_matches) - 1:
+                    # Final match sweeps the remainder to ensure exact total
+                    kes_alloc = DAILY_BUDGET_KES - kes_distributed
+                else:
+                    kes_alloc = int(round((match["units"] / total_units) * DAILY_BUDGET_KES))
+                    kes_distributed += kes_alloc
+            else:
+                kes_alloc = 0
+
+            odds_display = f"Estimated Odds: {match['odds']}" if match['odds'] else "Live Odds Pending"
+            final_output += f"⚽ **{match['name']}**\n   ➔ {match['market']}\n   📊 {odds_display} | 💰 Stake: {kes_alloc} KES\n\n"
+            
+        for match in rejected_matches:
+            final_output += f"🗑️ ~~{match['name']}~~ *(Rejected by EV Filter: {match['reason']})*\n\n"
+            
+        if accepted_matches:
+            final_output += f"========================\n"
+            final_output += f"💵 **TOTAL DAILY STAKE:** {DAILY_BUDGET_KES} KES\n"
+            final_output += f"========================"
+            
         return final_output.strip()
 
     def process_signals(self):
