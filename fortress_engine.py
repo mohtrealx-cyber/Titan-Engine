@@ -85,7 +85,7 @@ class TitanMasterEngine:
         Your instructions:
         1. Evaluate each fixture carefully.
         2. IMMEDIATELY REMOVE/DROP any highly volatile, risky, or unstable trap games.
-        3. For the remaining matches, determine the ABSOLUTE SAFEST betting market option. Do not restrict yourself to standard 1X2. Safely expand the prediction to alternative markets: 'Over 1.5 Goals', 'Under 3.5 Goals', 'BTTS (GG/NO)', or 'Double Chance (1X/X2)' if it severely lowers risk.
+        3. DIVERSIFY YOUR MARKETS: Do NOT just return 'Double Chance (1X/X2)'. You must actively analyze and provide a wide variety of broader markets. Prioritize goal-based markets like 'Over 1.5 Goals', 'Over 2.5 Goals', 'Under 3.5 Goals', and 'BTTS (Yes/No)' whenever the data supports it. 
         4. STRICT LIMIT: You must filter the list down to a MAXIMUM of the Top 15 safest matches. Do not return more than 15 fixtures.
         5. CRITICAL OUTPUT RULE: DO NOT provide any explanations, reasoning, or analysis. I only want the raw predictions.
 
@@ -131,7 +131,6 @@ class TitanMasterEngine:
 
         print("Attempting to push message to Telegram API...")
         
-        # Telegram character limit is 4096. Chunking at 4000 to be perfectly safe.
         max_length = 4000
         parts = [msg[i:i+max_length] for i in range(0, len(msg), max_length)]
         
