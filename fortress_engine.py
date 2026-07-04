@@ -23,7 +23,7 @@ print(f"Gemini API Key Loaded: {'YES' if GEMINI_API_KEY else 'NO'}")
 print(f"Groq API Key Loaded: {'YES' if GROQ_API_KEY else 'NO'}")
 print("--------------------------\n")
 
-ACTIVE_STRATEGY = "Multi-Agent Debate (Value/Mid-Table Focus)"
+ACTIVE_STRATEGY = "Multi-Agent Sequential Debate (Gemini vs Llama 3)"
 
 def get_dynamic_configs():
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -74,29 +74,21 @@ class TitanMasterEngine:
                 except: continue
         except: return
 
+    # STEP 1: GEMINI PROPOSES
     def gemini_opening_statement(self, data):
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
-        prompt = f"""You are an aggressive Value Hunter. Review these 30 matches. 
-        STRICT RULES:
-        1. YOU MUST NOT pick lazy "Home Win" or "Away Win" straight outcomes for heavy favorites. 
-        2. Hunt for true mathematical value in mid-table clashes.
-        3. You MUST restrict your picks strictly to alternative markets: Over/Under Goals, BTTS (Yes/No), or Double Chance (1X/X2).
-        Pick your top 12 matches. Provide a 1-sentence analytical reason for why each holds mathematical value.
-        
-        Data:\n{data}"""
+        prompt = f"You are an aggressive Value Hunter. Review these 30 football matches. Pick your top 12 safest matches. Provide a 1-sentence analytical reason for why each is safe. Do not hold back.\n\nData:\n{data}"
         try:
             response = self.gemini_client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
             return response.text.strip()
         except Exception as e: return f"⚠️ Gemini Error: {str(e)}"
 
+    # STEP 2: LLAMA 3 CRITIQUES
     def llama3_rebuttal(self, data, gemini_proposal):
         if not GROQ_API_KEY: return "⚠️ Groq API Key missing."
         prompt = f"""You are a ruthless Risk Manager. Your colleague just proposed 12 betting picks. 
-        Read their proposal. Tear down any pick that has high variance. 
-        STRICT RULES:
-        1. If they picked a straight outright winner (1 or 2), REJECT IT IMMEDIATELY. It holds no value.
-        2. Force the final picks into safer, higher-value alternative markets (Double Chance, Over/Under, BTTS).
-        Counter-propose the absolute safest 10 to 12 matches. Provide a 1-sentence reason for your picks.
+        Read their proposal carefully. Tear down any pick that has high variance or trap potential. Reject weak logic. 
+        Then, based on the original 30 matches, counter-propose the absolute safest 10 to 12 matches, including any of their picks you agree with. Provide a 1-sentence reason for your picks.
         
         Original Data:
         {data}
@@ -104,30 +96,30 @@ class TitanMasterEngine:
         Colleague's Proposal:
         {gemini_proposal}
         """
-        # Switching from llama3-70b to llama3-8b for faster, more reliable free-tier response times
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        payload = {"model": "llama3-8b-8192", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3}
+        payload = {"model": "llama3-70b-8192", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3}
         try:
             r = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=15)
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"].strip()
         except Exception as e: return f"⚠️ Llama 3 Error: {str(e)}"
 
+    # STEP 3: ARBITRATOR VERDICT
     def final_verdict(self, gemini_proposal, llama_critique):
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         prompt = f"""
-        You are the Executive Arbitrator. Two highly intelligent AI agents just debated today's fixtures.
+        You are the Executive Arbitrator. Two highly intelligent AI agents just debated today's football fixtures.
         
-        Agent 1 (Value Hunter):
+        Agent 1 (Value Hunter) Proposal:
         {gemini_proposal}
         
-        Agent 2 (Risk Manager):
+        Agent 2 (Risk Manager) Rebuttal:
         {llama_critique}
         
         YOUR INSTRUCTIONS:
-        1. Find the 8 to 10 matches that BOTH agents agreed upon.
-        2. Format these surviving matches beautifully for Telegram.
-        3. CRITICAL: I DO NOT want to see the debate text or reasons. Just the raw final predictions.
+        1. Review the debate. Find the 8 to 10 matches that BOTH agents fundamentally agreed were safe, or where Agent 2 accepted Agent 1's logic.
+        2. Format these 8 to 10 surviving matches beautifully for Telegram using clear emojis.
+        3. CRITICAL: I DO NOT want to see the debate text. I DO NOT want reasons. I only want the raw final predictions.
         
         Format:
         ⚽ Match Name ➔ [Safest Agreed Market]
@@ -178,22 +170,9 @@ class TitanMasterEngine:
         proposal = self.gemini_opening_statement(match_summary)
         print("Gemini Proposal logged.")
         
-        # ERROR INTERCEPTOR 1
-        if "⚠️" in proposal:
-            self.send_telegram_alert(f"🚨 **TITAN API FAULT** 🚨\n\nAgent 1 (Gemini) failed to generate proposal.\n\nRaw Logs:\n{proposal}")
-            return
-        
         print("\n=== STEP 2: LLAMA 3 READS & CRITIQUES ===")
         rebuttal = self.llama3_rebuttal(match_summary, proposal)
         print("Llama 3 Rebuttal logged.")
-        
-        # ERROR INTERCEPTOR 2
-        if "⚠️" in rebuttal:
-            self.send_telegram_alert(f"🚨 **TITAN API FAULT** 🚨\n\nAgent 2 (Llama 3) failed to generate critique.\n\nRaw Logs:\n{rebuttal}")
-            return
-        
-        print("\n⏳ Initiating 65-second cooldown to completely reset Google API RPM limit...")
-        time.sleep(65)
         
         print("\n=== STEP 3: ARBITRATOR EXTRACTS CONSENSUS ===")
         final_ticket = self.final_verdict(proposal, rebuttal)
@@ -201,7 +180,7 @@ class TitanMasterEngine:
         if final_ticket.lower() == "none" or not final_ticket or "ZERO_CONSENSUS" in final_ticket:
             final_msg = f"🛡️ **TITAN SAFETY PROTOCOL ACTIVATED** 🛡️\n\nDebate collapsed. The AI agents could not find common ground. No Mega-Ticket generated.\n\n📊 Strategy: {ACTIVE_STRATEGY}"
         elif "⚠️" in final_ticket:
-            final_msg = f"🚨 **TITAN API FAULT** 🚨\n\nArbitrator failed: {final_ticket}" 
+            final_msg = final_ticket 
         else:
             final_msg = f"🧠 **TITAN CROSS-MODEL DEBATE ENGINE** 🧠\n\n{final_ticket}\n\n📊 Strategy: {ACTIVE_STRATEGY}"
             
