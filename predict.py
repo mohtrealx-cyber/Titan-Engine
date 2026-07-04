@@ -1,4 +1,6 @@
 import os
+import re
+import json
 import requests
 from google import genai
 from datetime import datetime
@@ -12,7 +14,7 @@ def main():
 
     # Configure the new GenAI Client
     client = genai.Client(api_key=gemini_key)
-    model_id = 'gemini-3.5-flash'
+    model_id = 'gemini-2.5-flash'  # Optimized for stable structural generations
 
     # 2. Fetch today's matches with the "Hunter" Loop
     today = datetime.now().strftime("%Y-%m-%d")
@@ -59,19 +61,23 @@ def main():
         contents=analyst_prompt
     ).text
 
-    # 4. Agent 2: The Judge / Strategy Refiner
+    # 4. Agent 2: The Judge / Strategy Refiner (CRITICAL NO-EXPLANATION OVERHAUL)
     print("Filter 2: Refining strategy...")
     refiner_prompt = f"""
     You are the lead strategist for a 30-round betting performance challenge. 
     Review this statistical analysis: 
     {analyst_response}
     
-    Your job is to stress-test these picks, filter out the noise, and select the single best prediction for the day across any active sport or league found in the data. Do not select a 'null' or 'no bet' option.
-    Output the final prediction formatted cleanly for a Telegram message using Markdown. You must include:
-    - Match details (Teams, Sport/Competition)
-    - Selection / Predicted Outcome
-    - Confidence percentage (1-100%)
-    - Suggested point-allocation for the challenge's point-based tracking system.
+    Your job is to select the single best prediction for the day across any active sport or league found in the data. Do not select a 'null' or 'no bet' option.
+    
+    CRITICAL CONSTRAINT: You MUST NOT include any analysis, reasoning, conversational filler, text introductions, or text conclusions. Output ONLY the raw final details.
+    
+    Format the message strictly as follows:
+    ⚽ **Match:** [Teams Name]
+    🏆 **Competition:** [Sport / Tournament Name]
+    🎯 **Selection:** [Predicted Outcome / Market]
+    📊 **Confidence:** [1-100]%
+    💰 **Allocation:** [Suggested Points] Points
     """
     final_prediction = client.models.generate_content(
         model=model_id,
@@ -83,7 +89,7 @@ def main():
     telegram_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         "chat_id": channel_id,
-        "text": f"🤖 **Daily Prediction Pipeline**\n\n{final_prediction}",
+        "text": f"🤖 **Daily Prediction Pipeline**\n\n{final_prediction.strip()}",
         "parse_mode": "Markdown"
     }
     requests.post(telegram_url, json=payload)
