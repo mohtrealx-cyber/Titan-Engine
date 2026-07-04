@@ -24,8 +24,8 @@ jobs:
           
       - name: Execute LLM Fortress Core
         env:
-          # 🔴 CRITICAL FIX: Direct injection of your new Telegram Bot credentials
-          TELEGRAM_TOKEN: "8970975457:AAEoqpJzuBIrYz672f71FvCWC3sEzLacRik"
-          TELEGRAM_CHAT_ID: "5876539862"
+          # Maps your new custom secret names to the script's environment variables
+          TELEGRAM_TOKEN: ${{ secrets.FORTRESS_TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.FORTRESS_TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }} 
         run: python fortress_engine.py
