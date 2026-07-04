@@ -74,7 +74,6 @@ class TitanMasterEngine:
                 except: continue
         except: return
 
-    # STEP 1: GEMINI PROPOSES
     def gemini_opening_statement(self, data):
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         prompt = f"""You are an aggressive Value Hunter. Review these 30 matches. 
@@ -90,7 +89,6 @@ class TitanMasterEngine:
             return response.text.strip()
         except Exception as e: return f"⚠️ Gemini Error: {str(e)}"
 
-    # STEP 2: LLAMA 3 CRITIQUES
     def llama3_rebuttal(self, data, gemini_proposal):
         if not GROQ_API_KEY: return "⚠️ Groq API Key missing."
         prompt = f"""You are a ruthless Risk Manager. Your colleague just proposed 12 betting picks. 
@@ -114,7 +112,6 @@ class TitanMasterEngine:
             return r.json()["choices"][0]["message"]["content"].strip()
         except Exception as e: return f"⚠️ Llama 3 Error: {str(e)}"
 
-    # STEP 3: ARBITRATOR VERDICT
     def final_verdict(self, gemini_proposal, llama_critique):
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         prompt = f"""
@@ -183,6 +180,10 @@ class TitanMasterEngine:
         print("\n=== STEP 2: LLAMA 3 READS & CRITIQUES ===")
         rebuttal = self.llama3_rebuttal(match_summary, proposal)
         print("Llama 3 Rebuttal logged.")
+        
+        # THE FIX: Cooldown to clear the Free Tier Rate Limit
+        print("\n⏳ Initiating 25-second cooldown to bypass Google API rate limits...")
+        time.sleep(25)
         
         print("\n=== STEP 3: ARBITRATOR EXTRACTS CONSENSUS ===")
         final_ticket = self.final_verdict(proposal, rebuttal)
