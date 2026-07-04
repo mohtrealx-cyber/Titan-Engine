@@ -84,7 +84,7 @@ def main():
     🏆 **League:** [Exact League / Tournament Name]
     🎯 **Selection:** [Actual Team Name to Win/Draw or Specific Goal Market]
     📊 **Confidence:** [1-100]%
-    💰 **Allocation:** [Suggested Points] Points
+    💰 **Allocation:** [1 to 5] Points (Strictly use a 1-5 scale based on confidence)
     """
     final_prediction = client.models.generate_content(
         model=model_id,
