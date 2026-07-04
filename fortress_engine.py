@@ -10,8 +10,9 @@ import google.generativeai as genai
 # ==============================================================================
 # 1. CONFIGURATION & SECURITY
 # ==============================================================================
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+# Hardcoded to guarantee delivery to your exact bot
+TELEGRAM_TOKEN = "8970975457:AAEoqpJzuBIrYz672f71FvCWC3sEzLacRik"
+TELEGRAM_CHAT_ID = "5876539862"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 ACTIVE_STRATEGY = "Titan LLM Reasoning"
@@ -92,7 +93,7 @@ class TitanMasterEngine:
         """
 
         try:
-            # 🔴 CRITICAL FIX: Upgraded to the current stable Gemini 2.5 Flash model
+            # Shifted to current stable Gemini 2.5 Flash version to ensure compatibility
             model = genai.GenerativeModel('gemini-2.5-flash')
             response = model.generate_content(prompt)
             return response.text
@@ -120,13 +121,15 @@ class TitanMasterEngine:
         return match_summary, valid_matches_found
 
     def send_telegram_alert(self, msg):
-        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+        try:
             tls_requests.post(
                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                 json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, 
                 impersonate="chrome120", 
                 timeout=10
             )
+        except Exception as e:
+            print(f"Failed to send Telegram message: {e}")
 
     async def run_pipeline(self):
         loop = asyncio.get_running_loop()
