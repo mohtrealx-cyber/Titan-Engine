@@ -23,7 +23,7 @@ print(f"Gemini API Key Loaded: {'YES' if GEMINI_API_KEY else 'NO'}")
 print(f"Groq API Key Loaded: {'YES' if GROQ_API_KEY else 'NO'}")
 print("--------------------------\n")
 
-ACTIVE_STRATEGY = "Multi-Agent Sequential Debate (Gemini vs Llama 3)"
+ACTIVE_STRATEGY = "Multi-Agent Debate (Value/Mid-Table Focus)"
 
 def get_dynamic_configs():
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -77,7 +77,14 @@ class TitanMasterEngine:
     # STEP 1: GEMINI PROPOSES
     def gemini_opening_statement(self, data):
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
-        prompt = f"You are an aggressive Value Hunter. Review these 30 football matches. Pick your top 12 safest matches. Provide a 1-sentence analytical reason for why each is safe. Do not hold back.\n\nData:\n{data}"
+        prompt = f"""You are an aggressive Value Hunter. Review these 30 matches. 
+        STRICT RULES:
+        1. YOU MUST NOT pick lazy "Home Win" or "Away Win" straight outcomes for heavy favorites. 
+        2. Hunt for true mathematical value in mid-table clashes.
+        3. You MUST restrict your picks strictly to alternative markets: Over/Under Goals, BTTS (Yes/No), or Double Chance (1X/X2).
+        Pick your top 12 matches. Provide a 1-sentence analytical reason for why each holds mathematical value.
+        
+        Data:\n{data}"""
         try:
             response = self.gemini_client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
             return response.text.strip()
@@ -87,8 +94,11 @@ class TitanMasterEngine:
     def llama3_rebuttal(self, data, gemini_proposal):
         if not GROQ_API_KEY: return "⚠️ Groq API Key missing."
         prompt = f"""You are a ruthless Risk Manager. Your colleague just proposed 12 betting picks. 
-        Read their proposal carefully. Tear down any pick that has high variance or trap potential. Reject weak logic. 
-        Then, based on the original 30 matches, counter-propose the absolute safest 10 to 12 matches, including any of their picks you agree with. Provide a 1-sentence reason for your picks.
+        Read their proposal. Tear down any pick that has high variance. 
+        STRICT RULES:
+        1. If they picked a straight outright winner (1 or 2), REJECT IT IMMEDIATELY. It holds no value.
+        2. Force the final picks into safer, higher-value alternative markets (Double Chance, Over/Under, BTTS).
+        Counter-propose the absolute safest 10 to 12 matches. Provide a 1-sentence reason for your picks.
         
         Original Data:
         {data}
@@ -108,18 +118,18 @@ class TitanMasterEngine:
     def final_verdict(self, gemini_proposal, llama_critique):
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         prompt = f"""
-        You are the Executive Arbitrator. Two highly intelligent AI agents just debated today's football fixtures.
+        You are the Executive Arbitrator. Two highly intelligent AI agents just debated today's fixtures.
         
-        Agent 1 (Value Hunter) Proposal:
+        Agent 1 (Value Hunter):
         {gemini_proposal}
         
-        Agent 2 (Risk Manager) Rebuttal:
+        Agent 2 (Risk Manager):
         {llama_critique}
         
         YOUR INSTRUCTIONS:
-        1. Review the debate. Find the 8 to 10 matches that BOTH agents fundamentally agreed were safe, or where Agent 2 accepted Agent 1's logic.
-        2. Format these 8 to 10 surviving matches beautifully for Telegram using clear emojis.
-        3. CRITICAL: I DO NOT want to see the debate text. I DO NOT want reasons. I only want the raw final predictions.
+        1. Find the 8 to 10 matches that BOTH agents agreed upon.
+        2. Format these surviving matches beautifully for Telegram.
+        3. CRITICAL: I DO NOT want to see the debate text or reasons. Just the raw final predictions.
         
         Format:
         ⚽ Match Name ➔ [Safest Agreed Market]
