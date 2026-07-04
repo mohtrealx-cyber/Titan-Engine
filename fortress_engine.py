@@ -21,7 +21,6 @@ if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
 def get_dynamic_configs():
-    """Generates live URLs for TODAY only to bypass stale cached pages."""
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
     cb = int(time.time()) 
     
@@ -93,7 +92,8 @@ class TitanMasterEngine:
         """
 
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # 🔴 CRITICAL FIX: Upgraded to the current stable Gemini 2.5 Flash model
+            model = genai.GenerativeModel('gemini-2.5-flash')
             response = model.generate_content(prompt)
             return response.text
         except Exception as e:
@@ -113,7 +113,6 @@ class TitanMasterEngine:
             top_pick = max(prediction_weights, key=prediction_weights.get)
             confidence_pct = (prediction_weights[top_pick] / len(listings)) * 100
             
-            # Send matches to the LLM if at least 2 of the 3 sites have some baseline consensus
             if confidence_pct >= 66:
                 match_summary += f"- {match} | Algorithmic Picks: {top_pick} | Consensus: {confidence_pct:.0f}%\n"
                 valid_matches_found += 1
@@ -122,7 +121,6 @@ class TitanMasterEngine:
 
     def send_telegram_alert(self, msg):
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-            # Mask payload using the same stealth TLS browser footprint
             tls_requests.post(
                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                 json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, 
@@ -141,10 +139,8 @@ class TitanMasterEngine:
             self.send_telegram_alert("🛡️ TITAN LLM ENGINE: Scrape finalized. Zero high-consensus matches detected today. Capital preserved.")
             return
         
-        # Execute the Gemini Reasoning Layer
         llm_formatted_message = self.analyze_with_llm(match_summary)
         
-        # Dispatch the processed mega-ticket directly to your original Telegram bot
         final_msg = f"🧠 **TITAN REASONING ENGINE AUTOMATOR** 🧠\n\n{llm_formatted_message}\n\n📊 Engine Strategy: {ACTIVE_STRATEGY}"
         self.send_telegram_alert(final_msg)
 
