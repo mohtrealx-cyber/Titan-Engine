@@ -115,7 +115,7 @@ def main():
         print("Pipeline aborted due to persistent API rate limits.")
         return
 
-    # 5. Send to Telegram
+    # 5. Send to Telegram with Error Handling
     print("\nSending prediction to Telegram...")
     telegram_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
@@ -123,7 +123,16 @@ def main():
         "text": f"🤖 **Daily Prediction Pipeline**\n\n{final_prediction.strip()}",
         "parse_mode": "Markdown"
     }
-    requests.post(telegram_url, json=payload)
+    
+    try:
+        tg_response = requests.post(telegram_url, json=payload)
+        if tg_response.status_code == 200:
+            print("✅ Telegram message sent successfully!")
+        else:
+            print(f"❌ Telegram API Error: {tg_response.status_code} - {tg_response.text}")
+    except Exception as e:
+        print(f"❌ Failed to connect to Telegram: {e}")
+        
     print("Automation complete!")
 
 if __name__ == "__main__":
