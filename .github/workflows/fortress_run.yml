@@ -20,10 +20,12 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          # Added standard requests here
           pip install requests bs4 curl_cffi google-generativeai
           
       - name: Execute LLM Fortress Core
         env:
+          # Pulling from your brand new V2 secrets!
+          TELEGRAM_TOKEN: ${{ secrets.TITAN_BOT_TOKEN_V2 }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TITAN_CHAT_ID_V2 }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }} 
         run: python fortress_engine.py
