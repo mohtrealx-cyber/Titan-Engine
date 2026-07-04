@@ -14,27 +14,38 @@ def main():
     client = genai.Client(api_key=gemini_key)
     model_id = 'gemini-3.5-flash'
 
-    # 2. Fetch today's matches
-    # The pipeline is now LIVE and fetching real-time daily fixtures
+    # 2. Fetch today's matches with the "Hunter" Loop
     today = datetime.now().strftime("%Y-%m-%d")
     
-    url = f"https://sportapi7.p.rapidapi.com/api/v1/category/1/scheduled-events/{today}"
-
     headers = {
         "x-rapidapi-key": rapidapi_key,
         "x-rapidapi-host": "sportapi7.p.rapidapi.com"
     }
 
-    print(f"Fetching match data for {today}...")
-    response = requests.get(url, headers=headers)
-    match_data = response.text 
+    match_data = None
     
-    print(f"API RAW RESPONSE (First 500 chars): {match_data[:500]}")
+    print(f"Scanning for active markets for {today}...")
+    
+    # Loop through categories 1 to 5 to find the first one with active events
+    for category_id in range(1, 6):
+        print(f"Checking Category {category_id}...")
+        url = f"https://sportapi7.p.rapidapi.com/api/v1/category/{category_id}/scheduled-events/{today}"
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            data = response.text
+            # If the data is NOT empty, we lock it in and break the loop
+            if data and '"events":[]' not in data.replace(" ", ""):
+                print(f"✅ Active payload secured in Category {category_id}!")
+                match_data = data
+                break
 
-    # Check if data is empty or null to avoid the AI betting on "Null Activity"
-    if not match_data or '"events":[]' in match_data.replace(" ", ""):
-        print("No active fixtures found in the dataset for this date. Exiting pipeline safely.")
+    # The Safety Trigger
+    if not match_data:
+        print("Complete market blackout across all scanned categories today. Exiting safely.")
         return
+
+    print(f"API RAW RESPONSE (First 500 chars): {match_data[:500]}")
 
     # 3. Agent 1: The Statistical Analyst
     print("Filter 1: Analyzing raw statistics...")
@@ -55,9 +66,9 @@ def main():
     Review this statistical analysis: 
     {analyst_response}
     
-    Your job is to stress-test these picks, filter out the noise, and select the single best prediction for the day. Do not select a 'null' or 'no bet' option if active data is present above.
+    Your job is to stress-test these picks, filter out the noise, and select the single best prediction for the day across any active sport or league found in the data. Do not select a 'null' or 'no bet' option.
     Output the final prediction formatted cleanly for a Telegram message using Markdown. You must include:
-    - Match details (Teams, competition)
+    - Match details (Teams, Sport/Competition)
     - Selection / Predicted Outcome
     - Confidence percentage (1-100%)
     - Suggested point-allocation for the challenge's point-based tracking system.
