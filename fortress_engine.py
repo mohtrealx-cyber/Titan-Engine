@@ -182,8 +182,8 @@ class TitanMasterEngine:
         print("Llama 3 Rebuttal logged.")
         
         # THE FIX: Cooldown to clear the Free Tier Rate Limit
-        print("\n⏳ Initiating 25-second cooldown to bypass Google API rate limits...")
-        time.sleep(25)
+        print("\n⏳ Initiating 65-second cooldown to completely reset Google API RPM limit...")
+        time.sleep(65)
         
         print("\n=== STEP 3: ARBITRATOR EXTRACTS CONSENSUS ===")
         final_ticket = self.final_verdict(proposal, rebuttal)
