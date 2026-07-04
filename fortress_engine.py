@@ -2,6 +2,7 @@ import os
 import time
 import asyncio
 import datetime
+import requests # Brought in standard requests for Telegram
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
@@ -10,14 +11,13 @@ import google.generativeai as genai
 # ==============================================================================
 # 1. CONFIGURATION & SECURITY
 # ==============================================================================
-# Hardcoded to guarantee delivery to your exact bot
+# Hardcoded to guarantee delivery
 TELEGRAM_TOKEN = "8970975457:AAEoqpJzuBIrYz672f71FvCWC3sEzLacRik"
 TELEGRAM_CHAT_ID = "5876539862"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 ACTIVE_STRATEGY = "Titan LLM Reasoning"
 
-# Initialize Gemini AI
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
@@ -93,7 +93,6 @@ class TitanMasterEngine:
         """
 
         try:
-            # Shifted to current stable Gemini 2.5 Flash version to ensure compatibility
             model = genai.GenerativeModel('gemini-2.5-flash')
             response = model.generate_content(prompt)
             return response.text
@@ -122,12 +121,10 @@ class TitanMasterEngine:
 
     def send_telegram_alert(self, msg):
         try:
-            tls_requests.post(
-                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
-                json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, 
-                impersonate="chrome120", 
-                timeout=10
-            )
+            # Using standard requests to guarantee Telegram delivery
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg}
+            requests.post(url, json=payload, timeout=10)
         except Exception as e:
             print(f"Failed to send Telegram message: {e}")
 
