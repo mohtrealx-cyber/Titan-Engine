@@ -1,20 +1,24 @@
 import os
 import time
 import asyncio
-import csv
 import datetime
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
+import google.generativeai as genai
 
 # ==============================================================================
 # 1. CONFIGURATION & SECURITY
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-ACTIVE_STRATEGY = "Titan"
-CSV_FILE_PATH = "titan_performance_history.csv"
+ACTIVE_STRATEGY = "Titan LLM Reasoning"
+
+# Initialize Gemini AI
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 def get_dynamic_configs():
     """Generates live URLs for TODAY only to bypass stale cached pages."""
@@ -39,7 +43,8 @@ class TitanMasterEngine:
             if text in vars: return tag
         return None
 
-    def clean_team_name(self, name): return name.strip().title()
+    def clean_team_name(self, name): 
+        return name.strip().title()
 
     def log_prediction_qa(self, site_name, home, away, raw_prediction):
         if not home or not away or not raw_prediction: return
@@ -54,13 +59,49 @@ class TitanMasterEngine:
             r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
             if r.status_code != 200: return
             for row in BeautifulSoup(r.content, 'html.parser').find_all(cfg["row_selector"], class_=cfg["row_class"]):
-                try: self.log_prediction_qa(site_name, row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text, row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text, row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text)
+                try: 
+                    self.log_prediction_qa(
+                        site_name, 
+                        row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text, 
+                        row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text, 
+                        row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
+                    )
                 except: continue
         except: return
 
+    def analyze_with_llm(self, raw_match_data):
+        if not GEMINI_API_KEY:
+            return "⚠️ GEMINI_API_KEY is missing from environment. Cannot execute reasoning layer."
+
+        prompt = f"""
+        You are an elite football quantitative analyst specializing in risk mitigation.
+        I am providing you with today's matches and consensus predictions from 3 automated scraping pipelines.
+        
+        Your instructions:
+        1. Evaluate each fixture carefully.
+        2. IMMEDIATELY REMOVE/DROP any highly volatile, risky, or unstable trap games.
+        3. For the remaining matches, determine the ABSOLUTE SAFEST betting market option. Do not restrict yourself to standard 1X2. Safely expand the prediction to alternative markets: 'Over 1.5 Goals', 'Under 3.5 Goals', 'BTTS (GG/NO)', or 'Double Chance (1X/X2)' if it severely lowers risk.
+        4. Provide a quick 1-sentence analytical reason for each decision.
+        
+        Scraped Input Data:
+        {raw_match_data}
+        
+        Format your response beautifully for Telegram as a 'MEGA-TICKET'. Use crisp formatting and clear emojis. Do not abuse asterisks or complex headings.
+        Expected Output Layout Structure:
+        ⚽ Match Name ➔ [Safest Suggested Market]
+        ↳ Reason: Short, grounded analysis sentence.
+        """
+
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"⚠️ LLM Analysis Failed: {str(e)}"
+
     def process_signals(self):
-        daily_sures, jackpot_builders, csv_rows = [], [], []
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        match_summary = ""
+        valid_matches_found = 0
 
         for match, listings in self.master_matrix.items():
             if len(listings) == 0: continue
@@ -70,48 +111,42 @@ class TitanMasterEngine:
                 prediction_weights[pick] = prediction_weights.get(pick, 0) + 1
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
-            
-            # Simple percentage based on how many sites agree
             confidence_pct = (prediction_weights[top_pick] / len(listings)) * 100
+            
+            # Send matches to the LLM if at least 2 of the 3 sites have some baseline consensus
+            if confidence_pct >= 66:
+                match_summary += f"- {match} | Algorithmic Picks: {top_pick} | Consensus: {confidence_pct:.0f}%\n"
+                valid_matches_found += 1
 
-            csv_rows.append([timestamp, ACTIVE_STRATEGY, match, top_pick, f"{confidence_pct:.0f}%", str([f"{s}:{p}" for s, p in listings]), ""])
-
-            if confidence_pct >= 99.9: 
-                daily_sures.append(f"• {match} ➔ {top_pick}")
-            else: 
-                jackpot_builders.append(f"• {match} ➔ {top_pick} ({confidence_pct:.0f}%)")
-
-        return daily_sures, jackpot_builders, csv_rows
+        return match_summary, valid_matches_found
 
     def send_telegram_alert(self, msg):
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-            tls_requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, impersonate="chrome120", timeout=10)
+            # Mask payload using the same stealth TLS browser footprint
+            tls_requests.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
+                json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, 
+                impersonate="chrome120", 
+                timeout=10
+            )
 
     async def run_pipeline(self):
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
         
-        sures, jackpots, rows = self.process_signals()
+        match_summary, count = self.process_signals()
         
-        if not sures and not jackpots: 
-            self.send_telegram_alert("🛡️ TITAN ENGINE: Scrape complete, but zero matches found for today. Bankroll protected.")
+        if count == 0: 
+            self.send_telegram_alert("🛡️ TITAN LLM ENGINE: Scrape finalized. Zero high-consensus matches detected today. Capital preserved.")
             return
         
-        # Formatting exactly to your preferred Mega-Ticket layout
-        msg = f"🎫 TITAN ENGINE: MEGA-TICKET 🎫\n\n"
-        if sures:
-            msg += "🔥 DAILY SURE BETS (100%)\n"
-            for b in sures: msg += f"{b}\n"
-            msg += "\n"
-        if jackpots:
-            msg += "🎟️ DAILY JACKPOT BUILDER\n"
-            for b in jackpots: msg += f"{b}\n"
-            msg += "\n"
-            
-        msg += f"📈 Strategy: {ACTIVE_STRATEGY}"
+        # Execute the Gemini Reasoning Layer
+        llm_formatted_message = self.analyze_with_llm(match_summary)
         
-        self.send_telegram_alert(msg)
+        # Dispatch the processed mega-ticket directly to your original Telegram bot
+        final_msg = f"🧠 **TITAN REASONING ENGINE AUTOMATOR** 🧠\n\n{llm_formatted_message}\n\n📊 Engine Strategy: {ACTIVE_STRATEGY}"
+        self.send_telegram_alert(final_msg)
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
