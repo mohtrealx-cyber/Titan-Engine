@@ -70,12 +70,14 @@ def main():
     
     Your job is to select the single best prediction for the day across any active sport or league found in the data. Do not select a 'null' or 'no bet' option.
     
-    CRITICAL CONSTRAINT: You MUST NOT include any analysis, reasoning, conversational filler, text introductions, or text conclusions. Output ONLY the raw final details.
+    CRITICAL CONSTRAINTS: 
+    1. You MUST NOT include any analysis, reasoning, conversational filler, text introductions, or text conclusions. Output ONLY the raw final details.
+    2. For the "Selection", if you are predicting a team to win or draw, you MUST write the actual team's name (e.g., "Arsenal to Win" or "Chelsea Double Chance"). DO NOT write generic terms like "Home", "Away", "1", "X", or "2".
     
     Format the message strictly as follows:
-    ⚽ **Match:** [Teams Name]
-    🏆 **Competition:** [Sport / Tournament Name]
-    🎯 **Selection:** [Predicted Outcome / Market]
+    ⚽ **Match:** [Home Team Name vs Away Team Name]
+    🏆 **League:** [Exact League / Tournament Name]
+    🎯 **Selection:** [Actual Team Name to Win/Draw or Specific Goal Market]
     📊 **Confidence:** [1-100]%
     💰 **Allocation:** [Suggested Points] Points
     """
