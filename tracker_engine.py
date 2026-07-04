@@ -2,10 +2,11 @@ import os
 import re
 import json
 import requests
+import itertools
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# TITAN TRACKER: APEX CORE (GEOMETRIC SAFETY RATIO)
+# TITAN TRACKER: APEX CORE (GEOMETRIC N-2 SYSTEM MATRIX)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -77,7 +78,6 @@ class MegaTicketVolumeSieve:
             
             pin_home, pin_away, pin_draw = None, None, None
             
-            # Isolate Pinnacle Sharp Data
             for bookie in bookmakers:
                 if bookie.get("key") == "pinnacle":
                     for mkt in bookie.get("markets", []):
@@ -97,27 +97,13 @@ class MegaTicketVolumeSieve:
                 
                 match_title = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
 
-                # ==========================================================
-                # THE GEOMETRIC SAFETY SIEVE
-                # ==========================================================
-                
-                # Calculate Structural Safety Score (Draw Odds ÷ Favorite Odds)
+                # Geometric Safety Sieve
                 geometric_score = pin_draw / sharp_fav_odd
-                
-                # Calculate Panic Margin
                 margin = (1.0 / pin_home) + (1.0 / pin_away) + (1.0 / pin_draw) - 1.0
                 is_panic_market = margin > 0.085
-                
-                # Hostile Territory
                 is_weak_away_fav = (sym == "2") and (sharp_fav_odd > 1.85)
 
-                # ==========================================================
-                # TICKET ALLOCATION LOGIC
-                # ==========================================================
-                # Match must have a Geometric Score over 2.15 to be structurally safe
                 passed_jackpot = not is_panic_market and not is_weak_away_fav and (geometric_score >= 2.15)
-                
-                # Combos require elite geometric structure (Score > 2.80)
                 passed_combo = not is_panic_market and not is_weak_away_fav and (geometric_score >= 2.80) and (sharp_fav_odd <= 1.50)
 
                 if passed_jackpot:
@@ -238,19 +224,12 @@ class MegaTicketVolumeSieve:
         sb += f"🏆 **All-Time Win Rate:** `{win_rate:.1f}%` ({wins}W - {losses}L)\n"
         sb += f"📈 **Total Settled Volume:** `{total_settled} selections`\n\n"
         
-        if all_settled_games:
-            sb += "🕒 **Recent Game Ledger (Latest Lookback):**\n"
-            for game in all_settled_games[:5]:
-                sb += f"{game}\n"
-        else:
-            sb += "No matches settled in ledger history yet.\n"
-            
         return sb + "\n"
 
     def dispatch_alerts(self, scoreboard_text):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
-        msg = "🎯 **TITAN ENGINE: GEOMETRIC APEX CORE** 🎯\n\n"
+        msg = "🎯 **TITAN ENGINE: GEOMETRIC MATRIX CORE** 🎯\n\n"
             
         if len(self.combo_candidates) >= 2:
             sorted_candidates = sorted(self.combo_candidates, key=lambda x: x["odds"])
@@ -267,21 +246,36 @@ class MegaTicketVolumeSieve:
             msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient mathematically secure matches for a combo today.\n\n"
 
         if self.jackpot_candidates:
-            # Sort strictly by the highest Geometric Safety Score
-            sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["score"], reverse=True)
+            # Sort strictly by Geometric Score and cap at top 10
+            sorted_jackpot = sorted(self.jackpot_candidates, key=lambda x: x["score"], reverse=True)[:10]
+            n_total = len(sorted_jackpot)
             
-            jackpot_odds = 1.0
-            jackpot_text_lines = []
-            for pick in sorted_jackpot:
-                jackpot_odds *= pick["odds"]
-                # Display the Geometric score to show the true structural safety
-                jackpot_text_lines.append(f" ↳ {pick['text']} @ {pick['odds']:.2f} (Struct. Score: {pick['score']:.2f})")
+            if n_total > 2:
+                combo_size = n_total - 2
+                all_combos = list(itertools.combinations(sorted_jackpot, combo_size))
                 
-            msg += f"🎰 **TITAN {len(sorted_jackpot)}-LEG DYNAMIC GEOMETRIC JACKPOT** 🎰\n"
-            msg += "\n".join(jackpot_text_lines) + "\n"
-            msg += f"📈 **Estimated Cumulative Odds:** {jackpot_odds:,.2f}\n💰 **Suggested System Stake:** 10 KES\n\n"
+                msg += f"🎰 **TITAN {combo_size}/{n_total} SYSTEM MATRIX (Drop 2 Matches)** 🎰\n"
+                msg += f"↳ *{len(all_combos)} Total Tickets Required*\n\n"
+                
+                msg += "📋 **MASTER MATCH LIST:**\n"
+                for i, pick in enumerate(sorted_jackpot, 1):
+                    msg += f" `[{i}]` {pick['text']} @ {pick['odds']:.2f} (Struct: {pick['score']:.2f})\n"
+                    
+                msg += "\n✂️ **THE DROP MATRIX (What to leave out):**\n"
+                msg += "Build your slips by taking the Master List and dropping the bracketed numbers below:\n\n"
+                
+                # Generate drop pairs
+                drop_pairs = list(itertools.combinations(range(1, n_total + 1), 2))
+                drop_lines = [f"T{idx}: Drop [{p[0]}&{p[1]}]" for idx, p in enumerate(drop_pairs, 1)]
+                
+                # Format into 3 clean columns to save space in Telegram
+                for i in range(0, len(drop_lines), 3):
+                    msg += " | ".join(drop_lines[i:i+3]) + "\n"
+                msg += "\n"
+            else:
+                 msg += "🎰 **TITAN SYSTEM MATRIX** 🎰\n↳ 🟡 Not enough matches to build a Drop-2 System today.\n\n"
         else:
-            msg += "🎰 **TITAN GEOMETRIC JACKPOT** 🎰\n↳ 🟡 No matches currently meet the 2.15 Geometric Safety threshold. Awaiting better structures...\n\n"
+            msg += "🎰 **TITAN GEOMETRIC JACKPOT** 🎰\n↳ 🟡 No matches currently meet the 2.15 Geometric Safety threshold.\n\n"
 
         msg += scoreboard_text
 
@@ -289,7 +283,7 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
-        msg += f"↳ Active Sieves: Elastic Geometric Ratio (>2.15), Panic Tax, Away Penalty\n"
+        msg += f"↳ Active Sieves: Geometric Matrix (N-2), Panic Tax, Away Penalty\n"
 
         requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
                       json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
