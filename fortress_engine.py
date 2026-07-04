@@ -104,8 +104,9 @@ class TitanMasterEngine:
         Colleague's Proposal:
         {gemini_proposal}
         """
+        # Switching from llama3-70b to llama3-8b for faster, more reliable free-tier response times
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        payload = {"model": "llama3-70b-8192", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3}
+        payload = {"model": "llama3-8b-8192", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3}
         try:
             r = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=15)
             r.raise_for_status()
@@ -177,11 +178,20 @@ class TitanMasterEngine:
         proposal = self.gemini_opening_statement(match_summary)
         print("Gemini Proposal logged.")
         
+        # ERROR INTERCEPTOR 1
+        if "⚠️" in proposal:
+            self.send_telegram_alert(f"🚨 **TITAN API FAULT** 🚨\n\nAgent 1 (Gemini) failed to generate proposal.\n\nRaw Logs:\n{proposal}")
+            return
+        
         print("\n=== STEP 2: LLAMA 3 READS & CRITIQUES ===")
         rebuttal = self.llama3_rebuttal(match_summary, proposal)
         print("Llama 3 Rebuttal logged.")
         
-        # THE FIX: Cooldown to clear the Free Tier Rate Limit
+        # ERROR INTERCEPTOR 2
+        if "⚠️" in rebuttal:
+            self.send_telegram_alert(f"🚨 **TITAN API FAULT** 🚨\n\nAgent 2 (Llama 3) failed to generate critique.\n\nRaw Logs:\n{rebuttal}")
+            return
+        
         print("\n⏳ Initiating 65-second cooldown to completely reset Google API RPM limit...")
         time.sleep(65)
         
@@ -191,7 +201,7 @@ class TitanMasterEngine:
         if final_ticket.lower() == "none" or not final_ticket or "ZERO_CONSENSUS" in final_ticket:
             final_msg = f"🛡️ **TITAN SAFETY PROTOCOL ACTIVATED** 🛡️\n\nDebate collapsed. The AI agents could not find common ground. No Mega-Ticket generated.\n\n📊 Strategy: {ACTIVE_STRATEGY}"
         elif "⚠️" in final_ticket:
-            final_msg = final_ticket 
+            final_msg = f"🚨 **TITAN API FAULT** 🚨\n\nArbitrator failed: {final_ticket}" 
         else:
             final_msg = f"🧠 **TITAN CROSS-MODEL DEBATE ENGINE** 🧠\n\n{final_ticket}\n\n📊 Strategy: {ACTIVE_STRATEGY}"
             
