@@ -98,7 +98,7 @@ class TitanMasterEngine:
         Read their proposal. Tear down any pick that has high variance. 
         STRICT RULES:
         1. If they picked a straight outright winner (1 or 2), REJECT IT IMMEDIATELY. It holds no value.
-        2. Force the final picks into safer, higher-value alternative markets (Double Chance, Over/Under, BTTS).
+        2. Force the final picks into safer, higher-value alternative markets (1X, X2, Over/Under, BTTS).
         Counter-propose the absolute safest 10 to 12 matches. Provide a 1-sentence reason for your picks.
         
         Original Data:
@@ -130,6 +130,7 @@ class TitanMasterEngine:
         1. Find the 8 to 10 matches that BOTH agents agreed upon.
         2. Format these surviving matches using EXACTLY this syntax:
            Match Name | Agreed Market
+           * For Double Chance markets, output ONLY the exact symbol (e.g., 1X, X2, 12). DO NOT write the words "Double Chance".
         3. CRITICAL: Provide ZERO explanations, emojis, or intro text. Just the raw text lines separated by newlines.
         """
         try:
@@ -166,6 +167,13 @@ class TitanMasterEngine:
             parts = line.split("|")
             match_name = parts[0].strip()
             market = parts[1].strip()
+            
+            # --- DOUBLE CHANCE FORMAT SANITIZER ---
+            ml = market.lower()
+            if "double chance" in ml or "dc" in ml or "1x" in ml or "x2" in ml:
+                if "1x" in ml or "home or draw" in ml: market = "1X"
+                elif "x2" in ml or "2x" in ml or "away or draw" in ml: market = "X2"
+                elif "12" in ml or "home or away" in ml: market = "12"
             
             best_price = None
             if odds_matrix:
