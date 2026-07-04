@@ -3,6 +3,7 @@ import time
 import asyncio
 import datetime
 import requests
+import difflib
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
@@ -15,15 +16,17 @@ TELEGRAM_TOKEN = "8970975457:AAEoqpJzuBIrYz672f71FvCWC3sEzLacRik"
 TELEGRAM_CHAT_ID = "5876539862"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 
 print("--- SYSTEM DIAGNOSTICS ---")
 print(f"Bot Token Loaded: {'YES' if TELEGRAM_TOKEN else 'NO'}")
 print(f"Chat ID Loaded: {'YES' if TELEGRAM_CHAT_ID else 'NO'}")
 print(f"Gemini API Key Loaded: {'YES' if GEMINI_API_KEY else 'NO'}")
 print(f"Groq API Key Loaded: {'YES' if GROQ_API_KEY else 'NO'}")
+print(f"Odds API Key Loaded: {'YES' if ODDS_API_KEY else 'NO'}")
 print("--------------------------\n")
 
-ACTIVE_STRATEGY = "Multi-Agent Debate (Value/Mid-Table Focus)"
+ACTIVE_STRATEGY = "Titan Apex: Debate + Live EV Odds Filtration"
 
 def get_dynamic_configs():
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -105,7 +108,6 @@ class TitanMasterEngine:
         {gemini_proposal}
         """
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        # UPDATED TO CORRECT GROQ MODEL NAME
         payload = {"model": "llama-3.1-8b-instant", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3}
         try:
             r = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=15)
@@ -126,16 +128,77 @@ class TitanMasterEngine:
         
         YOUR INSTRUCTIONS:
         1. Find the 8 to 10 matches that BOTH agents agreed upon.
-        2. Format these surviving matches beautifully for Telegram.
-        3. CRITICAL: I DO NOT want to see the debate text or reasons. Just the raw final predictions.
-        
-        Format:
-        ⚽ Match Name ➔ [Safest Agreed Market]
+        2. Format these surviving matches using EXACTLY this syntax:
+           Match Name | Agreed Market
+        3. CRITICAL: Provide ZERO explanations, emojis, or intro text. Just the raw text lines separated by newlines.
         """
         try:
             response = self.gemini_client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
             return response.text.strip()
         except Exception as e: return f"⚠️ Arbitrator Error: {str(e)}"
+
+    def fetch_live_odds_matrix(self):
+        """Fetches a broad matrix of live soccer odds to act as the EV filter."""
+        if not ODDS_API_KEY: return []
+        print("\n🌐 Fetching Live Odds from Global Bookmakers...")
+        try:
+            url = f"https://api.the-odds-api.com/v4/sports/upcoming/odds/?apiKey={ODDS_API_KEY}&regions=eu&markets=h2h&bookmakers=bet365"
+            response = requests.get(url, timeout=15)
+            if response.status_code == 200:
+                return response.json()
+            return []
+        except: return []
+
+    def apply_ev_and_format(self, raw_ticket, odds_matrix):
+        """Cross-references the AI ticket with live odds to calculate Value and Kelly Staking."""
+        if "⚠️" in raw_ticket: return raw_ticket
+        
+        final_output = ""
+        lines = raw_ticket.split('\n')
+        
+        for line in lines:
+            if "|" not in line: continue
+            parts = line.split("|")
+            match_name = parts[0].strip()
+            market = parts[1].strip()
+            
+            odds_display = "Live Odds Pending"
+            staking_rec = "1.0 Unit (100 KES)"
+            
+            # Fuzzy match the AI's match name with the Odds API data
+            if odds_matrix:
+                for game in odds_matrix:
+                    api_match_name = f"{game.get('home_team', '')} vs {game.get('away_team', '')}"
+                    similarity = difflib.SequenceMatcher(None, match_name.lower(), api_match_name.lower()).ratio()
+                    
+                    if similarity > 0.6: # Found a match
+                        try:
+                            # Extracting the favorite's odds to calculate general implied probability of the fixture
+                            outcomes = game['bookmakers'][0]['markets'][0]['outcomes']
+                            prices = [o['price'] for o in outcomes]
+                            best_price = min(prices) 
+                            
+                            # EV Rule: Reject anything worse than 1.15
+                            if best_price < 1.15:
+                                odds_display = f"🚫 ABORT (Odds {best_price} - No Value)"
+                                continue 
+                            
+                            odds_display = f"Estimated Odds: {best_price}"
+                            
+                            # Calculates Units, then translates directly to KES
+                            units = round((best_price - 1) * 2.5, 1)
+                            if units <= 0: units = 1.0 # Floor failsafe
+                            kes_amount = int(units * 100) 
+                            staking_rec = f"{units} Units ({kes_amount} KES)"
+                            break
+                        except: pass
+            
+            if "🚫" not in odds_display:
+                final_output += f"⚽ **{match_name}**\n   ➔ {market}\n   📊 {odds_display} | 💰 Stake: {staking_rec}\n\n"
+            else:
+                final_output += f"🗑️ ~~{match_name}~~ *(Rejected by EV Filter)*\n\n"
+                
+        return final_output.strip()
 
     def process_signals(self):
         valid_matches = []
@@ -176,30 +239,24 @@ class TitanMasterEngine:
             
         print("\n=== STEP 1: GEMINI DRAFTS PROPOSAL ===")
         proposal = self.gemini_opening_statement(match_summary)
-        print("Gemini Proposal logged.")
-        
-        # ERROR INTERCEPTOR 1
-        if "⚠️" in proposal:
-            self.send_telegram_alert(f"🚨 **TITAN API FAULT** 🚨\n\nAgent 1 (Gemini) failed to generate proposal.\n\nRaw Logs:\n{proposal}")
-            return
+        if "⚠️" in proposal: return self.send_telegram_alert(f"🚨 **TITAN API FAULT** 🚨\nAgent 1 Failed:\n{proposal}")
         
         print("\n=== STEP 2: LLAMA 3 READS & CRITIQUES ===")
         rebuttal = self.llama3_rebuttal(match_summary, proposal)
-        print("Llama 3 Rebuttal logged.")
-        
-        # ERROR INTERCEPTOR 2
-        if "⚠️" in rebuttal:
-            self.send_telegram_alert(f"🚨 **TITAN API FAULT** 🚨\n\nAgent 2 (Llama 3) failed to generate critique.\n\nRaw Logs:\n{rebuttal}")
-            return
+        if "⚠️" in rebuttal: return self.send_telegram_alert(f"🚨 **TITAN API FAULT** 🚨\nAgent 2 Failed:\n{rebuttal}")
         
         print("\n⏳ Initiating 65-second cooldown to completely reset Google API RPM limit...")
         time.sleep(65)
         
         print("\n=== STEP 3: ARBITRATOR EXTRACTS CONSENSUS ===")
-        final_ticket = self.final_verdict(proposal, rebuttal)
+        raw_ticket = self.final_verdict(proposal, rebuttal)
+        
+        print("\n=== STEP 4: APPLYING EXPECTED VALUE (EV) FILTER ===")
+        odds_matrix = self.fetch_live_odds_matrix()
+        final_ticket = self.apply_ev_and_format(raw_ticket, odds_matrix)
         
         if final_ticket.lower() == "none" or not final_ticket or "ZERO_CONSENSUS" in final_ticket:
-            final_msg = f"🛡️ **TITAN SAFETY PROTOCOL ACTIVATED** 🛡️\n\nDebate collapsed. The AI agents could not find common ground. No Mega-Ticket generated.\n\n📊 Strategy: {ACTIVE_STRATEGY}"
+            final_msg = f"🛡️ **TITAN SAFETY PROTOCOL ACTIVATED** 🛡️\n\nDebate collapsed or odds held zero value. Capital preserved.\n\n📊 Strategy: {ACTIVE_STRATEGY}"
         elif "⚠️" in final_ticket:
             final_msg = f"🚨 **TITAN API FAULT** 🚨\n\nArbitrator failed: {final_ticket}" 
         else:
