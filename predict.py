@@ -19,7 +19,6 @@ def safe_generate(client, model_id, prompt, max_retries=3):
                 print(f"⚠️ API Rate Limit hit! (Attempt {attempt + 1}/{max_retries}). Sleeping for 45 seconds to let the quota reset...")
                 time.sleep(45)
             else:
-                # If it's a different error, raise it normally
                 raise e
     return "⚠️ Error: Max retries exceeded due to rate limits."
 
@@ -32,7 +31,7 @@ def main():
 
     # Configure the new GenAI Client
     client = genai.Client(api_key=gemini_key)
-    model_id = 'gemini-2.5-flash'  # Optimized for stable structural generations
+    model_id = 'gemini-2.5-flash'
 
     # 2. Fetch today's matches with the "Hunter" Loop
     today = datetime.now().strftime("%Y-%m-%d")
@@ -54,13 +53,11 @@ def main():
         
         if response.status_code == 200:
             data = response.text
-            # If the data is NOT empty, we lock it in and break the loop
             if data and '"events":[]' not in data.replace(" ", ""):
                 print(f"✅ Active payload secured in Category {category_id}!")
                 match_data = data
                 break
 
-    # The Safety Trigger
     if not match_data:
         print("Complete market blackout across all scanned categories today. Exiting safely.")
         return
@@ -70,19 +67,24 @@ def main():
     # 3. Agent 1: The Statistical Analyst
     print("\nFilter 1: Analyzing raw statistics...")
     analyst_prompt = f"""
-    You are a purely data-driven sports analyst. 
+    You are a data-driven sports analyst. 
     Review this raw API match data for today: {match_data[:12000]} 
-    Ignore team names, biases, or external news. Based solely on the statistical metrics provided in the dataset, identify the 3 matches with the clearest data and write a brief analysis of their most statistically likely outcomes.
+    Identify the 3 matches with the clearest statistical data. 
+    
+    CRITICAL INSTRUCTION: For each of the 3 matches, you MUST explicitly state:
+    1. The exact Tournament or League Name.
+    2. The exact Home Team (or Player) name.
+    3. The exact Away Team (or Player) name.
+    
+    Then, write a brief analysis of their most statistically likely outcomes. Do not use generic terms like "Home Team" if the actual names are available in the JSON.
     """
     
-    # Using the safe retry function
     analyst_response = safe_generate(client, model_id, analyst_prompt)
     
     if "⚠️ Error" in analyst_response:
         print("Pipeline aborted due to persistent API rate limits.")
         return
 
-    # Standard cooldown just to be safe before the next prompt
     print("\n⏳ Initiating standard 45-second cooldown between agents...")
     time.sleep(45)
 
@@ -97,17 +99,16 @@ def main():
     
     CRITICAL CONSTRAINTS: 
     1. You MUST NOT include any analysis, reasoning, conversational filler, text introductions, or text conclusions. Output ONLY the raw final details.
-    2. For the "Selection", if you are predicting a team to win or draw, you MUST write the actual team's name (e.g., "Arsenal to Win" or "Chelsea Double Chance"). DO NOT write generic terms like "Home", "Away", "1", "X", or "2".
+    2. You MUST use the exact team/player names and tournament names provided in the analysis. DO NOT write generic terms like "Home", "Away", "1", "X", or "2".
     
     Format the message strictly as follows:
-    ⚽ **Match:** [Home Team Name vs Away Team Name]
+    ⚽ **Match:** [Home Name vs Away Name]
     🏆 **League:** [Exact League / Tournament Name]
-    🎯 **Selection:** [Actual Team Name to Win/Draw or Specific Goal Market]
+    🎯 **Selection:** [Actual Team/Player Name to Win/Draw or Specific Market]
     📊 **Confidence:** [1-100]%
     💰 **Allocation:** [1 to 5] Points (Strictly use a 1-5 scale based on confidence)
     """
     
-    # Using the safe retry function
     final_prediction = safe_generate(client, model_id, refiner_prompt)
 
     if "⚠️ Error" in final_prediction:
