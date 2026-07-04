@@ -26,7 +26,7 @@ def main():
     print(f"Fetching match data for {today}...")
     response = requests.get(url, headers=headers)
     match_data = response.text 
-
+    print(f"API RAW RESPONSE: {match_data[:500]}")
     # 3. Agent 1: The Statistical Analyst
     print("Filter 1: Analyzing raw statistics...")
     analyst_prompt = f"""
