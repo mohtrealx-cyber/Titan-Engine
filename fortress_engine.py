@@ -11,8 +11,8 @@ import google.generativeai as genai
 # ==============================================================================
 # 1. CONFIGURATION & SECURITY
 # ==============================================================================
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+TELEGRAM_TOKEN = "8970975457:AAEoqpJzuBIrYz672f71FvCWC3sEzLacRik"
+TELEGRAM_CHAT_ID = "5876539862"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 print("--- SYSTEM DIAGNOSTICS ---")
@@ -86,8 +86,8 @@ class TitanMasterEngine:
         1. Evaluate each fixture carefully.
         2. IMMEDIATELY REMOVE/DROP any highly volatile, risky, or unstable trap games.
         3. For the remaining matches, determine the ABSOLUTE SAFEST betting market option. Do not restrict yourself to standard 1X2. Safely expand the prediction to alternative markets: 'Over 1.5 Goals', 'Under 3.5 Goals', 'BTTS (GG/NO)', or 'Double Chance (1X/X2)' if it severely lowers risk.
-        4. Provide a quick 1-sentence analytical reason for each decision.
-        5. STRICT LIMIT: You must filter the list down to a MAXIMUM of the Top 15 safest matches. Do not return more than 15 fixtures.
+        4. STRICT LIMIT: You must filter the list down to a MAXIMUM of the Top 15 safest matches. Do not return more than 15 fixtures.
+        5. CRITICAL OUTPUT RULE: DO NOT provide any explanations, reasoning, or analysis. I only want the raw predictions.
 
         Scraped Input Data:
         {raw_match_data}
@@ -95,7 +95,6 @@ class TitanMasterEngine:
         Format your response beautifully for Telegram as a 'MEGA-TICKET'. Use crisp formatting and clear emojis. Do not abuse asterisks or complex headings.
         Expected Output Layout Structure:
         ⚽ Match Name ➔ [Safest Suggested Market]
-        ↳ Reason: Short, grounded analysis sentence.
         """
 
         try:
