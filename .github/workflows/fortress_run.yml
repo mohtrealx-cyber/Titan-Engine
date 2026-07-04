@@ -20,7 +20,8 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install bs4 curl_cffi google-generativeai
+          # Added standard requests here
+          pip install requests bs4 curl_cffi google-generativeai
           
       - name: Execute LLM Fortress Core
         env:
