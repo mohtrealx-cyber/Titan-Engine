@@ -1,0 +1,31 @@
+name: Titan Court Matrix Automator
+
+on:
+  schedule:
+    # Runs automatically at 6:00 AM and 4:00 PM (EAT)
+    - cron: '0 3,13 * * *'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  run-court-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+          
+      - name: Execute Binary Court Totals Core
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          COURT_TELEGRAM_TOKEN: ${{ secrets.COURT_TELEGRAM_TOKEN }}
+          COURT_TELEGRAM_CHAT_ID: ${{ secrets.COURT_TELEGRAM_CHAT_ID }}
+        run: python court_totals_matrix.py
