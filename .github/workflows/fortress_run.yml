@@ -2,9 +2,8 @@ name: Titan LLM Fortress Engine Automator
 
 on:
   schedule:
-    # Triggers daily at 7:30 AM (EAT) to catch early fixtures
     - cron: '30 4 * * *'
-  workflow_dispatch: # Keeps manual play button fully active
+  workflow_dispatch:
 
 jobs:
   run-fortress-llm:
@@ -25,7 +24,8 @@ jobs:
           
       - name: Execute LLM Fortress Core
         env:
-          TELEGRAM_TOKEN: ${{ secrets.TRACKER_TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TRACKER_TELEGRAM_CHAT_ID }}
+          # 🔴 CRITICAL FIX: Direct injection of your new Telegram Bot credentials
+          TELEGRAM_TOKEN: "8970975457:AAEoqpJzuBIrYz672f71FvCWC3sEzLacRik"
+          TELEGRAM_CHAT_ID: "5876539862"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }} 
         run: python fortress_engine.py
