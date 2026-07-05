@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
 from google import genai 
+from google.genai import errors
 
 # ==============================================================================
 # 1. CONFIGURATION & SECURITY
@@ -77,8 +78,25 @@ class TitanMasterEngine:
                 except: continue
         except: return
 
-    def gemini_opening_statement(self, data):
+    def safe_gemini_call(self, prompt, max_retries=3):
+        """Wraps Gemini calls in a retry loop to survive rate limits."""
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
+        for attempt in range(max_retries):
+            try:
+                response = self.gemini_client.models.generate_content(
+                    model='gemini-2.5-flash', 
+                    contents=prompt
+                )
+                return response.text.strip()
+            except errors.ClientError as e:
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    print(f"⚠️ API Rate Limit hit! (Attempt {attempt + 1}/{max_retries}). Sleeping for 45s...")
+                    time.sleep(45)
+                else:
+                    return f"⚠️ Gemini Error: {str(e)}"
+        return "⚠️ Arbitrator Error: Max retries exceeded due to persistent rate limits."
+
+    def gemini_opening_statement(self, data):
         prompt = f"""You are an aggressive Value Hunter. Review these 30 matches. 
         STRICT RULES:
         1. YOU MUST NOT pick lazy "Home Win" or "Away Win" straight outcomes for heavy favorites. 
@@ -87,10 +105,7 @@ class TitanMasterEngine:
         Pick your top 12 matches. Provide a 1-sentence analytical reason for why each holds mathematical value.
         
         Data:\n{data}"""
-        try:
-            response = self.gemini_client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
-            return response.text.strip()
-        except Exception as e: return f"⚠️ Gemini Error: {str(e)}"
+        return self.safe_gemini_call(prompt)
 
     def llama3_rebuttal(self, data, gemini_proposal):
         if not GROQ_API_KEY: return "⚠️ Groq API Key missing."
@@ -116,7 +131,6 @@ class TitanMasterEngine:
         except Exception as e: return f"⚠️ Llama 3 Error: {str(e)}"
 
     def final_verdict(self, gemini_proposal, llama_critique):
-        if not self.gemini_client: return "⚠️ Gemini API Key missing."
         prompt = f"""
         You are the Executive Arbitrator. Two highly intelligent AI agents just debated today's fixtures.
         
@@ -132,10 +146,7 @@ class TitanMasterEngine:
            Match Name | Agreed Market
         3. CRITICAL: Provide ZERO explanations, emojis, or intro text. Just the raw text lines separated by newlines.
         """
-        try:
-            response = self.gemini_client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
-            return response.text.strip()
-        except Exception as e: return f"⚠️ Arbitrator Error: {str(e)}"
+        return self.safe_gemini_call(prompt)
 
     def fetch_live_odds_matrix(self):
         """Fetches a broad matrix of live soccer odds to act as the EV filter."""
