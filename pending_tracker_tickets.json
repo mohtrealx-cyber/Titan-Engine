@@ -163,6 +163,12 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Brazil vs Norway",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ],
     "2026-07-03": [
