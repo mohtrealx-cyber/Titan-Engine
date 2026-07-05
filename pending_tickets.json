@@ -48,5 +48,31 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-05": [
+        {
+            "match": "Brazil vs Norway",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Deportivo Maipu vs Agropecuario",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Aktobe vs Zhetysu",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Ordabasy vs Ulytau",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
