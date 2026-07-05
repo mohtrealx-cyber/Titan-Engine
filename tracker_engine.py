@@ -1,9 +1,11 @@
 import os
 import re
 import json
+import time
 import requests
 import itertools
 from datetime import datetime, timedelta
+from bs4 import BeautifulSoup
 
 # ==============================================================================
 # TITAN TRACKER: APEX CORE (MUTUALLY EXCLUSIVE MATRIX)
@@ -35,21 +37,38 @@ class MegaTicketVolumeSieve:
         ]
         
         all_matches = []
+        print(f"Scanning {len(target_leagues)} leagues for Apex Matrix...")
+        
         for league in target_leagues:
             url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
-            try:
-                r = requests.get(url, timeout=10)
-                if r.status_code == 200:
-                    all_matches.extend(r.json())
-                elif r.status_code == 429:
-                    self.api_status = "🔴 QUOTA EXCEEDED (429) - Monthly limit reached."
-                    break 
-                elif r.status_code == 401:
-                    self.api_status = "🔴 UNAUTHORIZED (401)"
-                    self.api_error_message = r.text 
-                    break 
-            except Exception as e: 
-                continue
+            
+            # --- THE FIX: ODDS API RATE LIMIT SHIELD ---
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    r = requests.get(url, timeout=15)
+                    if r.status_code == 200:
+                        all_matches.extend(r.json())
+                        break  # Success! Break the retry loop
+                    elif r.status_code == 429:
+                        print(f"⚠️ Odds API Limit hit on {league}. Sleeping for 10s (Attempt {attempt+1}/{max_retries})...")
+                        time.sleep(10)
+                        if attempt == max_retries - 1:
+                            self.api_status = "🔴 QUOTA EXCEEDED (429) - Monthly limit reached."
+                    elif r.status_code == 401:
+                        self.api_status = "🔴 UNAUTHORIZED (401)"
+                        self.api_error_message = r.text 
+                        break  # Fatal error, stop trying this league
+                    else:
+                        break  # Other errors, skip to next league
+                except Exception as e: 
+                    time.sleep(2)  # Brief pause on network drop before retry
+            
+            # Micro-sleep between leagues to prevent triggering burst limits
+            time.sleep(1.5)
+            
+            if "QUOTA EXCEEDED" in self.api_status:
+                break # If we confirmed the monthly limit is dead, stop the whole scan
             
         self.raw_match_count = len(all_matches)
         return all_matches
@@ -297,13 +316,18 @@ class MegaTicketVolumeSieve:
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
         msg += f"↳ Active Sieves: Mutually Exclusive Matrix (N-2), Panic Tax, Away Penalty\n"
 
-        requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
-                      json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
+        try:
+            requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
+                          json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"})
+            print("Alert successfully dispatched to Telegram.")
+        except Exception as e:
+            print(f"Failed to dispatch Telegram alert: {e}")
 
 if __name__ == "__main__":
-    from bs4 import BeautifulSoup
+    print("Initiating Titan Tracker: Apex Core...")
     engine = MegaTicketVolumeSieve()
     engine.process_matrix()
     engine.save_tickets_to_memory()
     live_scoreboard = engine.settle_and_build_scoreboard()
     engine.dispatch_alerts(live_scoreboard)
+    print("Routine complete.")
