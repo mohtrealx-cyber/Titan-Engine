@@ -4,6 +4,7 @@ import json
 import time
 import asyncio
 import datetime
+import difflib
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
@@ -82,9 +83,23 @@ class ZenRowsConsensusEngine:
         if not home or not away or not raw_prediction: return
         normalized_pick = self.normalize_prediction(raw_prediction)
         if not normalized_pick: return
-        match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
-        if match_key not in self.master_matrix: self.master_matrix[match_key] = []
-        self.master_matrix[match_key].append((site_name, normalized_pick))
+        
+        raw_match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
+        final_key = raw_match_key
+
+        # --- THE FIX: FUZZY MATCHING TO GROUP SIMILAR TEAM NAMES ---
+        for existing_key in self.master_matrix.keys():
+            similarity = difflib.SequenceMatcher(None, raw_match_key.lower(), existing_key.lower()).ratio()
+            if similarity >= 0.75:  # 75% match threshold merges the teams
+                final_key = existing_key
+                break
+
+        if final_key not in self.master_matrix: self.master_matrix[final_key] = []
+        
+        # Prevent the same site from logging multiple picks for the exact same match
+        existing_sites = [entry[0] for entry in self.master_matrix[final_key]]
+        if site_name not in existing_sites:
+            self.master_matrix[final_key].append((site_name, normalized_pick))
 
     # ==========================================================
     # FORECASTER: LIVE SCRAPE ENGINE
