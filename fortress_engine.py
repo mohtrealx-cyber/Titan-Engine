@@ -91,52 +91,56 @@ class TitanMasterEngine:
         except: return
 
     def safe_gemini_call(self, prompt, max_retries=3):
-        """Wraps Gemini calls with explicit diagnostic logging and safe model fallbacks."""
+        """Wraps Gemini calls with an auto-switching model fallback to bypass 404 errors."""
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         
-        for attempt in range(max_retries):
-            try:
-                print(f"   [Gemini] Attempting API call {attempt + 1}/{max_retries}...")
-                response = self.gemini_client.models.generate_content(
-                    model='gemini-1.5-flash', # Switched to 1.5-flash for maximum stability/availability
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.4,
-                        safety_settings=[
-                            types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH),
-                            types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH),
-                            types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH),
-                            types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH)
-                        ]
+        # List of known valid models. The script will try them in order until one works.
+        models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        
+        for model_name in models_to_try:
+            for attempt in range(max_retries):
+                try:
+                    print(f"   [Gemini] Attempting {model_name} (Try {attempt + 1}/{max_retries})...")
+                    response = self.gemini_client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            temperature=0.4,
+                            safety_settings=[
+                                types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                                types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                                types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH),
+                                types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH)
+                            ]
+                        )
                     )
-                )
-                
-                if response and response.text:
-                    return response.text.strip()
-                else:
-                    # Capture the exact reason Gemini returned a blank response
-                    finish_reason = "Unknown"
-                    if response and response.candidates:
-                        finish_reason = response.candidates[0].finish_reason
-                    print(f"   ⚠️ [Gemini] Blank response. Finish reason: {finish_reason}. Retrying...")
-                    time.sleep(10)
-                    continue
                     
-            except Exception as e:
-                error_msg = str(e).lower()
-                # Catch all variations of rate limits / quotas
-                if "429" in error_msg or "resource_exhausted" in error_msg or "quota" in error_msg:
-                    print(f"   ⚠️ [Gemini] Rate Limit or Quota hit! Sleeping 45s... Details: {e}")
-                    time.sleep(45)
-                    continue
-                else:
-                    print(f"   ⚠️ [Gemini] Unexpected Exception: {e}")
-                    return f"⚠️ API Error: {str(e)}"
-                
-        return "⚠️ Arbitrator Error: Max retries exceeded. Check your terminal output above for the exact Error/Finish Reason."
+                    if response and response.text:
+                        return response.text.strip()
+                    else:
+                        finish_reason = "Unknown"
+                        if response and response.candidates:
+                            finish_reason = response.candidates[0].finish_reason
+                        print(f"   ⚠️ [Gemini] Blank response. Finish reason: {finish_reason}. Retrying...")
+                        time.sleep(10)
+                        continue
+                        
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if "404" in error_msg or "not found" in error_msg:
+                        print(f"   ⚠️ [Gemini] Model '{model_name}' not found for this API key. Switching to next model...")
+                        break # Breaks the retry loop, moves to the next model in 'models_to_try'
+                    elif "429" in error_msg or "resource_exhausted" in error_msg or "quota" in error_msg:
+                        print(f"   ⚠️ [Gemini] Rate Limit or Quota hit! Sleeping 45s... Details: {e}")
+                        time.sleep(45)
+                        continue
+                    else:
+                        print(f"   ⚠️ [Gemini] Unexpected Exception: {e}")
+                        return f"⚠️ API Error: {str(e)}"
+                        
+        return "⚠️ Arbitrator Error: All fallback models failed or max retries exceeded."
 
     def gemini_opening_statement(self, data):
-        # Removed all gambling/betting terminology to bypass Google Safety Filters
         prompt = f"""You are a sports statistical analyst. Review these upcoming football fixtures. 
         STRICT RULES:
         1. YOU MUST ONLY analyze matches from the Data list provided below. DO NOT invent or guess matches.
@@ -149,7 +153,6 @@ class TitanMasterEngine:
 
     def llama3_rebuttal(self, data, gemini_proposal):
         if not GROQ_API_KEY: return "⚠️ Groq API Key missing."
-        # Removed all gambling/betting terminology
         prompt = f"""You are a strict data validator. Your colleague just proposed statistical forecasts. 
         Read their proposal. Critically evaluate any forecast that has high mathematical variance. 
         STRICT RULES:
