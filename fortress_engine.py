@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import requests
 import difflib
+import re
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
@@ -33,7 +34,6 @@ def get_dynamic_configs():
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
     cb = int(time.time()) 
     
-    # EXPANDED: Added Forebet and ZuluBet for deeper data consensus
     return {
         "Statarea": {"url": f"https://www.statarea.com/predictions/date/{today_date}/", "row_selector": "div", "row_class": "matchrow", "home_selector": "div", "home_class": "name", "home_index": 0, "away_selector": "div", "away_class": "name", "away_index": 1, "pick_selector": "div", "pick_class": "type1", "pick_index": 0},
         "PredictZ": {"url": f"https://www.predictz.com/predictions/today/?cb={cb}", "row_selector": "div", "row_class": "pttr", "home_selector": "div", "home_class": "pttmobh", "home_index": 0, "away_selector": "div", "away_class": "pttmoba", "away_index": 0, "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0},
@@ -88,6 +88,21 @@ class TitanMasterEngine:
             if r.status_code != 200: return
             for row in BeautifulSoup(r.content, 'html.parser').find_all(cfg["row_selector"], class_=cfg["row_class"]):
                 try: 
+                    row_text = row.text.upper()
+                    
+                    # --- ANTI-PLAYED MATCH FILTER ---
+                    # Skips rows explicitly containing final whistles, live statuses, or active scores
+                    if any(x in row_text for x in ["FT", "FULL TIME", "ENDED", "FINISHED", "LIVE", "POSTP."]):
+                        continue
+                        
+                    # Regex to detect completed scorelines embedded in row text (e.g., "2-1", "0 - 0", "3:1")
+                    if re.search(r'\d+\s*[-:]\s*\d+', row_text):
+                        # Verify it's an actual scoreline and not part of a date/time (e.g., "14:30")
+                        # If the match row contains a score dynamic separate from standard time configurations, drop it
+                        possible_scores = re.findall(r'\b\d+\s*-\s*\d+\b', row_text)
+                        if possible_scores:
+                            continue
+
                     self.log_prediction_qa(
                         site_name, 
                         row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text, 
@@ -209,8 +224,6 @@ class TitanMasterEngine:
         if not ODDS_API_KEY: return []
         print("\n🌐 Fetching Live Odds from Global & Regional Bookmakers...")
         try:
-            # EXPANDED: Removed bookmaker restriction. Pulls from ALL bookies in UK/EU regions.
-            # This captures global operations like 1xBet, Betway, Pinnacle, Betfair, 888sport, etc.
             url = f"https://api.the-odds-api.com/v4/sports/upcoming/odds/?apiKey={ODDS_API_KEY}&regions=uk,eu&markets=h2h"
             response = requests.get(url, timeout=15)
             if response.status_code == 200:
@@ -227,6 +240,8 @@ class TitanMasterEngine:
         accepted_matches = []
         rejected_matches = []
         total_units = 0.0
+        
+        current_time_utc = datetime.datetime.now(datetime.timezone.utc)
         
         for line in lines:
             if "|" not in line: continue
@@ -253,26 +268,37 @@ class TitanMasterEngine:
             
             best_price = None
             top_bookie = "Market Average"
+            is_expired = False
             
-            # EXPANDED: Multi-Bookmaker Odds Shopping
             if odds_matrix:
                 for game in odds_matrix:
                     api_match_name = f"{game.get('home_team', '')} vs {game.get('away_team', '')}"
                     similarity = difflib.SequenceMatcher(None, match_name.lower(), api_match_name.lower()).ratio()
                     
                     if similarity > 0.6: 
-                        # Scan every bookmaker offering odds for this specific match
+                        # Check event lock time to protect against mid-game or finished slip inclusion
+                        if 'commence_time' in game:
+                            try:
+                                startTime = datetime.datetime.strptime(game['commence_time'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+                                if current_time_utc > startTime:
+                                    is_expired = True
+                                    break
+                            except: pass
+
                         for bookmaker in game.get('bookmakers', []):
                             try:
                                 prices = [o['price'] for o in bookmaker['markets'][0]['outcomes']]
                                 bookie_min_price = min(prices)
-                                # Always store the HIGHEST available price across all bookies to maximize EV
                                 if not best_price or bookie_min_price > best_price:
                                     best_price = bookie_min_price
                                     top_bookie = bookmaker['title']
                             except: pass
                         break
             
+            if is_expired:
+                rejected_matches.append({"name": match_name, "reason": "Match has already kicked off/concluded"})
+                continue
+
             if best_price and best_price >= 1.15:
                 units = round((best_price - 1) * 2.5, 1)
                 if units <= 0: units = 1.0 
@@ -297,7 +323,6 @@ class TitanMasterEngine:
             else:
                 kes_alloc = 0
 
-            # EXPANDED: Output now explicitly states the Bookmaker offering the sharpest odds
             if match['odds']:
                 odds_display = f"Top Odds: {match['odds']} (@{match['bookie']})"
             else:
