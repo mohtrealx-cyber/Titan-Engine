@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
 from google import genai 
-from google.genai import errors
+from google.genai import types, errors
 
 # ==============================================================================
 # 1. CONFIGURATION & SECURITY
@@ -91,23 +91,42 @@ class TitanMasterEngine:
         except: return
 
     def safe_gemini_call(self, prompt, max_retries=3):
+        """Wraps Gemini calls with explicit safety-override configs to prevent blank responses."""
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         for attempt in range(max_retries):
             try:
                 response = self.gemini_client.models.generate_content(
-                    model='gemini-2.5-flash', 
-                    contents=prompt
+                    model='gemini-2.0-flash', # Or fallback to 'gemini-1.5-flash' if needed
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.4,
+                        safety_settings=[
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                                threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                                threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                                threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                            )
+                        ]
+                    )
                 )
                 
+                # Check if the response actually contains text
                 if response and response.text:
                     return response.text.strip()
                 else:
-                    print(f"⚠️ Gemini returned a blank response (Safety Filter tripped?). Retrying {attempt + 1}/{max_retries}...")
+                    print(f"⚠️ Gemini returned a blank response (Safety Filter tripped). Retrying {attempt + 1}/{max_retries}...")
                     time.sleep(10)
                     continue
                     
             except errors.ClientError as e:
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e) or "quota" in str(e).lower():
                     print(f"⚠️ API Rate Limit hit! (Attempt {attempt + 1}/{max_retries}). Sleeping for 45s...")
                     time.sleep(45)
                 else:
@@ -118,7 +137,7 @@ class TitanMasterEngine:
         return "⚠️ Arbitrator Error: Max retries exceeded due to persistent rate limits or blank responses."
 
     def gemini_opening_statement(self, data):
-        prompt = f"""You are an aggressive Value Hunter. Review these matches. 
+        prompt = f"""You are a highly analytical sports quantitative analyst. Review these matches. 
         STRICT RULES:
         1. YOU MUST ONLY pick matches from the Data list provided below. DO NOT invent, hallucinate, or add outside matches.
         2. YOU MUST NOT pick lazy "Home Win" or "Away Win" straight outcomes for heavy favorites. 
@@ -131,8 +150,8 @@ class TitanMasterEngine:
 
     def llama3_rebuttal(self, data, gemini_proposal):
         if not GROQ_API_KEY: return "⚠️ Groq API Key missing."
-        prompt = f"""You are a ruthless Risk Manager. Your colleague just proposed betting picks. 
-        Read their proposal. Tear down any pick that has high variance. 
+        prompt = f"""You are a strict Risk Manager. Your colleague just proposed betting picks. 
+        Read their proposal. Critically evaluate any pick that has high variance. 
         STRICT RULES:
         1. YOU MUST ONLY select matches from the Original Data list provided below. DO NOT invent matches.
         2. If they picked a straight outright winner (1 or 2), REJECT IT IMMEDIATELY. It holds no value.
@@ -201,12 +220,11 @@ class TitanMasterEngine:
             market = parts[1].strip()
 
             # --- ANTI-HALLUCINATION GUARDRAIL ---
-            # If the match wasn't in our initial scraped list, the AI made it up. Kill it immediately.
             is_real_match = False
             for real_match in scraped_match_whitelist:
                 if difflib.SequenceMatcher(None, match_name.lower(), real_match.lower()).ratio() >= 0.70:
                     is_real_match = True
-                    match_name = real_match # Use the clean, original scraped name
+                    match_name = real_match 
                     break
             
             if not is_real_match:
@@ -325,7 +343,6 @@ class TitanMasterEngine:
         print("\n=== STEP 4: APPLYING EXPECTED VALUE (EV) FILTER ===")
         odds_matrix = self.fetch_live_odds_matrix()
         
-        # WE PASS THE WHITELIST OF SCRAPED MATCHES DOWN TO THE EV FILTER HERE
         valid_scraped_match_names = list(self.master_matrix.keys())
         final_ticket = self.apply_ev_and_format(raw_ticket, odds_matrix, valid_scraped_match_names)
         
