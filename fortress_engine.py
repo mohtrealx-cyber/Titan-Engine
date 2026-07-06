@@ -59,9 +59,22 @@ class TitanMasterEngine:
         if not home or not away or not raw_prediction: return
         normalized_pick = self.normalize_prediction(raw_prediction)
         if not normalized_pick: return
-        match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
-        if match_key not in self.master_matrix: self.master_matrix[match_key] = []
-        self.master_matrix[match_key].append((site_name, normalized_pick))
+        
+        raw_match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
+        final_key = raw_match_key
+
+        # --- THE FIX: FUZZY MATCHING TO GROUP SIMILAR TEAM NAMES ---
+        for existing_key in self.master_matrix.keys():
+            similarity = difflib.SequenceMatcher(None, raw_match_key.lower(), existing_key.lower()).ratio()
+            if similarity >= 0.75:  
+                final_key = existing_key
+                break
+
+        if final_key not in self.master_matrix: self.master_matrix[final_key] = []
+        
+        existing_sites = [entry[0] for entry in self.master_matrix[final_key]]
+        if site_name not in existing_sites:
+            self.master_matrix[final_key].append((site_name, normalized_pick))
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
@@ -155,6 +168,7 @@ class TitanMasterEngine:
         1. Find the 8 to 10 matches that BOTH agents agreed upon.
         2. Format these surviving matches using EXACTLY this syntax:
            Match Name | Agreed Market
+           * For Double Chance markets, output ONLY the exact symbol (e.g., 1X, X2, 12). DO NOT write the words "Double Chance".
         3. CRITICAL: Provide ZERO explanations, emojis, or intro text. Just the raw text lines separated by newlines.
         """
         return self.safe_gemini_call(prompt)
@@ -188,6 +202,13 @@ class TitanMasterEngine:
             parts = line.split("|")
             match_name = parts[0].strip()
             market = parts[1].strip()
+            
+            # --- DOUBLE CHANCE FORMAT SANITIZER ---
+            ml = market.lower()
+            if "double chance" in ml or "dc" in ml or "1x" in ml or "x2" in ml:
+                if "1x" in ml or "home or draw" in ml: market = "1X"
+                elif "x2" in ml or "2x" in ml or "away or draw" in ml: market = "X2"
+                elif "12" in ml or "home or away" in ml: market = "12"
             
             best_price = None
             if odds_matrix:
