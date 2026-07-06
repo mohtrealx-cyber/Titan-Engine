@@ -27,16 +27,19 @@ print(f"Groq API Key Loaded: {'YES' if GROQ_API_KEY else 'NO'}")
 print(f"Odds API Key Loaded: {'YES' if ODDS_API_KEY else 'NO'}")
 print("--------------------------\n")
 
-ACTIVE_STRATEGY = "Titan Apex: Debate + Proportional EV Micro-Staking (39 KES/Day)"
+ACTIVE_STRATEGY = "Titan Apex: Debate + Multi-Bookie EV Micro-Staking (39 KES/Day)"
 
 def get_dynamic_configs():
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
     cb = int(time.time()) 
     
+    # EXPANDED: Added Forebet and ZuluBet for deeper data consensus
     return {
         "Statarea": {"url": f"https://www.statarea.com/predictions/date/{today_date}/", "row_selector": "div", "row_class": "matchrow", "home_selector": "div", "home_class": "name", "home_index": 0, "away_selector": "div", "away_class": "name", "away_index": 1, "pick_selector": "div", "pick_class": "type1", "pick_index": 0},
         "PredictZ": {"url": f"https://www.predictz.com/predictions/today/?cb={cb}", "row_selector": "div", "row_class": "pttr", "home_selector": "div", "home_class": "pttmobh", "home_index": 0, "away_selector": "div", "away_class": "pttmoba", "away_index": 0, "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0},
-        "Vitibet": {"url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}", "row_selector": "a", "row_class": "livescore-match-row", "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0, "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1, "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0}
+        "Vitibet": {"url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}", "row_selector": "a", "row_class": "livescore-match-row", "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0, "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1, "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0},
+        "Forebet": {"url": "https://www.forebet.com/en/football-predictions-for-today", "row_selector": "div", "row_class": "rcnt", "home_selector": "span", "home_class": "homeTeam", "home_index": 0, "away_selector": "span", "away_class": "awayTeam", "away_index": 0, "pick_selector": "span", "pick_class": "forepr", "pick_index": 0},
+        "ZuluBet": {"url": "https://www.zulubet.com/", "row_selector": "tr", "row_class": "content_table", "home_selector": "td", "home_class": "team1", "home_index": 0, "away_selector": "td", "away_class": "team2", "away_index": 0, "pick_selector": "td", "pick_class": "prob", "pick_index": 0}
     }
 
 class TitanMasterEngine:
@@ -45,7 +48,6 @@ class TitanMasterEngine:
         self.master_matrix = {}
         
         if GEMINI_API_KEY:
-            # Standard initialization - the dynamic fetch below prevents the 404
             self.gemini_client = genai.Client(api_key=GEMINI_API_KEY)
         else:
             self.gemini_client = None
@@ -96,24 +98,18 @@ class TitanMasterEngine:
         except: return
 
     def safe_gemini_call(self, prompt, max_retries=3):
-        """Dynamically queries available models to prevent 404 errors, then executes."""
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         
         models_to_try = []
         try:
-            # Dynamically fetch the exact models your API key has access to!
             print("   [Gemini] Fetching available models for your API key...")
             available_models = [m.name for m in self.gemini_client.models.list()]
-            
-            # Find the best 'flash' models available (removes the 'models/' prefix)
             flash_models = [m.replace('models/', '') for m in available_models if 'flash' in m.lower() and 'vision' not in m.lower()]
-            
             if flash_models:
-                models_to_try = sorted(flash_models, reverse=True) # Sorts to get newest like 2.0 first
+                models_to_try = sorted(flash_models, reverse=True)
             else:
                 models_to_try = [m.replace('models/', '') for m in available_models if 'gemini' in m.lower()]
         except Exception as e:
-            print(f"   ⚠️ [System] Could not fetch dynamic models, falling back to defaults: {e}")
             models_to_try = ['gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-pro']
             
         print(f"   [Gemini] Usable Models found: {models_to_try[:3]}")
@@ -139,24 +135,17 @@ class TitanMasterEngine:
                     if response and response.text:
                         return response.text.strip()
                     else:
-                        finish_reason = "Unknown"
-                        if response and response.candidates:
-                            finish_reason = response.candidates[0].finish_reason
-                        print(f"   ⚠️ [Gemini] Blank response. Finish reason: {finish_reason}. Retrying...")
                         time.sleep(10)
                         continue
                         
                 except Exception as e:
                     error_msg = str(e).lower()
                     if "404" in error_msg or "not found" in error_msg or "is not supported" in error_msg:
-                        print(f"   ⚠️ [Gemini] Model '{model_name}' restricted/not found. Switching to next model...")
-                        break # Move to the next model in your authorized list
+                        break
                     elif "429" in error_msg or "resource_exhausted" in error_msg or "quota" in error_msg:
-                        print(f"   ⚠️ [Gemini] Rate Limit or Quota hit! Sleeping 45s...")
                         time.sleep(45)
                         continue
                     else:
-                        print(f"   ⚠️ [Gemini] Unexpected Exception: {e}")
                         return f"⚠️ API Error: {str(e)}"
                         
         return "⚠️ Arbitrator Error: All dynamically discovered models failed."
@@ -218,9 +207,11 @@ class TitanMasterEngine:
 
     def fetch_live_odds_matrix(self):
         if not ODDS_API_KEY: return []
-        print("\n🌐 Fetching Live Odds from Global Bookmakers...")
+        print("\n🌐 Fetching Live Odds from Global & Regional Bookmakers...")
         try:
-            url = f"https://api.the-odds-api.com/v4/sports/upcoming/odds/?apiKey={ODDS_API_KEY}&regions=eu&markets=h2h&bookmakers=bet365"
+            # EXPANDED: Removed bookmaker restriction. Pulls from ALL bookies in UK/EU regions.
+            # This captures global operations like 1xBet, Betway, Pinnacle, Betfair, 888sport, etc.
+            url = f"https://api.the-odds-api.com/v4/sports/upcoming/odds/?apiKey={ODDS_API_KEY}&regions=uk,eu&markets=h2h"
             response = requests.get(url, timeout=15)
             if response.status_code == 200:
                 return response.json()
@@ -243,7 +234,6 @@ class TitanMasterEngine:
             match_name = parts[0].strip()
             market = parts[1].strip()
 
-            # --- ANTI-HALLUCINATION GUARDRAIL ---
             is_real_match = False
             for real_match in scraped_match_whitelist:
                 if difflib.SequenceMatcher(None, match_name.lower(), real_match.lower()).ratio() >= 0.70:
@@ -255,7 +245,6 @@ class TitanMasterEngine:
                 rejected_matches.append({"name": match_name, "reason": "Hallucinated by LLM (Not in today's scraped fixtures)"})
                 continue
             
-            # --- DOUBLE CHANCE FORMAT SANITIZER ---
             ml = market.lower()
             if "double chance" in ml or "dc" in ml or "1x" in ml or "x2" in ml:
                 if "1x" in ml or "home or draw" in ml: market = "1X"
@@ -263,28 +252,36 @@ class TitanMasterEngine:
                 elif "12" in ml or "home or away" in ml: market = "12"
             
             best_price = None
+            top_bookie = "Market Average"
+            
+            # EXPANDED: Multi-Bookmaker Odds Shopping
             if odds_matrix:
                 for game in odds_matrix:
                     api_match_name = f"{game.get('home_team', '')} vs {game.get('away_team', '')}"
                     similarity = difflib.SequenceMatcher(None, match_name.lower(), api_match_name.lower()).ratio()
                     
                     if similarity > 0.6: 
-                        try:
-                            outcomes = game['bookmakers'][0]['markets'][0]['outcomes']
-                            prices = [o['price'] for o in outcomes]
-                            best_price = min(prices) 
-                            break
-                        except: pass
+                        # Scan every bookmaker offering odds for this specific match
+                        for bookmaker in game.get('bookmakers', []):
+                            try:
+                                prices = [o['price'] for o in bookmaker['markets'][0]['outcomes']]
+                                bookie_min_price = min(prices)
+                                # Always store the HIGHEST available price across all bookies to maximize EV
+                                if not best_price or bookie_min_price > best_price:
+                                    best_price = bookie_min_price
+                                    top_bookie = bookmaker['title']
+                            except: pass
+                        break
             
             if best_price and best_price >= 1.15:
                 units = round((best_price - 1) * 2.5, 1)
                 if units <= 0: units = 1.0 
                 total_units += units
-                accepted_matches.append({"name": match_name, "market": market, "odds": best_price, "units": units})
+                accepted_matches.append({"name": match_name, "market": market, "odds": best_price, "bookie": top_bookie, "units": units})
             elif best_price and best_price < 1.15:
-                rejected_matches.append({"name": match_name, "reason": f"Odds {best_price} too low"})
+                rejected_matches.append({"name": match_name, "reason": f"Max Odds {best_price} too low"})
             else:
-                accepted_matches.append({"name": match_name, "market": market, "odds": None, "units": 1.0})
+                accepted_matches.append({"name": match_name, "market": market, "odds": None, "bookie": "Pending", "units": 1.0})
                 total_units += 1.0
 
         final_output = ""
@@ -300,7 +297,12 @@ class TitanMasterEngine:
             else:
                 kes_alloc = 0
 
-            odds_display = f"Estimated Odds: {match['odds']}" if match['odds'] else "Live Odds Pending"
+            # EXPANDED: Output now explicitly states the Bookmaker offering the sharpest odds
+            if match['odds']:
+                odds_display = f"Top Odds: {match['odds']} (@{match['bookie']})"
+            else:
+                odds_display = "Live Odds Pending"
+                
             final_output += f"⚽ **{match['name']}**\n   ➔ {match['market']}\n   📊 {odds_display} | 💰 Stake: {kes_alloc} KES\n\n"
             
         for match in rejected_matches:
@@ -342,7 +344,7 @@ class TitanMasterEngine:
     async def run_pipeline(self):
         print("Starting Scrapers...")
         loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
         
         match_summary, count = self.process_signals()
