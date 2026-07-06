@@ -79,7 +79,7 @@ class TitanMasterEngine:
         except: return
 
     def safe_gemini_call(self, prompt, max_retries=3):
-        """Wraps Gemini calls in a retry loop to survive rate limits."""
+        """Wraps Gemini calls in a retry loop to survive rate limits and safety blocks."""
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         for attempt in range(max_retries):
             try:
@@ -87,14 +87,25 @@ class TitanMasterEngine:
                     model='gemini-2.5-flash', 
                     contents=prompt
                 )
-                return response.text.strip()
+                
+                # Check if the response actually contains text before stripping
+                if response and response.text:
+                    return response.text.strip()
+                else:
+                    print(f"⚠️ Gemini returned a blank response (Safety Filter tripped?). Retrying {attempt + 1}/{max_retries}...")
+                    time.sleep(10)
+                    continue
+                    
             except errors.ClientError as e:
                 if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                     print(f"⚠️ API Rate Limit hit! (Attempt {attempt + 1}/{max_retries}). Sleeping for 45s...")
                     time.sleep(45)
                 else:
                     return f"⚠️ Gemini Error: {str(e)}"
-        return "⚠️ Arbitrator Error: Max retries exceeded due to persistent rate limits."
+            except Exception as e:
+                return f"⚠️ Unexpected API Error: {str(e)}"
+                
+        return "⚠️ Arbitrator Error: Max retries exceeded due to persistent rate limits or blank responses."
 
     def gemini_opening_statement(self, data):
         prompt = f"""You are an aggressive Value Hunter. Review these 30 matches. 
