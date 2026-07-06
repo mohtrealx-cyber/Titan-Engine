@@ -44,16 +44,9 @@ class TitanMasterEngine:
         self.configs = configs
         self.master_matrix = {}
         
-        # FIX: Force the client to use v1alpha to bypass the 404 v1beta missing model error
         if GEMINI_API_KEY:
-            try:
-                self.gemini_client = genai.Client(
-                    api_key=GEMINI_API_KEY,
-                    http_options=types.HttpOptions(api_version='v1alpha')
-                )
-            except Exception as e:
-                print(f"⚠️ [System] Falling back to standard client init: {e}")
-                self.gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+            # Standard initialization - the dynamic fetch below prevents the 404
+            self.gemini_client = genai.Client(api_key=GEMINI_API_KEY)
         else:
             self.gemini_client = None
 
@@ -103,22 +96,32 @@ class TitanMasterEngine:
         except: return
 
     def safe_gemini_call(self, prompt, max_retries=3):
-        """Wraps Gemini calls with an auto-switching model fallback to bypass 404 errors."""
+        """Dynamically queries available models to prevent 404 errors, then executes."""
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         
-        # List of known valid models. The script will try them in order until one works.
-        models_to_try = [
-            'gemini-2.5-flash', 
-            'gemini-2.0-flash', 
-            'gemini-1.5-flash-latest', 
-            'gemini-1.5-flash', 
-            'gemini-pro'
-        ]
-        
+        models_to_try = []
+        try:
+            # Dynamically fetch the exact models your API key has access to!
+            print("   [Gemini] Fetching available models for your API key...")
+            available_models = [m.name for m in self.gemini_client.models.list()]
+            
+            # Find the best 'flash' models available (removes the 'models/' prefix)
+            flash_models = [m.replace('models/', '') for m in available_models if 'flash' in m.lower() and 'vision' not in m.lower()]
+            
+            if flash_models:
+                models_to_try = sorted(flash_models, reverse=True) # Sorts to get newest like 2.0 first
+            else:
+                models_to_try = [m.replace('models/', '') for m in available_models if 'gemini' in m.lower()]
+        except Exception as e:
+            print(f"   ⚠️ [System] Could not fetch dynamic models, falling back to defaults: {e}")
+            models_to_try = ['gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-pro']
+            
+        print(f"   [Gemini] Usable Models found: {models_to_try[:3]}")
+
         for model_name in models_to_try:
             for attempt in range(max_retries):
                 try:
-                    print(f"   [Gemini] Attempting {model_name} (Try {attempt + 1}/{max_retries})...")
+                    print(f"   [Gemini] Generating content with {model_name} (Try {attempt + 1}/{max_retries})...")
                     response = self.gemini_client.models.generate_content(
                         model=model_name,
                         contents=prompt,
@@ -145,18 +148,18 @@ class TitanMasterEngine:
                         
                 except Exception as e:
                     error_msg = str(e).lower()
-                    if "404" in error_msg or "not found" in error_msg:
-                        print(f"   ⚠️ [Gemini] Model '{model_name}' not found for this API key. Switching to next model...")
-                        break # Breaks the retry loop, moves to the next model in 'models_to_try'
+                    if "404" in error_msg or "not found" in error_msg or "is not supported" in error_msg:
+                        print(f"   ⚠️ [Gemini] Model '{model_name}' restricted/not found. Switching to next model...")
+                        break # Move to the next model in your authorized list
                     elif "429" in error_msg or "resource_exhausted" in error_msg or "quota" in error_msg:
-                        print(f"   ⚠️ [Gemini] Rate Limit or Quota hit! Sleeping 45s... Details: {e}")
+                        print(f"   ⚠️ [Gemini] Rate Limit or Quota hit! Sleeping 45s...")
                         time.sleep(45)
                         continue
                     else:
                         print(f"   ⚠️ [Gemini] Unexpected Exception: {e}")
                         return f"⚠️ API Error: {str(e)}"
                         
-        return "⚠️ Arbitrator Error: All fallback models failed or max retries exceeded."
+        return "⚠️ Arbitrator Error: All dynamically discovered models failed."
 
     def gemini_opening_statement(self, data):
         prompt = f"""You are a sports statistical analyst. Review these upcoming football fixtures. 
