@@ -43,7 +43,19 @@ class TitanMasterEngine:
     def __init__(self, configs):
         self.configs = configs
         self.master_matrix = {}
-        self.gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+        
+        # FIX: Force the client to use v1alpha to bypass the 404 v1beta missing model error
+        if GEMINI_API_KEY:
+            try:
+                self.gemini_client = genai.Client(
+                    api_key=GEMINI_API_KEY,
+                    http_options=types.HttpOptions(api_version='v1alpha')
+                )
+            except Exception as e:
+                print(f"⚠️ [System] Falling back to standard client init: {e}")
+                self.gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        else:
+            self.gemini_client = None
 
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
@@ -95,7 +107,13 @@ class TitanMasterEngine:
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         
         # List of known valid models. The script will try them in order until one works.
-        models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        models_to_try = [
+            'gemini-2.5-flash', 
+            'gemini-2.0-flash', 
+            'gemini-1.5-flash-latest', 
+            'gemini-1.5-flash', 
+            'gemini-pro'
+        ]
         
         for model_name in models_to_try:
             for attempt in range(max_retries):
