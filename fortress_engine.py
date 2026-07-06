@@ -63,7 +63,6 @@ class TitanMasterEngine:
         raw_match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
         final_key = raw_match_key
 
-        # --- THE FIX: FUZZY MATCHING TO GROUP SIMILAR TEAM NAMES ---
         for existing_key in self.master_matrix.keys():
             similarity = difflib.SequenceMatcher(None, raw_match_key.lower(), existing_key.lower()).ratio()
             if similarity >= 0.75:  
@@ -92,7 +91,6 @@ class TitanMasterEngine:
         except: return
 
     def safe_gemini_call(self, prompt, max_retries=3):
-        """Wraps Gemini calls in a retry loop to survive rate limits and safety blocks."""
         if not self.gemini_client: return "⚠️ Gemini API Key missing."
         for attempt in range(max_retries):
             try:
@@ -101,7 +99,6 @@ class TitanMasterEngine:
                     contents=prompt
                 )
                 
-                # Check if the response actually contains text before stripping
                 if response and response.text:
                     return response.text.strip()
                 else:
@@ -121,24 +118,26 @@ class TitanMasterEngine:
         return "⚠️ Arbitrator Error: Max retries exceeded due to persistent rate limits or blank responses."
 
     def gemini_opening_statement(self, data):
-        prompt = f"""You are an aggressive Value Hunter. Review these 30 matches. 
+        prompt = f"""You are an aggressive Value Hunter. Review these matches. 
         STRICT RULES:
-        1. YOU MUST NOT pick lazy "Home Win" or "Away Win" straight outcomes for heavy favorites. 
-        2. Hunt for true mathematical value in mid-table clashes.
-        3. You MUST restrict your picks strictly to alternative markets: Over/Under Goals, BTTS (Yes/No), or Double Chance (1X/X2).
-        Pick your top 12 matches. Provide a 1-sentence analytical reason for why each holds mathematical value.
+        1. YOU MUST ONLY pick matches from the Data list provided below. DO NOT invent, hallucinate, or add outside matches.
+        2. YOU MUST NOT pick lazy "Home Win" or "Away Win" straight outcomes for heavy favorites. 
+        3. Hunt for true mathematical value in mid-table clashes.
+        4. You MUST restrict your picks strictly to alternative markets: Over/Under Goals, BTTS (Yes/No), or Double Chance (1X/X2).
+        Pick your top matches (up to 12 max). Provide a 1-sentence analytical reason for why each holds mathematical value.
         
         Data:\n{data}"""
         return self.safe_gemini_call(prompt)
 
     def llama3_rebuttal(self, data, gemini_proposal):
         if not GROQ_API_KEY: return "⚠️ Groq API Key missing."
-        prompt = f"""You are a ruthless Risk Manager. Your colleague just proposed 12 betting picks. 
+        prompt = f"""You are a ruthless Risk Manager. Your colleague just proposed betting picks. 
         Read their proposal. Tear down any pick that has high variance. 
         STRICT RULES:
-        1. If they picked a straight outright winner (1 or 2), REJECT IT IMMEDIATELY. It holds no value.
-        2. Force the final picks into safer, higher-value alternative markets (Double Chance, Over/Under, BTTS).
-        Counter-propose the absolute safest 10 to 12 matches. Provide a 1-sentence reason for your picks.
+        1. YOU MUST ONLY select matches from the Original Data list provided below. DO NOT invent matches.
+        2. If they picked a straight outright winner (1 or 2), REJECT IT IMMEDIATELY. It holds no value.
+        3. Force the final picks into safer, higher-value alternative markets (Double Chance, Over/Under, BTTS).
+        Counter-propose the absolute safest matches (up to 12). Provide a 1-sentence reason for your picks.
         
         Original Data:
         {data}
@@ -165,16 +164,16 @@ class TitanMasterEngine:
         {llama_critique}
         
         YOUR INSTRUCTIONS:
-        1. Find the 8 to 10 matches that BOTH agents agreed upon.
-        2. Format these surviving matches using EXACTLY this syntax:
+        1. Find the matches that BOTH agents agreed upon.
+        2. YOU MUST NOT invent matches. Only use matches mentioned by the agents.
+        3. Format these surviving matches using EXACTLY this syntax:
            Match Name | Agreed Market
            * For Double Chance markets, output ONLY the exact symbol (e.g., 1X, X2, 12). DO NOT write the words "Double Chance".
-        3. CRITICAL: Provide ZERO explanations, emojis, or intro text. Just the raw text lines separated by newlines.
+        4. CRITICAL: Provide ZERO explanations, emojis, or intro text. Just the raw text lines separated by newlines.
         """
         return self.safe_gemini_call(prompt)
 
     def fetch_live_odds_matrix(self):
-        """Fetches a broad matrix of live soccer odds to act as the EV filter."""
         if not ODDS_API_KEY: return []
         print("\n🌐 Fetching Live Odds from Global Bookmakers...")
         try:
@@ -185,8 +184,7 @@ class TitanMasterEngine:
             return []
         except: return []
 
-    def apply_ev_and_format(self, raw_ticket, odds_matrix):
-        """Cross-references the AI ticket with live odds to calculate Proportional Staking exactly totaling 39 KES."""
+    def apply_ev_and_format(self, raw_ticket, odds_matrix, scraped_match_whitelist):
         if "⚠️" in raw_ticket: return raw_ticket
         
         DAILY_BUDGET_KES = 39
@@ -196,12 +194,24 @@ class TitanMasterEngine:
         rejected_matches = []
         total_units = 0.0
         
-        # Pass 1: Filter matches and calculate raw EV weights
         for line in lines:
             if "|" not in line: continue
             parts = line.split("|")
             match_name = parts[0].strip()
             market = parts[1].strip()
+
+            # --- ANTI-HALLUCINATION GUARDRAIL ---
+            # If the match wasn't in our initial scraped list, the AI made it up. Kill it immediately.
+            is_real_match = False
+            for real_match in scraped_match_whitelist:
+                if difflib.SequenceMatcher(None, match_name.lower(), real_match.lower()).ratio() >= 0.70:
+                    is_real_match = True
+                    match_name = real_match # Use the clean, original scraped name
+                    break
+            
+            if not is_real_match:
+                rejected_matches.append({"name": match_name, "reason": "Hallucinated by LLM (Not in today's scraped fixtures)"})
+                continue
             
             # --- DOUBLE CHANCE FORMAT SANITIZER ---
             ml = market.lower()
@@ -230,20 +240,17 @@ class TitanMasterEngine:
                 total_units += units
                 accepted_matches.append({"name": match_name, "market": market, "odds": best_price, "units": units})
             elif best_price and best_price < 1.15:
-                rejected_matches.append({"name": match_name, "reason": f"Odds {best_price}"})
+                rejected_matches.append({"name": match_name, "reason": f"Odds {best_price} too low"})
             else:
-                # Fallback if odds not found but match survives consensus
                 accepted_matches.append({"name": match_name, "market": market, "odds": None, "units": 1.0})
                 total_units += 1.0
 
-        # Pass 2: Distribute exactly 39 KES proportionally
         final_output = ""
         kes_distributed = 0
         
         for i, match in enumerate(accepted_matches):
             if total_units > 0:
                 if i == len(accepted_matches) - 1:
-                    # Final match sweeps the remainder to ensure exact total
                     kes_alloc = DAILY_BUDGET_KES - kes_distributed
                 else:
                     kes_alloc = int(round((match["units"] / total_units) * DAILY_BUDGET_KES))
@@ -255,7 +262,7 @@ class TitanMasterEngine:
             final_output += f"⚽ **{match['name']}**\n   ➔ {match['market']}\n   📊 {odds_display} | 💰 Stake: {kes_alloc} KES\n\n"
             
         for match in rejected_matches:
-            final_output += f"🗑️ ~~{match['name']}~~ *(Rejected by EV Filter: {match['reason']})*\n\n"
+            final_output += f"🗑️ ~~{match['name']}~~ *(Rejected: {match['reason']})*\n\n"
             
         if accepted_matches:
             final_output += f"========================\n"
@@ -317,7 +324,10 @@ class TitanMasterEngine:
         
         print("\n=== STEP 4: APPLYING EXPECTED VALUE (EV) FILTER ===")
         odds_matrix = self.fetch_live_odds_matrix()
-        final_ticket = self.apply_ev_and_format(raw_ticket, odds_matrix)
+        
+        # WE PASS THE WHITELIST OF SCRAPED MATCHES DOWN TO THE EV FILTER HERE
+        valid_scraped_match_names = list(self.master_matrix.keys())
+        final_ticket = self.apply_ev_and_format(raw_ticket, odds_matrix, valid_scraped_match_names)
         
         if final_ticket.lower() == "none" or not final_ticket or "ZERO_CONSENSUS" in final_ticket:
             final_msg = f"🛡️ **TITAN SAFETY PROTOCOL ACTIVATED** 🛡️\n\nDebate collapsed or odds held zero value. Capital preserved.\n\n📊 Strategy: {ACTIVE_STRATEGY}"
