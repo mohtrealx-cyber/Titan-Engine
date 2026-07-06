@@ -97,8 +97,6 @@ class TitanMasterEngine:
                         
                     # Regex to detect completed scorelines embedded in row text (e.g., "2-1", "0 - 0", "3:1")
                     if re.search(r'\d+\s*[-:]\s*\d+', row_text):
-                        # Verify it's an actual scoreline and not part of a date/time (e.g., "14:30")
-                        # If the match row contains a score dynamic separate from standard time configurations, drop it
                         possible_scores = re.findall(r'\b\d+\s*-\s*\d+\b', row_text)
                         if possible_scores:
                             continue
@@ -276,7 +274,6 @@ class TitanMasterEngine:
                     similarity = difflib.SequenceMatcher(None, match_name.lower(), api_match_name.lower()).ratio()
                     
                     if similarity > 0.6: 
-                        # Check event lock time to protect against mid-game or finished slip inclusion
                         if 'commence_time' in game:
                             try:
                                 startTime = datetime.datetime.strptime(game['commence_time'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
