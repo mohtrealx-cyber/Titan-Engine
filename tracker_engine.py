@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 
 # ==============================================================================
-# TITAN TRACKER: APEX CORE (MUTUALLY EXCLUSIVE MATRIX)
+# TITAN TRACKER: APEX CORE (MUTUALLY EXCLUSIVE MATRIX WITH CONSENSUS FALLBACK)
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") if os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") else os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") if os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") else os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -42,14 +42,13 @@ class MegaTicketVolumeSieve:
         for league in target_leagues:
             url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/?apiKey={ODDS_API_KEY}&regions=eu,uk,us&markets=h2h"
             
-            # --- THE FIX: ODDS API RATE LIMIT SHIELD ---
             max_retries = 3
             for attempt in range(max_retries):
                 try:
                     r = requests.get(url, timeout=15)
                     if r.status_code == 200:
                         all_matches.extend(r.json())
-                        break  # Success! Break the retry loop
+                        break 
                     elif r.status_code == 429:
                         print(f"⚠️ Odds API Limit hit on {league}. Sleeping for 10s (Attempt {attempt+1}/{max_retries})...")
                         time.sleep(10)
@@ -58,17 +57,15 @@ class MegaTicketVolumeSieve:
                     elif r.status_code == 401:
                         self.api_status = "🔴 UNAUTHORIZED (401)"
                         self.api_error_message = r.text 
-                        break  # Fatal error, stop trying this league
+                        break 
                     else:
-                        break  # Other errors, skip to next league
+                        break 
                 except Exception as e: 
-                    time.sleep(2)  # Brief pause on network drop before retry
+                    time.sleep(2) 
             
-            # Micro-sleep between leagues to prevent triggering burst limits
             time.sleep(1.5)
-            
             if "QUOTA EXCEEDED" in self.api_status:
-                break # If we confirmed the monthly limit is dead, stop the whole scan
+                break
             
         self.raw_match_count = len(all_matches)
         return all_matches
@@ -95,8 +92,10 @@ class MegaTicketVolumeSieve:
 
             bookmakers = match.get("bookmakers", [])
             
-            pin_home, pin_away, pin_draw = None, None, None
+            # Target values
+            m_home, m_away, m_draw = None, None, None
             
+            # Strategy Phase 1: Hunt for Pinnacle
             for bookie in bookmakers:
                 if bookie.get("key") == "pinnacle":
                     for mkt in bookie.get("markets", []):
@@ -104,21 +103,40 @@ class MegaTicketVolumeSieve:
                             for outcome in mkt.get("outcomes", []):
                                 price = float(outcome.get("price"))
                                 name = outcome.get("name")
-                                if name == home: pin_home = price
-                                elif name == away: pin_away = price
-                                elif name == "Draw": pin_draw = price
+                                if name == home: m_home = price
+                                elif name == away: m_away = price
+                                elif name == "Draw": m_draw = price
+            
+            # Strategy Phase 2: Consensus Fallback Matrix if Pinnacle is missing
+            if not (m_home and m_away and m_draw):
+                home_prices, away_prices, draw_prices = [], [], []
+                for bookie in bookmakers:
+                    for mkt in bookie.get("markets", []):
+                        if mkt.get("key") == "h2h":
+                            for outcome in mkt.get("outcomes", []):
+                                price = float(outcome.get("price"))
+                                name = outcome.get("name")
+                                if name == home: home_prices.append(price)
+                                elif name == away: away_prices.append(price)
+                                elif name == "Draw": draw_prices.append(price)
+                
+                if home_prices and away_prices and draw_prices:
+                    m_home = sum(home_prices) / len(home_prices)
+                    m_away = sum(away_prices) / len(away_prices)
+                    m_draw = sum(draw_prices) / len(draw_prices)
 
-            if pin_home and pin_away and pin_draw:
-                if pin_home < pin_away:
-                    fav_team, sharp_fav_odd, sym = home, pin_home, "1"
+            # Strategy Phase 3: Run Sieves on Verified Odds Data
+            if m_home and m_away and m_draw:
+                if m_home < m_away:
+                    fav_team, sharp_fav_odd, sym = home, m_home, "1"
                 else:
-                    fav_team, sharp_fav_odd, sym = away, pin_away, "2"
+                    fav_team, sharp_fav_odd, sym = away, m_away, "2"
                 
                 match_title = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
 
-                # Geometric Safety Sieve
-                geometric_score = pin_draw / sharp_fav_odd
-                margin = (1.0 / pin_home) + (1.0 / pin_away) + (1.0 / pin_draw) - 1.0
+                geometric_score = m_draw / sharp_fav_odd
+                margin = (1.0 / m_home) + (1.0 / m_away) + (1.0 / m_draw) - 1.0
+                
                 is_panic_market = margin > 0.085
                 is_weak_away_fav = (sym == "2") and (sharp_fav_odd > 1.85)
 
@@ -170,10 +188,10 @@ class MegaTicketVolumeSieve:
 
     def settle_and_build_scoreboard(self):
         file_path = "pending_tracker_tickets.json"
-        if not os.path.exists(file_path): return ""
+        if not os.path.exists(file_path): return "📊 **No previous history detected in database ledger.**\n"
         try:
             with open(file_path, "r") as f: memory = json.load(f)
-        except: return ""
+        except: return "📊 **Ledger reading fault.**\n"
 
         dates_to_audit = [d for d, tickets in memory.items() if any(t["status"] == "PENDING" for t in tickets)]
         
@@ -224,17 +242,11 @@ class MegaTicketVolumeSieve:
                     with open(file_path, "w") as f: json.dump(memory, f, indent=4)
                 except: pass
 
-        all_settled_games = []
         wins, losses = 0, 0
-        
-        for d_key in sorted(memory.keys(), reverse=True):
+        for d_key in memory.keys():
             for t in memory[d_key]:
-                if "WON" in t["status"]:
-                    wins += 1
-                    all_settled_games.append(f"• {t['match']} ➔ **WON 🟢** (Score: {t['score']})")
-                elif "LOST" in t["status"]:
-                    losses += 1
-                    all_settled_games.append(f"• {t['match']} ➔ **LOST 🔴** (Score: {t['score']})")
+                if "WON" in t["status"]: wins += 1
+                elif "LOST" in t["status"]: losses += 1
 
         total_settled = wins + losses
         win_rate = (wins / total_settled * 100) if total_settled > 0 else 0.0
@@ -242,21 +254,18 @@ class MegaTicketVolumeSieve:
         sb = "📊 **TITAN SCOREBOARD & LIVE LEDGER** 📊\n"
         sb += f"🏆 **All-Time Win Rate:** `{win_rate:.1f}%` ({wins}W - {losses}L)\n"
         sb += f"📈 **Total Settled Volume:** `{total_settled} selections`\n\n"
-        
-        return sb + "\n"
+        return sb
 
     def dispatch_alerts(self, scoreboard_text):
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
             
         msg = "🎯 **TITAN ENGINE: MUTUALLY EXCLUSIVE MATRIX CORE** 🎯\n\n"
             
-        # 1. PROCESS COMBO TICKET FIRST
+        # 1. Combo Ticket Processor
         combo_exclusion_list = []
-        if len(self.combo_candidates) >= 2:
+        if len(self.combo_candidates) >= 3:
             sorted_candidates = sorted(self.combo_candidates, key=lambda x: x["odds"])
             combo_picks = sorted_candidates[:3]
-            
-            # Store these exact matches to exclude them from the Jackpot
             combo_exclusion_list = [pick['text'] for pick in combo_picks]
             
             total_odds = 1.0
@@ -268,14 +277,13 @@ class MegaTicketVolumeSieve:
             msg += "\n".join(combo_text_lines) + "\n"
             msg += f"📈 **Estimated Total Odds:** {total_odds:.2f}\n💰 **Suggested Stake:** 100 KES\n\n"
         else:
-            msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient mathematically secure matches for a combo today.\n\n"
+            msg += "🔥 **RECOMMENDED COMBINATION TICKET** 🔥\n↳ 🟡 Insufficient matches passed the 2.80 Consensus Combo Sieve.\n\n"
 
-        # 2. FILTER JACKPOT POOL (Remove the matches used above)
+        # 2. Filter Jackpot Pool
         filtered_jackpot_pool = [pick for pick in self.jackpot_candidates if pick["text"] not in combo_exclusion_list]
 
-        # 3. PROCESS JACKPOT MATRIX
+        # 3. Process Jackpot System Slips
         if filtered_jackpot_pool:
-            # Sort strictly by Geometric Score and cap at top 10
             sorted_jackpot = sorted(filtered_jackpot_pool, key=lambda x: x["score"], reverse=True)[:10]
             n_total = len(sorted_jackpot)
             
@@ -292,21 +300,19 @@ class MegaTicketVolumeSieve:
                 for i, pick in enumerate(sorted_jackpot, 1):
                     msg += f" `[{i}]` {pick['text']} @ {pick['odds']:.2f} (Struct: {pick['score']:.2f})\n"
                     
-                msg += "\n✂️ **THE DROP MATRIX (What to leave out):**\n"
-                msg += "Build your slips by taking the Master List and dropping the bracketed numbers below:\n\n"
+                msg += "\n剪️ **THE DROP MATRIX (What to leave out):**\n"
+                msg += "Build slips by taking the Master List and dropping the bracketed numbers below:\n\n"
                 
-                # Generate drop pairs
                 drop_pairs = list(itertools.combinations(range(1, n_total + 1), 2))
                 drop_lines = [f"T{idx}: Drop [{p[0]}&{p[1]}]" for idx, p in enumerate(drop_pairs, 1)]
                 
-                # Format into 3 clean columns to save space in Telegram
                 for i in range(0, len(drop_lines), 3):
                     msg += " | ".join(drop_lines[i:i+3]) + "\n"
                 msg += "\n"
             else:
-                 msg += "🎰 **TITAN SYSTEM MATRIX** 🎰\n↳ 🟡 Not enough unique matches to build a Drop-2 System today after combo exclusion.\n\n"
+                msg += "🎰 **TITAN SYSTEM MATRIX** 🎰\n↳ 🟡 Only found {n_total} matches passing the 2.15 safety marker. Need at least 3 for Drop-2 Matrix.\n\n"
         else:
-            msg += "🎰 **TITAN GEOMETRIC JACKPOT** 🎰\n↳ 🟡 No unique matches currently meet the 2.15 Geometric Safety threshold.\n\n"
+            msg += "🎰 **TITAN GEOMETRIC JACKPOT** 🎰\n↳ 🟡 No matches matched the geometric safety criteria on the consensus stream.\n\n"
 
         msg += scoreboard_text
 
@@ -314,7 +320,7 @@ class MegaTicketVolumeSieve:
         msg += f"↳ API Status: {self.api_status}\n"
         if self.api_error_message: msg += f"↳ Server Response: `{self.api_error_message}`\n"
         msg += f"↳ Raw Matches Scanned: {self.raw_match_count}\n"
-        msg += f"↳ Active Sieves: Mutually Exclusive Matrix (N-2), Panic Tax, Away Penalty\n"
+        msg += f"↳ Active Sieves: Consensus Fallback Optimization, Panic Tax Protection, Geometric Variance Sieve\n"
 
         try:
             requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
@@ -324,7 +330,7 @@ class MegaTicketVolumeSieve:
             print(f"Failed to dispatch Telegram alert: {e}")
 
 if __name__ == "__main__":
-    print("Initiating Titan Tracker: Apex Core...")
+    print("Initiating Titan Tracker: Apex Core v2.5...")
     engine = MegaTicketVolumeSieve()
     engine.process_matrix()
     engine.save_tickets_to_memory()
