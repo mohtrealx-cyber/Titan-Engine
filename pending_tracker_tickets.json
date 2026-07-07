@@ -192,5 +192,13 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-09": [
+        {
+            "match": "Ponte Preta vs Criciuma",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
