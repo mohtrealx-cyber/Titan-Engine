@@ -82,5 +82,19 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-07": [
+        {
+            "match": "Argentina vs Egypt",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Monaro Panthers vs Queanbeyan City",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
