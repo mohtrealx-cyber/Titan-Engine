@@ -199,6 +199,12 @@
             "prediction": "2",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "France vs Morocco",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ]
 }
