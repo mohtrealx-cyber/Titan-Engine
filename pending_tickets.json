@@ -96,5 +96,13 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-08": [
+        {
+            "match": "Tanzania Prisons vs Mbeya City",
+            "prediction": "X",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
