@@ -213,6 +213,12 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Spain vs Belgium",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ]
 }
