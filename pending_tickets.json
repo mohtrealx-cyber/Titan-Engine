@@ -104,5 +104,31 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-09": [
+        {
+            "match": "Dinamo Kiev vs Universitatea Cluj",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Hnk Hajduk Split vs Msk Zilina",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Sheriff Tiraspol vs Aluminij",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "France vs Morocco",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
