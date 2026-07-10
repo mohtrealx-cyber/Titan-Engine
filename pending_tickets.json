@@ -130,5 +130,55 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-10": [
+        {
+            "match": "Dundalk vs Drogheda United",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Vps vs Sjk",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Cork City vs Longford Town Fc",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Shandong Luneng vs Yunnan Yukun",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Deportivo Maldonado vs Albion Fc",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Resistencia vs Sportivo Carapegua",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Tampere United vs Salpa",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Peninsula Power vs Wolves Fc",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
