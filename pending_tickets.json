@@ -271,6 +271,12 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Queens Park vs Brora Rangers",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ]
 }
