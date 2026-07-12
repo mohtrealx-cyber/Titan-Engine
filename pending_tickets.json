@@ -278,5 +278,85 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-12": [
+        {
+            "match": "Liverpool Montevideo vs Ca Cerro",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Fc Astana vs Aktobe",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Malmo Ff vs Ifk Goteborg",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Hammarby vs Kalmar Ff",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Gais vs If Elfsborg",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Rosenborg vs Kristiansund Bk",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Brann vs Start",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Cerrito vs Miramar",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Nantong Zhiyun vs Changchun Yatai",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Kr Reykjavik vs Ibv Vestmannaeyjar",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Fram Reykjavik vs Thor Akureyri",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Godoy Cruz vs Defensores De Belgrano",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Atletico Goianiense vs Fortaleza Ec",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
