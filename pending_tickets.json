@@ -358,5 +358,25 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-13": [
+        {
+            "match": "Djurgarden vs Halmstad",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "La Luz vs Tacuarembo",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Breidablik vs Keflavik",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
