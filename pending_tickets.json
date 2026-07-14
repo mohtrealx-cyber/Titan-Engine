@@ -378,5 +378,19 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-14": [
+        {
+            "match": "Inter Club Descaldes vs Lincoln Red Imps Fc",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Hk Kopavogur vs Ir",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
