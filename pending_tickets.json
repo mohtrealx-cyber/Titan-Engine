@@ -392,5 +392,13 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-15": [
+        {
+            "match": "Real Potosi vs San Antonio Bulo Bulo",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
