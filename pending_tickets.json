@@ -400,5 +400,19 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-16": [
+        {
+            "match": "Neftchi Fargona vs Fk Buxoro",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Afturelding vs Leiknir Reykjavik",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
