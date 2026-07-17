@@ -217,8 +217,8 @@ class ConsensusEngine:
             print("Skipping AI Layer: No GEMINI_API_KEY found.")
             return None
 
-        # Fixed endpoint using the latest stable flash model
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
+        # Fixed endpoint using Google's active 2026 Flash model
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         prompt = f"""
         You are the Chief Risk Officer for an institutional sports betting syndicate. 
