@@ -475,6 +475,18 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Pakhtakor vs Lokomotiv Tashkent",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Fc Cajamarca vs Juan Pablo Ii College",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ]
 }
