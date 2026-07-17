@@ -108,14 +108,18 @@ class ZenRowsConsensusEngine:
         try:
             if cfg.get("use_zenrows") and ZENROWS_API_KEY:
                 proxy_url = "https://api.zenrows.com/v1/"
+                # FIX: Removed 'antibot' and 'js_render' to prevent the 402 Paywall error
                 params = {
                     "apikey": ZENROWS_API_KEY,
                     "url": cfg["url"],
-                    "js_render": "true", 
-                    "wait": "3000",
-                    "antibot": "true" 
+                    "premium_proxy": "true" # Uses a residential IP to bypass Cloudflare
                 }
                 r = tls_requests.get(proxy_url, params=params, timeout=60)
+                
+                # PHANTOM FALLBACK: If ZenRows demands payment, use free impersonation
+                if r.status_code == 402:
+                    print(f"   ⚠️ ZenRows Paywall Hit (402). Falling back to free curl_cffi for {site_name}...")
+                    r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
             else:
                 if cfg.get("use_zenrows") and not ZENROWS_API_KEY:
                     self.diagnostics[site_name] = "🔴 MISSING ZEN_PROXY_KEY"
