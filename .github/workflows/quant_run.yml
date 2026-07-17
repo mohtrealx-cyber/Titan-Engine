@@ -10,7 +10,6 @@ jobs:
   run-quant-engine:
     runs-on: ubuntu-latest
 
-    # This grants the workflow permission to push files back to the repository
     permissions:
       contents: write
 
@@ -26,7 +25,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install bs4 curl_cffi
+          pip install bs4 curl_cffi requests
 
       - name: Run Quant Engine
         env:
@@ -35,6 +34,7 @@ jobs:
           QUANT_TELEGRAM_TOKEN: ${{ secrets.QUANT_TELEGRAM_TOKEN }}
           QUANT_TELEGRAM_CHAT_ID: ${{ secrets.QUANT_TELEGRAM_CHAT_ID }}
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python quant_engine.py
 
       - name: Commit Memory File Back to GitHub
@@ -42,6 +42,5 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "Titan Automator"
           git add pending_tickets.json || true
-          # If there are no new matches, it skips the commit gracefully
           git commit -m "Auto-update memory notebook with today's locked matches" || echo "No new matches to save today"
           git push || true
