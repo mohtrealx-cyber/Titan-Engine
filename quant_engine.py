@@ -121,11 +121,7 @@ class ConsensusEngine:
             rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
             if not rows:
-                page_title = soup.title.string.strip() if soup.title and soup.title.string else "No Title Found"
-                if "moment" in page_title.lower() or "cloudflare" in page_title.lower():
-                    self.diagnostics[site_name] = f"🟡 BLOCKED (Cloudflare Checkbox Trap)"
-                else:
-                    self.diagnostics[site_name] = f"🟡 BLOCKED (Title: {page_title[:25]}...)"
+                self.diagnostics[site_name] = f"🟡 BLOCKED"
                 return
 
             valid_count = 0
@@ -212,14 +208,18 @@ class ConsensusEngine:
         return agreed_matches, structured_tickets
 
     def ask_llm_to_optimize_tickets(self, consensus_list):
-        """Sends data to Gemini AI using a dynamic model discovery handshake."""
+        print("\n" + "="*50)
+        print("🚀 INITIALIZING AI QUANT LAYER...")
+        print("="*50)
+
         if not GEMINI_API_KEY:
-            print("Skipping AI Layer: No GEMINI_API_KEY found.")
+            print("❌ ERROR: No GEMINI_API_KEY found. Skipping AI.")
             return None
 
-        # 1. Ask Google what models are actually alive and available right now
-        model_name = "models/gemini-2.5-flash"  # Absolute fallback
+        # Dynamically discover the correct active model name
+        model_name = "models/gemini-2.5-flash"  
         try:
+            print("📡 Handshaking with Google AI Servers to find active model...")
             list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
             resp = requests.get(list_url, timeout=10)
             if resp.status_code == 200:
@@ -227,16 +227,14 @@ class ConsensusEngine:
                 for m in models:
                     name = m.get("name", "")
                     methods = m.get("supportedGenerationMethods", [])
-                    # Find the newest stable model that supports content generation
                     if "generateContent" in methods and "flash" in name.lower() and "preview" not in name.lower():
                         model_name = name
                         break
         except Exception as e:
-            print(f"Warning: Dynamic handshake failed. Forcing fallback model.")
+            print(f"⚠️ Handshake failed, using fallback.")
 
-        print(f"✅ Successfully locked onto active AI Engine: {model_name}")
+        print(f"✅ LOCKED ONTO MODEL: {model_name}\n")
         
-        # 2. Build the exact URL using the correct dynamic model
         url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
         prompt = f"""
@@ -264,12 +262,13 @@ class ConsensusEngine:
             response = requests.post(url, json=payload, timeout=30)
             if response.status_code == 200:
                 data = response.json()
+                print("🧠 AI Optimization Successful! Sending to Telegram...")
                 return data['candidates'][0]['content']['parts'][0]['text']
             else:
-                print(f"Gemini API returned error code {response.status_code}: {response.text}")
+                print(f"❌ Gemini API returned error {response.status_code}: {response.text}")
                 return None
         except Exception as e:
-            print(f"Failed to communicate with Gemini Engine: {e}")
+            print(f"❌ Failed to communicate with Gemini Engine: {e}")
             return None
 
     def save_tickets_to_memory(self, new_tickets):
@@ -402,7 +401,7 @@ class ConsensusEngine:
 
         ai_optimized_message = None
         if consensus_list:
-            print("Forwarding raw board data to AI Analysis layer...")
+            print("\n*** INITIATING AI ROUTING ***")
             ai_optimized_message = self.ask_llm_to_optimize_tickets(consensus_list)
 
         if ai_optimized_message:
