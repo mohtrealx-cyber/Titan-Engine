@@ -212,18 +212,26 @@ class ConsensusEngine:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY in GitHub Secrets"
             return None
 
-        model_name = "models/gemini-2.5-flash"  
+        model_name = "models/gemini-3.5-flash"  
         try:
             list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
             resp = requests.get(list_url, timeout=10)
             if resp.status_code == 200:
                 models = resp.json().get("models", [])
+                
+                valid_models = []
                 for m in models:
                     name = m.get("name", "")
                     methods = m.get("supportedGenerationMethods", [])
+                    # Find all active generation models with 'flash' in the name
                     if "generateContent" in methods and "flash" in name.lower() and "preview" not in name.lower():
-                        model_name = name
-                        break
+                        valid_models.append(name)
+                
+                # Sort alphabetically descending (forces 3.5 above 2.5)
+                if valid_models:
+                    valid_models.sort(reverse=True)
+                    model_name = valid_models[0]
+
                 self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
             else:
                 self.diagnostics["AI_Handshake"] = f"🔴 Handshake HTTP {resp.status_code}"
