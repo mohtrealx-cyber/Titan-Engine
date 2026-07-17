@@ -10,7 +10,7 @@ import concurrent.futures
 from curl_cffi import requests as tls_requests
 
 # ==============================================================================
-# CONFIGURATION & SECURE ROUTING FALLBACKS
+# CONFIGURATION & SECURE ROUTING
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
@@ -34,13 +34,6 @@ def get_dynamic_configs():
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0, 
             "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1, 
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0
-        },
-        "Forebet": {
-            "url": "https://www.forebet.com/en/football-predictions-for-today", 
-            "row_selector": "div", "row_class": "rcnt", 
-            "home_selector": "span", "home_class": "homeTeam", "home_index": 0, 
-            "away_selector": "span", "away_class": "awayTeam", "away_index": 0, 
-            "pick_selector": "span", "pick_class": "forepr", "pick_index": 0
         }
     }
 
@@ -103,19 +96,8 @@ class ConsensusEngine:
         try:
             print(f"   [Scraper] Extracting data from {site_name}...")
             
-            # --- THE FIX: DATACENTER IP BAN BYPASS ---
-            if site_name == "Forebet":
-                # Forebet actively blocks GitHub Actions datacenter IPs.
-                # We route it through free, public origin-masking proxies to hide the server IP.
-                proxy_url = f"https://api.allorigins.win/raw?url={cfg['url']}"
-                r = tls_requests.get(proxy_url, impersonate="chrome120", timeout=30)
-                
-                # Fallback to a secondary free proxy if allorigins is busy
-                if r.status_code != 200:
-                    r = tls_requests.get(f"https://corsproxy.io/?{cfg['url']}", impersonate="chrome120", timeout=30)
-            else:
-                # Statarea and Vitibet work perfectly with standard impersonation
-                r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
+            # Ultra-clean direct connection (No proxies needed for these sites)
+            r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
             
             if r.status_code != 200: 
                 self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
@@ -179,6 +161,8 @@ class ConsensusEngine:
                 sites_backing[pick].append(site)
                 
             top_pick = max(prediction_weights, key=prediction_weights.get)
+            
+            # Requires BOTH engines to agree for a lock
             if prediction_weights[top_pick] >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 
@@ -334,7 +318,7 @@ class ConsensusEngine:
             
         settled_reports = self.settle_pending_tickets()
         
-        msg = "🤝 **CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + Forebet)*\n\n"
+        msg = "🤝 **CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet Dual-Lock)*\n\n"
         
         if not consensus_list:
             msg += "No matches found with 2+ sites in agreement today.\n\n"
@@ -364,7 +348,7 @@ class ConsensusEngine:
         self.send_telegram_alert(msg)
 
 if __name__ == "__main__":
-    print("Initiating Consensus Engine (Statarea + Vitibet + Forebet)...")
+    print("Initiating Consensus Engine (Statarea + Vitibet Dual-Lock)...")
     live_configs = get_dynamic_configs()
     asyncio.run(ConsensusEngine(live_configs).run_pipeline())
     print("Routine Complete.")
