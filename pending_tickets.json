@@ -414,5 +414,67 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-17": [
+        {
+            "match": "Bodo/Glimt vs Fredrikstad",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Fcsb vs Fc Arges Pitesti",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Nk Celje vs Ns Mura",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Seattle Sounders vs Portland Timbers",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "St. Louis City vs Sporting Kansas City",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Levski Sofia vs Dunav Ruse",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Flora Tallinn vs Fc Nomme United",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Fylkir vs Njardvik",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "West Torrens Birkalla vs Para Hills Knights",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Campbelltown City vs Adelaide Comets",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
