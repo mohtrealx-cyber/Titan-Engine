@@ -106,22 +106,7 @@ class ZenRowsConsensusEngine:
     # ==========================================================
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            # --- DEEP STEALTH HEADERS FOR CLOUDFLARE BYPASS ---
-            stealth_headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br, zstd",
-                "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-                "Sec-Ch-Ua-Mobile": "?0",
-                "Sec-Ch-Ua-Platform": '"Windows"',
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "none",
-                "Sec-Fetch-User": "?1",
-                "Upgrade-Insecure-Requests": "1"
-            }
-
+            r = None
             if cfg.get("use_zenrows") and ZENROWS_API_KEY:
                 proxy_url = "https://api.zenrows.com/v1/"
                 params = {
@@ -131,18 +116,25 @@ class ZenRowsConsensusEngine:
                 }
                 r = tls_requests.get(proxy_url, params=params, timeout=60)
                 
-                # PHANTOM FALLBACK: Catch BOTH 402 (Paywall) and 403 (Cloudflare Block)
-                if r.status_code in [402, 403]:
-                    print(f"   ⚠️ ZenRows Hit HTTP {r.status_code} on {site_name}. Deploying Stealth curl_cffi fallback...")
-                    r = tls_requests.get(cfg["url"], impersonate="chrome124", headers=stealth_headers, timeout=20)
-            else:
-                if cfg.get("use_zenrows") and not ZENROWS_API_KEY:
-                    self.diagnostics[site_name] = "🔴 MISSING ZEN_PROXY_KEY"
-                    return
-                r = tls_requests.get(cfg["url"], impersonate="chrome124", headers=stealth_headers, timeout=20)
+            # PHANTOM FALLBACK: If ZenRows fails with 402/403, or isn't configured, use Native Roulette
+            if not r or r.status_code in [402, 403, 401]:
+                if r: print(f"   ⚠️ ZenRows Hit HTTP {r.status_code} on {site_name}. Deploying Fingerprint Roulette...")
+                
+                # THE FIX: We remove custom headers. Custom headers break curl_cffi's native 
+                # TLS fingerprint matching. We cycle through pristine browser identities instead.
+                impersonate_targets = ["chrome110", "safari15_5", "edge99"]
+                
+                for target in impersonate_targets:
+                    try:
+                        r = tls_requests.get(cfg["url"], impersonate=target, timeout=20)
+                        if r.status_code == 200:
+                            print(f"   🟢 Bypassed {site_name} firewall using [{target}] fingerprint!")
+                            break
+                    except Exception:
+                        continue
             
-            if r.status_code != 200: 
-                self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
+            if not r or r.status_code != 200: 
+                self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code if r else 'UNKNOWN'})"
                 return
                 
             soup = BeautifulSoup(r.content, 'html.parser')
