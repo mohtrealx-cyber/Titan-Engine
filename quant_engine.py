@@ -245,21 +245,25 @@ class ConsensusEngine:
         {json.dumps(consensus_list, indent=2)}
 
         STRICT ARCHITECTURE RULES:
-        1. NO paragraphs of text. NO explanations. NO risk assessment commentary. NO counter-strategy footnotes at the bottom.
-        2. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines themselves. For volatile matchups, change the output from a pure outcome (like '➔ 1') to the optimized market directly (such as '➔ 1X', '➔ Over 2.5', '➔ Draw No Bet', etc.).
-        3. Output exactly three clean combination slips formatted precisely like this:
+        1. Divide the provided matches into EXACTLY THREE completely separate, non-overlapping tickets. No match should appear in more than one ticket.
+        2. TICKET 1 (SAFE TIER): The absolute lowest variance matches.
+        3. TICKET 2 (BALANCED TIER): Solid matches with good tactical advantages.
+        4. TICKET 3 (VALUE TIER): The remaining matches that carry more volatility.
+        5. NO paragraphs of text. NO explanations. NO footnotes at the bottom.
+        6. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines themselves. For volatile matchups, change the output from a pure outcome (like '➔ 1') to the optimized market directly (such as '➔ 1X', '➔ Over 1.5 Goals', '➔ Draw No Bet', etc.).
+        7. Do not wrap the code in markdown blocks. Output the tickets EXACTLY like this:
 
-        🏆 TICKET 1: MEGA ACCA (All Matches)
+        🛡️ TICKET 1: SAFE ANCHORS 
         • [Match Name] ➔ [Optimized Prediction]
         • [Match Name] ➔ [Optimized Prediction]
 
-        🛡️ TICKET 2: SPLIT COMBO - HALF A
+        ⚖️ TICKET 2: BALANCED GROWTH 
+        • [Match Name] ➔ [Optimized Prediction]
         • [Match Name] ➔ [Optimized Prediction]
 
-        🛡️ TICKET 3: SPLIT COMBO - HALF B
+        🎯 TICKET 3: VALUE & VOLATILITY
         • [Match Name] ➔ [Optimized Prediction]
-
-        4. Do not wrap the code in markdown code blocks. Start outputting the slips immediately.
+        • [Match Name] ➔ [Optimized Prediction]
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -423,19 +427,20 @@ class ConsensusEngine:
                 msg += "No matches found with 2+ sites in agreement today.\n\n"
             else:
                 total_matches = len(consensus_list)
-                if total_matches > 4:
-                    half_idx = (total_matches + 1) // 2
-                    half_1 = consensus_list[:half_idx]
-                    half_2 = consensus_list[half_idx:]
+                if total_matches >= 3:
+                    third = total_matches // 3
+                    t1 = consensus_list[:third]
+                    t2 = consensus_list[third:2*third]
+                    t3 = consensus_list[2*third:]
 
-                    msg += f"🏆 **TICKET 1: MEGA ACCA (All {total_matches} Matches)** 🏆\n"
-                    for match in consensus_list: msg += f"{match}\n"
+                    msg += f"🛡️ **TICKET 1: SAFE TIER ({len(t1)} Matches)** 🛡️\n"
+                    for match in t1: msg += f"{match}\n"
 
-                    msg += f"🛡️ **TICKET 2: SPLIT COMBO - HALF A ({len(half_1)} Matches)** 🛡️\n"
-                    for match in half_1: msg += f"{match}\n"
+                    msg += f"⚖️ **TICKET 2: BALANCED TIER ({len(t2)} Matches)** ⚖️\n"
+                    for match in t2: msg += f"{match}\n"
 
-                    msg += f"🛡️ **TICKET 3: SPLIT COMBO - HALF B ({len(half_2)} Matches)** 🛡️\n"
-                    for match in half_2: msg += f"{match}\n"
+                    msg += f"🎯 **TICKET 3: VALUE TIER ({len(t3)} Matches)** 🎯\n"
+                    for match in t3: msg += f"{match}\n"
                 else:
                     msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({total_matches})** 🔥\n\n"
                     for match in consensus_list: msg += f"{match}\n"
