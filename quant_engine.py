@@ -5,6 +5,7 @@ import time
 import asyncio
 import datetime
 import difflib
+import requests
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
@@ -15,6 +16,7 @@ from curl_cffi import requests as tls_requests
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 def get_dynamic_configs():
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
@@ -99,9 +101,6 @@ class ConsensusEngine:
         if site_name not in existing_sites:
             self.master_matrix[final_key].append((site_name, normalized_pick))
 
-    # ==========================================================
-    # FORECASTER: LIVE SCRAPE ENGINE
-    # ==========================================================
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
             if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
@@ -212,9 +211,48 @@ class ConsensusEngine:
 
         return agreed_matches, structured_tickets
 
-    # ==========================================================
-    # ACCOUNTANT: MEMORY & SETTLEMENT ENGINE
-    # ==========================================================
+    def ask_llm_to_optimize_tickets(self, consensus_list):
+        """Sends data to Gemini AI to apply professional quantitative hedging strategies."""
+        if not GEMINI_API_KEY:
+            print("Skipping AI Layer: No GEMINI_API_KEY found.")
+            return None
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        
+        # Comprehensive context prompt to guide the model's analytical framework
+        prompt = f"""
+        You are the Chief Risk Officer for an institutional sports betting syndicate. 
+        Your task is to analyze today's football consensus matches and build an optimized, risk-managed portfolio to maximize return while aggressively preventing total slip failure from statistical anomalies or defensive collapses (e.g., unexpected blowouts).
+
+        Here is the raw data of consensus matches found today (Each match has 2+ predictive sites in agreement on the outcome 1=Home Win, X=Draw, 2=Away Win):
+        {json.dumps(consensus_list, indent=2)}
+
+        CRITICAL PORTFOLIO RULES:
+        1. Evaluate individual fixture stability. Look at team matchups to detect high-volatility scenarios.
+        2. If total matches > 4, you MUST split them into exactly THREE distinct combination tickets:
+           - TICKET 1: MEGA ACCUMULATOR (All matches grouped together for high exponential yield).
+           - TICKET 2 (HALF A): High-Confidence Safe Anchors. Select the absolute most mathematically reliable fixtures from the list.
+           - TICKET 3 (HALF B): Secondary Value Portfolio. The remaining fixtures grouped together to isolate risk.
+        3. For every single match, provide an "AI Counter-Strategy Advice" footnote. Suggest whether the user should stake on the pure outcome, or soften it using a Double Chance market (1X or X2) or an Over/Under Goals market to safeguard against sudden defensive collapses.
+        4. Frame the entire analysis as a professional, highly polished Telegram message using clean Markdown formatting. Use emojis strategically (🏆, 🛡️, ⚙️, 💰) to segment sections clearly.
+
+        Generate the final Telegram response text immediately. Do not include any chat filler or markdown code blocks around the message.
+        """
+
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        
+        try:
+            response = requests.post(url, json=payload, timeout=25)
+            if response.status_code == 200:
+                data = response.json()
+                return data['candidates'][0]['content']['parts'][0]['text']
+            else:
+                print(f"Gemini API returned error code {response.status_code}: {response.text}")
+                return None
+        except Exception as e:
+            print(f"Failed to communicate with Gemini Engine: {e}")
+            return None
+
     def save_tickets_to_memory(self, new_tickets):
         file_path = "pending_tickets.json"
         memory = {}
@@ -343,32 +381,40 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets()
 
-        # Phase 3: Construct the final unified Telegram message with Ticket Splitting
-        msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
+        # Phase 3: Route to LLM for processing, fallback to standard parsing if failing
+        ai_optimized_message = None
+        if consensus_list:
+            print("Forwarding raw board data to AI Analysis layer...")
+            ai_optimized_message = self.ask_llm_to_optimize_tickets(consensus_list)
 
-        if not consensus_list:
-            msg += "No matches found with 2+ sites in agreement today.\n\n"
+        if ai_optimized_message:
+            # If AI cleanly formatted everything, combine it with settlement data and status
+            msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
         else:
-            total_matches = len(consensus_list)
-
-            # --- TICKET SPLITTING LOGIC ---
-            if total_matches > 4:
-                half_idx = (total_matches + 1) // 2
-                half_1 = consensus_list[:half_idx]
-                half_2 = consensus_list[half_idx:]
-
-                msg += f"🏆 **TICKET 1: MEGA ACCA (All {total_matches} Matches)** 🏆\n"
-                for match in consensus_list: msg += f"{match}\n"
-
-                msg += f"🛡️ **TICKET 2: SPLIT COMBO - HALF A ({len(half_1)} Matches)** 🛡️\n"
-                for match in half_1: msg += f"{match}\n"
-
-                msg += f"🛡️ **TICKET 3: SPLIT COMBO - HALF B ({len(half_2)} Matches)** 🛡️\n"
-                for match in half_2: msg += f"{match}\n"
+            # Standalone fallback logic if Gemini key is missing/fails
+            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
+            if not consensus_list:
+                msg += "No matches found with 2+ sites in agreement today.\n\n"
             else:
-                msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({total_matches})** 🔥\n\n"
-                for match in consensus_list: msg += f"{match}\n"
+                total_matches = len(consensus_list)
+                if total_matches > 4:
+                    half_idx = (total_matches + 1) // 2
+                    half_1 = consensus_list[:half_idx]
+                    half_2 = consensus_list[half_idx:]
 
+                    msg += f"🏆 **TICKET 1: MEGA ACCA (All {total_matches} Matches)** 🏆\n"
+                    for match in consensus_list: msg += f"{match}\n"
+
+                    msg += f"🛡️ **TICKET 2: SPLIT COMBO - HALF A ({len(half_1)} Matches)** 🛡️\n"
+                    for match in half_1: msg += f"{match}\n"
+
+                    msg += f"🛡️ **TICKET 3: SPLIT COMBO - HALF B ({len(half_2)} Matches)** 🛡️\n"
+                    for match in half_2: msg += f"{match}\n"
+                else:
+                    msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({total_matches})** 🔥\n\n"
+                    for match in consensus_list: msg += f"{match}\n"
+
+        # Append historical updates and hardware statuses cleanly
         if settled_reports:
             msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
             for rep in settled_reports: msg += f"{rep}\n"
