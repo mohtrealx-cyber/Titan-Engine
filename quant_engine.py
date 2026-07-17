@@ -1,355 +1,384 @@
 import os
-import sys
+import re
 import json
-import requests
+import time
+import asyncio
+import datetime
+import difflib
 from bs4 import BeautifulSoup
-from datetime import datetime
+import concurrent.futures
+from curl_cffi import requests as tls_requests
 
-# Graceful import for curl_cffi to prevent script crashes
-try:
-    from curl_cffi import requests as curl_requests
-except ImportError:
-    curl_requests = requests
+# ==============================================================================
+# CONFIGURATION & SECURE ROUTING FALLBACKS
+# ==============================================================================
+TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
+SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY")
 
-# =====================================================================
-# 1. CORE CONFIGURATION & UTILITIES
-# =====================================================================
+def get_dynamic_configs():
+    eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
+    today_date = eat_time.strftime('%Y-%m-%d')
+    cb = int(time.time())
 
-def normalize_team_name(name):
-    """Clean and normalize team names for cross-site matching."""
-    if not name:
-        return ""
-    remove_words = ["fc", "united", "utd", "city", "town", "u23", "u21", "u19", "youth", "afc", "sports", "club"]
-    cleaned = name.lower()
-    for word in remove_words:
-        cleaned = cleaned.replace(f" {word} ", " ").replace(f" {word}", "").replace(f"{word} ", "")
-    return "".join(c for c in cleaned if c.isalnum())
+    return {
+        "Statarea": {
+            "url": f"https://www.statarea.com/predictions/date/{today_date}/",
+            "row_selector": "div", "row_class": "matchrow",
+            "home_selector": "div", "home_class": "name", "home_index": 0,
+            "away_selector": "div", "away_class": "name", "away_index": 1,
+            "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
+            "use_scraperapi": False
+        },
+        "Vitibet": {
+            "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
+            "row_selector": "a", "row_class": "livescore-match-row",
+            "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
+            "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
+            "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
+            "use_scraperapi": False
+        },
+        "PredictZ": {
+            "url": "https://www.predictz.com/predictions/today/",
+            "row_selector": "div", "row_class": "pttr",
+            "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
+            "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
+            "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
+            "use_scraperapi": True
+        }
+    }
 
-def teams_match(team1_a, team1_b, team2_a, team2_b):
-    """Fuzzy matching to check if two fixtures refer to the same match."""
-    t1_home = normalize_team_name(team1_a)
-    t1_away = normalize_team_name(team1_b)
-    t2_home = normalize_team_name(team2_a)
-    t2_away = normalize_team_name(team2_b)
-    
-    # Direct match or partial string containment
-    home_match = (t1_home in t2_home) or (t2_home in t1_home)
-    away_match = (t1_away in t2_away) or (t2_away in t1_away)
-    return home_match and away_match
+class ConsensusEngine:
+    def __init__(self, configs):
+        self.configs = configs
+        self.master_matrix = {}
+        self.diagnostics = {}
 
-def standardize_prediction(pred_str):
-    """Maps various site prediction formats to a unified 1, X, 2 scale."""
-    if not pred_str:
+    def normalize_prediction(self, raw_text):
+        text = str(raw_text).strip().lower()
+        if text in ["home", "home win"]: return "1"
+        if text in ["draw", "x", "0"]: return "X"
+        if text in ["away", "away win"]: return "2"
+
+        if len(text) > 0:
+            char = text[0]
+            if char == "1" or char == "h": return "1"
+            if char in ["x", "0", "d"]: return "X"
+            if char == "2" or char == "a": return "2"
         return None
-    pred_clean = str(pred_str).strip().lower()
-    if pred_clean in ["1", "home", "home win", "h"]:
-        return "1"
-    if pred_clean in ["x", "draw", "d"]:
-        return "X"
-    if pred_clean in ["2", "away", "away win", "a"]:
-        return "2"
-    return None
 
-# =====================================================================
-# 2. SITE SCRAPERS
-# =====================================================================
+    def clean_team_name(self, name):
+        return name.strip().title()
 
-def fetch_statarea():
-    """Scrapes today's matches and tips from Statarea."""
-    matches = []
-    status = {"upcoming": 0, "played": 0, "state": "OK"}
-    url = "https://www.statarea.com/predictions"
-    
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/53.3"}
-        response = curl_requests.get(url, headers=headers, timeout=15)
-        if response.status_code != 200:
-            status["state"] = f"FAILED (HTTP {response.status_code})"
-            return matches, status
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
-        match_rows = soup.find_all('div', class_='match')
-        
-        for row in match_rows:
-            try:
-                home = row.find('div', class_='home').get_text(strip=True)
-                away = row.find('div', class_='away').get_text(strip=True)
-                
-                # Rigid verification of played status
-                status_elem = row.find('div', class_='status')
-                status_text = status_elem.get_text(strip=True).lower() if status_elem else ""
-                
-                # Check for concrete score/FT indicators
-                score_elem = row.find('div', class_='matchscore')
-                score_text = score_elem.get_text(strip=True) if score_elem else ""
-                
-                is_played = "ft" in status_text or "ended" in status_text or (score_text and "-" in score_text and any(char.isdigit() for char in score_text))
-                
-                if is_played:
-                    status["played"] += 1
-                    continue
-                
-                # Extract tip prediction
-                tip_elem = row.find('div', class_='prediction')
-                tip = standardize_prediction(tip_elem.get_text(strip=True)) if tip_elem else None
-                
-                if home and away and tip:
-                    matches.append({"home": home, "away": away, "prediction": tip})
-                    status["upcoming"] += 1
-            except Exception:
-                continue
-    except Exception as e:
-        status["state"] = f"FAILED ({str(e)})"
-        
-    return matches, status
+    def is_match_active_or_played(self, row):
+        text = row.get_text(separator=" ").upper()
+        padded_text = f" {text} "
+        status_flags = [" FT ", " HT ", "CANC", "POSTP", "FINISHED", " LIVE ", "AET ", "PEN ", "DELAYED"]
+        for flag in status_flags:
+            if flag in padded_text:
+                return True
+        return False
 
-def fetch_vitibet():
-    """Scrapes today's predictions from Vitibet."""
-    matches = []
-    status = {"upcoming": 0, "played": 0, "state": "OK"}
-    url = "https://www.vitibet.com/index.php?clanek=analyzy&sekce=fotbal&lang=en"
-    
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/53.3"}
-        response = curl_requests.get(url, headers=headers, timeout=15)
-        if response.status_code != 200:
-            status["state"] = f"FAILED (HTTP {response.status_code})"
-            return matches, status
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
-        table_rows = soup.find_all('tr')
-        
-        for row in table_rows:
-            cols = row.find_all('td')
-            if len(cols) < 7:
-                continue
-                
-            try:
-                home = cols[1].get_text(strip=True)
-                away = cols[2].get_text(strip=True)
-                
-                # Extract score column safely to determine if match played
-                score_text = cols[5].get_text(strip=True)
-                is_played = score_text and ":" in score_text and any(char.isdigit() for char in score_text)
-                
-                if is_played:
-                    status["played"] += 1
-                    continue
-                
-                tip = standardize_prediction(cols[6].get_text(strip=True))
-                
-                if home and away and tip:
-                    matches.append({"home": home, "away": away, "prediction": tip})
-                    status["upcoming"] += 1
-            except Exception:
-                continue
-    except Exception as e:
-        status["state"] = f"FAILED ({str(e)})"
-        
-    return matches, status
+    def log_prediction_qa(self, site_name, home, away, raw_prediction):
+        if not home or not away or not raw_prediction: return
+        normalized_pick = self.normalize_prediction(raw_prediction)
+        if not normalized_pick: return
 
-def fetch_predictz():
-    """Scrapes today's picks from PredictZ utilizing ScraperAPI routing."""
-    matches = []
-    status = {"upcoming": 0, "played": 0, "state": "OK"}
-    
-    api_key = os.getenv("SCRAPER_API_KEY")
-    if not api_key:
-        status["state"] = "FAILED (Missing ScraperAPI Key)"
-        return matches, status
-        
-    target_url = "https://www.predictz.com/predictions/today/"
-    proxy_url = f"http://api.scraperapi.com?api_key={api_key}&url={target_url}"
-    
-    try:
-        response = requests.get(proxy_url, timeout=30)
-        if response.status_code != 200:
-            status["state"] = f"FAILED (Proxy HTTP {response.status_code})"
-            return matches, status
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
-        match_wrappers = soup.find_all('div', class_='ptzmatch')
-        
-        for wrapper in match_wrappers:
-            try:
-                home = wrapper.find('div', class_='ptzhome').get_text(strip=True)
-                away = wrapper.find('div', class_='ptzaway').get_text(strip=True)
-                
-                # Check for structural full time score containers
-                score_container = wrapper.find('div', class_='ptzscore')
-                score_text = score_container.get_text(strip=True) if score_container else ""
-                is_played = score_text and "-" in score_text and any(char.isdigit() for char in score_text)
-                
-                if is_played:
-                    status["played"] += 1
-                    continue
-                
-                tip_container = wrapper.find('div', class_='ptztip')
-                tip = standardize_prediction(tip_container.get_text(strip=True)) if tip_container else None
-                
-                if home and away and tip:
-                    matches.append({"home": home, "away": away, "prediction": tip})
-                    status["upcoming"] += 1
-            except Exception:
-                continue
-    except Exception as e:
-        status["state"] = f"FAILED ({str(e)})"
-        
-    return matches, status
+        raw_match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
+        final_key = raw_match_key
 
-# =====================================================================
-# 3. QUANT MATRIX & TICKET SPLITTING LOGIC
-# =====================================================================
-
-def run_consensus_matrix(statarea_data, vitibet_data, predictz_data):
-    """Cross-references the three data arrays to locate dual or triple agreements."""
-    consensus_matches = []
-    
-    # Process Statarea as the starting validation anchor
-    for s_match in statarea_data:
-        agreement_count = 1
-        matched_sites = ["Statarea"]
-        target_prediction = s_match["prediction"]
-        
-        # Check against Vitibet
-        for v_match in vitibet_data:
-            if teams_match(s_match["home"], s_match["away"], v_match["home"], v_match["away"]):
-                if v_match["prediction"] == target_prediction:
-                    agreement_count += 1
-                    matched_sites.append("Vitibet")
+        for existing_key in self.master_matrix.keys():
+            similarity = difflib.SequenceMatcher(None, raw_match_key.lower(), existing_key.lower()).ratio()
+            if similarity >= 0.75: 
+                final_key = existing_key
                 break
-                
-        # Check against PredictZ
-        for p_match in predictz_data:
-            if teams_match(s_match["home"], s_match["away"], p_match["home"], p_match["away"]):
-                if p_match["prediction"] == target_prediction:
-                    agreement_count += 1
-                    matched_sites.append("PredictZ")
-                break
-                
-        if agreement_count >= 2:
-            consensus_matches.append({
-                "home": s_match["home"],
-                "away": s_match["away"],
-                "prediction": target_prediction,
-                "agreeing_sites": agreement_count,
-                "sources": ", ".join(matched_sites)
-            })
-            
-    # Residual Check: Evaluate overlap strictly between Vitibet and PredictZ 
-    # to find pairings skipped if Statarea missed that fixture entirely
-    for v_match in vitibet_data:
-        # Check if already processed via Statarea loop
-        already_found = any(teams_match(v_match["home"], v_match["away"], c["home"], c["away"]) for c in consensus_matches)
-        if already_found:
-            continue
-            
-        for p_match in predictz_data:
-            if teams_match(v_match["home"], v_match["away"], p_match["home"], p_match["away"]):
-                if p_match["prediction"] == v_match["prediction"]:
-                    consensus_matches.append({
-                        "home": v_match["home"],
-                        "away": v_match["away"],
-                        "prediction": v_match["prediction"],
-                        "agreeing_sites": 2,
-                        "sources": "Vitibet, PredictZ"
-                    })
-                break
-                
-    return consensus_matches
 
-def generate_and_send_tickets(consensus_matches, scraper_statuses):
-    """Splits entries into custom risk hedges and forwards directly to Telegram."""
-    token = os.getenv("TRACKER_TELEGRAM_TOKEN")
-    chat_id = os.getenv("TRACKER_TELEGRAM_CHAT_ID")
-    
-    num_matches = len(consensus_matches)
-    tickets = []
+        if final_key not in self.master_matrix: self.master_matrix[final_key] = []
 
-    # STRATEGY MATRIX: Splitting structure for deep hedging
-    if num_matches > 4:
-        # Ticket 1: Comprehensive Accumulator
-        tickets.append({
-            "title": "🏆 TICKET 1: MEGA ACCUMULATOR (All Selections)",
-            "meta": "High Volatility | Full Board Matrix Combo",
-            "data": consensus_matches
-        })
-        
-        # Midpoint math partition
-        midpoint = (num_matches + 1) // 2
-        half_a = consensus_matches[:midpoint]
-        half_b = consensus_matches[midpoint:]
-        
-        # Ticket 2: Top Block Split
-        tickets.append({
-            "title": f"🛡️ TICKET 2: SPLIT COMBO - HALF A ({len(half_a)} Matches)",
-            "meta": "Risk Mitigation | Secondary Cover Slip",
-            "data": half_a
-        })
-        
-        # Ticket 3: Bottom Block Split
-        tickets.append({
-            "title": f"🛡️ TICKET 3: SPLIT COMBO - HALF B ({len(half_b)} Matches)",
-            "meta": "Risk Mitigation | Tertiary Cover Slip",
-            "data": half_b
-        })
-    elif num_matches > 0:
-        tickets.append({
-            "title": "📋 STANDARD CONSENSUS TICKET",
-            "meta": "Baseline Consensus Accumulator Plan",
-            "data": consensus_matches
-        })
+        existing_sites = [entry[0] for entry in self.master_matrix[final_key]]
+        if site_name not in existing_sites:
+            self.master_matrix[final_key].append((site_name, normalized_pick))
 
-    # Design output string formatting
-    output_message = "⚡ *TITAN QUANT CONSENSUS MATRIX* ⚡\n\n"
-    
-    if not tickets:
-        output_message += "No matches identified with 2+ sites in mutual agreement for today's market windows.\n\n"
-    else:
-        for ticket in tickets:
-            output_message += f"═ {ticket['title']} ═\n"
-            output_message += f"ℹ️ _{ticket['meta']}_\n\n"
-            
-            for idx, match in enumerate(ticket['data'], 1):
-                output_message += f"{idx}. ⚽ *{match['home']} vs {match['away']}*\n"
-                output_message += f"   📌 *Pick:* Selection {match['prediction']} ({match['sources']})\n\n"
-            output_message += "══════════════════════\n\n"
-
-    # Append Diagnostics Dashboard
-    output_message += "📊 *SCRAPER STATUS REPORT*\n"
-    for site, report in scraper_statuses.items():
-        output_message += f"↳ {site}: {report['state']} ({report['upcoming']} Upcoming | {report['played']} Played)\n"
-
-    print(output_message)
-
-    # Fire API request to Telegram Endpoint
-    if token and chat_id:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {"chat_id": chat_id, "text": output_message, "parse_mode": "Markdown"}
+    # ==========================================================
+    # FORECASTER: LIVE SCRAPE ENGINE
+    # ==========================================================
+    def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            requests.post(url, json=payload, timeout=10)
-        except Exception as err:
-            print(f"Error handling Telegram output pipe: {err}")
+            if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
+                proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}"
+                r = tls_requests.get(proxy_url, timeout=60)
+            else:
+                if cfg.get("use_scraperapi") and not SCRAPER_API_KEY:
+                    self.diagnostics[site_name] = "🔴 MISSING SCRAPER_API_KEY"
+                    return
+                r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
 
-# =====================================================================
-# 4. RUNTIME SYSTEM EXECUTION
-# =====================================================================
+            if r.status_code != 200:
+                self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
+                return
+
+            soup = BeautifulSoup(r.content, 'html.parser')
+            row_target = re.compile("pttr|ptrow") if site_name == "PredictZ" else cfg["row_class"]
+            rows = soup.find_all(cfg["row_selector"], class_=row_target)
+
+            if not rows:
+                page_title = soup.title.string.strip() if soup.title and soup.title.string else "No Title Found"
+                if "moment" in page_title.lower() or "cloudflare" in page_title.lower():
+                    self.diagnostics[site_name] = f"🟡 BLOCKED (Cloudflare Checkbox Trap)"
+                else:
+                    self.diagnostics[site_name] = f"🟡 BLOCKED (Title: {page_title[:25]}...)"
+                return
+
+            valid_count = 0
+            skipped_count = 0
+
+            for row in rows:
+                try:
+                    if self.is_match_active_or_played(row):
+                        skipped_count += 1
+                        continue
+
+                    home, away, pick = None, None, None
+
+                    if site_name == "PredictZ":
+                        h_elem = row.find(class_="pttmobh")
+                        a_elem = row.find(class_="pttmoba")
+                        p_elem = row.find(class_=re.compile("ptoddsdesc|ptmobpred"))
+
+                        if h_elem and a_elem and p_elem:
+                            home = h_elem.text
+                            away = a_elem.text
+                            pick = p_elem.text
+                        else:
+                            links = row.find_all("a")
+                            if len(links) >= 2:
+                                home = links[0].text
+                                away = links[1].text
+                                p_div = row.find(class_=re.compile("ptprd|ptpred"))
+                                if p_div: pick = p_div.text
+                            else:
+                                for td in row.find_all("div", class_="pttd"):
+                                    norm = self.normalize_prediction(td.text)
+                                    if norm:
+                                        pick = norm
+                                        break
+                    else:
+                        home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
+                        away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
+                        pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
+
+                    if home and away and pick:
+                        self.log_prediction_qa(site_name, home, away, pick)
+                        valid_count += 1
+
+                except Exception as e:
+                    continue
+
+            self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
+
+        except Exception as e:
+            self.diagnostics[site_name] = "🔴 TIMEOUT/ERROR"
+            return
+
+    def process_consensus_signals(self):
+        agreed_matches = []
+        structured_tickets = []
+
+        for match, listings in self.master_matrix.items():
+            if len(listings) < 2: continue
+
+            prediction_weights = {}
+            sites_backing = {}
+            for site, pick in listings:
+                prediction_weights[pick] = prediction_weights.get(pick, 0) + 1
+                if pick not in sites_backing: sites_backing[pick] = []
+                sites_backing[pick].append(site)
+
+            top_pick = max(prediction_weights, key=prediction_weights.get)
+            if prediction_weights[top_pick] >= 2:
+                backing_sites_str = " + ".join(sites_backing[top_pick])
+
+                agreed_matches.append(
+                    f"• **{match}** ➔ {top_pick}\n"
+                    f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
+                )
+
+                structured_tickets.append({
+                    "match": match,
+                    "prediction": top_pick,
+                    "status": "PENDING",
+                    "score": "-"
+                })
+
+        return agreed_matches, structured_tickets
+
+    # ==========================================================
+    # ACCOUNTANT: MEMORY & SETTLEMENT ENGINE
+    # ==========================================================
+    def save_tickets_to_memory(self, new_tickets):
+        file_path = "pending_tickets.json"
+        memory = {}
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, "r") as f:
+                    memory = json.load(f)
+            except: pass
+
+        today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
+        if today_date not in memory:
+            memory[today_date] = []
+
+        existing_matches = [t["match"] for t in memory[today_date]]
+        for t in new_tickets:
+            if t["match"] not in existing_matches:
+                memory[today_date].append(t)
+
+        try:
+            with open(file_path, "w") as f:
+                json.dump(memory, f, indent=4)
+        except: pass
+
+    def fetch_results_from_statarea(self, target_date):
+        results = {}
+        url = f"https://www.statarea.com/predictions/date/{target_date}/"
+        try:
+            r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.content, 'html.parser')
+                for row in soup.find_all("div", class_="matchrow"):
+                    text = row.get_text(separator=" ").upper()
+                    padded_text = f" {text} "
+                    if any(flag in padded_text for flag in [" FT ", "FINISHED", " AET ", " PEN "]):
+                        home_elems = row.find_all("div", class_="name")
+                        if len(home_elems) >= 2:
+                            home = self.clean_team_name(home_elems[0].text)
+                            away = self.clean_team_name(home_elems[1].text)
+                        
+                        score_match = re.search(r'\b(\d{1,2})\s*-\s*(\d{1,2})\b', text)
+                        if score_match:
+                            score = f"{score_match.group(1)}-{score_match.group(2)}"
+                            results[f"{home} vs {away}"] = score
+        except: pass
+        return results
+
+    def settle_pending_tickets(self):
+        memory_path = "pending_tickets.json"
+        if not os.path.exists(memory_path): return []
+
+        try:
+            with open(memory_path, "r") as f:
+                memory = json.load(f)
+        except: return []
+
+        settled_reports = []
+        needs_save = False
+
+        dates_to_check = set()
+        for date_str, tickets in memory.items():
+            for t in tickets:
+                if t.get("status") == "PENDING":
+                    dates_to_check.add(date_str)
+
+        if not dates_to_check: return []
+
+        results_matrix = {}
+        for d in dates_to_check:
+            results_matrix.update(self.fetch_results_from_statarea(d))
+
+        for date_str, tickets in memory.items():
+            for t in tickets:
+                if t.get("status") == "PENDING":
+                    match_key = t["match"]
+                    prediction = t["prediction"]
+
+                    score = None
+                    for res_key, res_score in results_matrix.items():
+                        if res_key.lower() == match_key.lower():
+                            score = res_score
+                            break
+
+                    if score:
+                        try:
+                            home_g, away_g = map(int, score.split("-"))
+                            if home_g > away_g: actual = "1"
+                            elif home_g == away_g: actual = "X"
+                            else: actual = "2"
+
+                            if prediction == actual: t["status"] = "WON 🟢"
+                            else: t["status"] = "LOST 🔴"
+
+                            t["score"] = score
+                            needs_save = True
+
+                            settled_reports.append(
+                                f"• **{match_key}** ➔ **{t['status']}** (Score: {score})"
+                            )
+                        except: pass
+
+        if needs_save:
+            try:
+                with open(memory_path, "w") as f:
+                    json.dump(memory, f, indent=4)
+            except: pass
+
+        return settled_reports
+
+    def send_telegram_alert(self, msg):
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            tls_requests.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"},
+                impersonate="chrome120", timeout=10
+            )
+
+    async def run_pipeline(self):
+        loop = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+            await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
+
+        consensus_list, structured_tickets = self.process_consensus_signals()
+
+        if structured_tickets:
+            self.save_tickets_to_memory(structured_tickets)
+
+        settled_reports = self.settle_pending_tickets()
+
+        # Phase 3: Construct the final unified Telegram message with Ticket Splitting
+        msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
+
+        if not consensus_list:
+            msg += "No matches found with 2+ sites in agreement today.\n\n"
+        else:
+            total_matches = len(consensus_list)
+
+            # --- TICKET SPLITTING LOGIC ---
+            if total_matches > 4:
+                half_idx = (total_matches + 1) // 2
+                half_1 = consensus_list[:half_idx]
+                half_2 = consensus_list[half_idx:]
+
+                msg += f"🏆 **TICKET 1: MEGA ACCA (All {total_matches} Matches)** 🏆\n"
+                for match in consensus_list: msg += f"{match}\n"
+
+                msg += f"🛡️ **TICKET 2: SPLIT COMBO - HALF A ({len(half_1)} Matches)** 🛡️\n"
+                for match in half_1: msg += f"{match}\n"
+
+                msg += f"🛡️ **TICKET 3: SPLIT COMBO - HALF B ({len(half_2)} Matches)** 🛡️\n"
+                for match in half_2: msg += f"{match}\n"
+            else:
+                msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({total_matches})** 🔥\n\n"
+                for match in consensus_list: msg += f"{match}\n"
+
+        if settled_reports:
+            msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
+            for rep in settled_reports: msg += f"{rep}\n"
+            msg += "\n"
+
+        msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
+        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
+
+        self.send_telegram_alert(msg)
 
 if __name__ == "__main__":
-    print("Initializing Data Collection Protocols...")
-    
-    statarea_picks, statarea_status = fetch_statarea()
-    vitibet_picks, vitibet_status = fetch_vitibet()
-    predictz_picks, predictz_status = fetch_predictz()
-    
-    statuses = {
-        "Statarea": statarea_status,
-        "Vitibet": vitibet_status,
-        "PredictZ": predictz_status
-    }
-    
-    print("Evaluating Scraped Sets Through Consensus Core...")
-    confirmed_selections = run_consensus_matrix(statarea_picks, vitibet_picks, predictz_picks)
-    
-    print("Compiling Tickets and Broadcasting Results...")
-    generate_and_send_tickets(confirmed_selections, statuses)
+    live_configs = get_dynamic_configs()
+    asyncio.run(ConsensusEngine(live_configs).run_pipeline())
