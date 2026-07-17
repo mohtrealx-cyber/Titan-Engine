@@ -5,15 +5,17 @@ import time
 import asyncio
 import datetime
 import difflib
+import requests
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
 
 # ==============================================================================
-# CONFIGURATION & SECURE ROUTING
+# CONFIGURATION & SECURE ROUTING FALLBACKS
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
+SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY") 
 
 def get_dynamic_configs():
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
@@ -26,14 +28,24 @@ def get_dynamic_configs():
             "row_selector": "div", "row_class": "matchrow", 
             "home_selector": "div", "home_class": "name", "home_index": 0, 
             "away_selector": "div", "away_class": "name", "away_index": 1, 
-            "pick_selector": "div", "pick_class": "type1", "pick_index": 0
+            "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
+            "use_premium_proxy": False
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}", 
             "row_selector": "a", "row_class": "livescore-match-row", 
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0, 
             "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1, 
-            "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0
+            "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
+            "use_premium_proxy": False
+        },
+        "PredictZ": {
+            "url": "https://www.predictz.com/predictions/today/", 
+            "row_selector": "div", "row_class": "pttr", 
+            "home_selector": "div", "home_class": "pttmobh", "home_index": 0, 
+            "away_selector": "div", "away_class": "pttmoba", "away_index": 0, 
+            "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
+            "use_premium_proxy": True 
         }
     }
 
@@ -76,7 +88,6 @@ class ConsensusEngine:
         raw_match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
         final_key = raw_match_key
 
-        # FUZZY MATCHING TO GROUP SIMILAR TEAM NAMES ACROSS DIFFERENT SITES
         for existing_key in self.master_matrix.keys():
             similarity = difflib.SequenceMatcher(None, raw_match_key.lower(), existing_key.lower()).ratio()
             if similarity >= 0.75:  
@@ -96,15 +107,30 @@ class ConsensusEngine:
         try:
             print(f"   [Scraper] Extracting data from {site_name}...")
             
-            # Ultra-clean direct connection (No proxies needed for these sites)
-            r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
+            if cfg.get("use_premium_proxy"):
+                if not SCRAPER_API_KEY:
+                    self.diagnostics[site_name] = "🔴 FAILED (Missing SCRAPER_API_KEY)"
+                    return
+                
+                # ScraperAPI Payload for PredictZ (Bypasses Cloudflare & Renders JS)
+                payload = {
+                    'api_key': SCRAPER_API_KEY,
+                    'url': cfg["url"],
+                    'render': 'true',
+                    'keep_headers': 'true'
+                }
+                r = requests.get('http://api.scraperapi.com', params=payload, timeout=60)
+            else:
+                # Ultra-clean direct connection for Statarea & Vitibet
+                r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
             
             if r.status_code != 200: 
                 self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
                 return
                 
             soup = BeautifulSoup(r.content, 'html.parser')
-            rows = soup.find_all(cfg["row_selector"], class_=cfg["row_class"])
+            row_target = re.compile("pttr|ptrow") if site_name == "PredictZ" else cfg["row_class"]
+            rows = soup.find_all(cfg["row_selector"], class_=row_target)
             
             if not rows:
                 page_title = soup.title.string.strip() if soup.title and soup.title.string else "No Title Found"
@@ -116,12 +142,10 @@ class ConsensusEngine:
             
             for row in rows:
                 try: 
-                    # Drop matches that have already played or are currently live
                     if self.is_match_active_or_played(row):
                         skipped_count += 1
                         continue
 
-                    # Filter out scoreline regex to prevent grabbing finished matches
                     row_text = row.text.upper()
                     if re.search(r'\d+\s*[-:]\s*\d+', row_text):
                         possible_scores = re.findall(r'\b\d+\s*-\s*\d+\b', row_text)
@@ -129,9 +153,34 @@ class ConsensusEngine:
                             skipped_count += 1
                             continue
 
-                    home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
-                    away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
-                    pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
+                    home, away, pick = None, None, None
+                    
+                    if site_name == "PredictZ":
+                        h_elem = row.find(class_="pttmobh")
+                        a_elem = row.find(class_="pttmoba")
+                        p_elem = row.find(class_=re.compile("ptoddsdesc|ptmobpred"))
+                        
+                        if h_elem and a_elem and p_elem:
+                            home = h_elem.text
+                            away = a_elem.text
+                            pick = p_elem.text
+                        else:
+                            links = row.find_all("a")
+                            if len(links) >= 2:
+                                home = links[0].text
+                                away = links[1].text
+                                p_div = row.find(class_=re.compile("ptprd|ptpred"))
+                                if p_div: pick = p_div.text
+                                else:
+                                    for td in row.find_all("div", class_="pttd"):
+                                        norm = self.normalize_prediction(td.text)
+                                        if norm:
+                                            pick = norm
+                                            break
+                    else:
+                        home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
+                        away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
+                        pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
                     
                     if home and away and pick:
                         self.log_prediction_qa(site_name, home, away, pick)
@@ -162,7 +211,6 @@ class ConsensusEngine:
                 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             
-            # Requires BOTH engines to agree for a lock
             if prediction_weights[top_pick] >= 2:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
                 
@@ -318,7 +366,7 @@ class ConsensusEngine:
             
         settled_reports = self.settle_pending_tickets()
         
-        msg = "🤝 **CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet Dual-Lock)*\n\n"
+        msg = "🤝 **PREDICTZ CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
         
         if not consensus_list:
             msg += "No matches found with 2+ sites in agreement today.\n\n"
@@ -348,7 +396,7 @@ class ConsensusEngine:
         self.send_telegram_alert(msg)
 
 if __name__ == "__main__":
-    print("Initiating Consensus Engine (Statarea + Vitibet Dual-Lock)...")
+    print("Initiating PredictZ Consensus Engine...")
     live_configs = get_dynamic_configs()
     asyncio.run(ConsensusEngine(live_configs).run_pipeline())
     print("Routine Complete.")
