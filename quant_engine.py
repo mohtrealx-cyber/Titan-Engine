@@ -217,8 +217,8 @@ class ConsensusEngine:
             print("Skipping AI Layer: No GEMINI_API_KEY found.")
             return None
 
-        # Fixed endpoint using Google's active 2026 Flash model
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={GEMINI_API_KEY}"
+        # Fully stable, universal endpoint mapping directly to Gemini Pro
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
         
         prompt = f"""
         You are the Chief Risk Officer for an institutional sports betting syndicate. 
@@ -242,7 +242,7 @@ class ConsensusEngine:
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
         
         try:
-            response = requests.post(url, json=payload, timeout=25)
+            response = requests.post(url, json=payload, timeout=30)
             if response.status_code == 200:
                 data = response.json()
                 return data['candidates'][0]['content']['parts'][0]['text']
