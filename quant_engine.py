@@ -5,7 +5,6 @@ import time
 import asyncio
 import datetime
 import difflib
-import random
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
@@ -45,7 +44,7 @@ def get_dynamic_configs():
         }
     }
 
-class ZenRowsConsensusEngine:
+class ConsensusEngine:
     def __init__(self, configs):
         self.configs = configs
         self.master_matrix = {}
@@ -104,28 +103,19 @@ class ZenRowsConsensusEngine:
         try:
             print(f"   [Scraper] Extracting data from {site_name}...")
             
-            # --- STEALTH HEADERS & BROWSER ROULETTE ---
-            # Forebet monitors static fingerprints, so we rotate them dynamically
-            browsers = ["chrome110", "chrome116", "chrome120", "safari15_3", "safari15_5", "edge101"]
-            target_browser = random.choice(browsers)
-            
-            stealth_headers = {
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "none",
-                "Sec-Fetch-User": "?1",
-                "Upgrade-Insecure-Requests": "1",
-                "Referer": "https://www.google.com/"
-            }
-            
-            r = tls_requests.get(
-                cfg["url"], 
-                headers=stealth_headers, 
-                impersonate=target_browser, 
-                timeout=30
-            )
+            # --- THE FIX: DATACENTER IP BAN BYPASS ---
+            if site_name == "Forebet":
+                # Forebet actively blocks GitHub Actions datacenter IPs.
+                # We route it through free, public origin-masking proxies to hide the server IP.
+                proxy_url = f"https://api.allorigins.win/raw?url={cfg['url']}"
+                r = tls_requests.get(proxy_url, impersonate="chrome120", timeout=30)
+                
+                # Fallback to a secondary free proxy if allorigins is busy
+                if r.status_code != 200:
+                    r = tls_requests.get(f"https://corsproxy.io/?{cfg['url']}", impersonate="chrome120", timeout=30)
+            else:
+                # Statarea and Vitibet work perfectly with standard impersonation
+                r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
             
             if r.status_code != 200: 
                 self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
@@ -165,13 +155,13 @@ class ZenRowsConsensusEngine:
                         self.log_prediction_qa(site_name, home, away, pick)
                         valid_count += 1
                         
-                except Exception: 
+                except Exception as e: 
                     continue
                 
             self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
                 
         except Exception as e: 
-            self.diagnostics[site_name] = f"🔴 TIMEOUT/ERROR: {e}"
+            self.diagnostics[site_name] = f"🔴 TIMEOUT/ERROR"
             return
 
     def process_consensus_signals(self):
@@ -216,7 +206,7 @@ class ZenRowsConsensusEngine:
             try:
                 with open(file_path, "r") as f:
                     memory = json.load(f)
-            except Exception: pass
+            except: pass
             
         today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
         if today_date not in memory:
@@ -230,7 +220,7 @@ class ZenRowsConsensusEngine:
         try:
             with open(file_path, "w") as f:
                 json.dump(memory, f, indent=4)
-        except Exception: pass
+        except: pass
 
     def fetch_results_from_statarea(self, target_date):
         results = {}
@@ -253,7 +243,7 @@ class ZenRowsConsensusEngine:
                             if score_match:
                                 score = f"{score_match.group(1)}-{score_match.group(2)}"
                                 results[f"{home} vs {away}"] = score
-        except Exception: pass
+        except: pass
         return results
 
     def settle_pending_tickets(self):
@@ -263,7 +253,7 @@ class ZenRowsConsensusEngine:
         try:
             with open(memory_path, "r") as f:
                 memory = json.load(f)
-        except Exception: return []
+        except: return []
             
         settled_reports = []
         needs_save = False
@@ -308,13 +298,13 @@ class ZenRowsConsensusEngine:
                             settled_reports.append(
                                 f"• **{match_key}** ➔ **{t['status']}** (Score: {score})"
                             )
-                        except Exception: pass
+                        except: pass
                             
         if needs_save:
             try:
                 with open(memory_path, "w") as f:
                     json.dump(memory, f, indent=4)
-            except Exception: pass
+            except: pass
                 
         return settled_reports
 
@@ -328,7 +318,7 @@ class ZenRowsConsensusEngine:
                     impersonate="chrome120", timeout=10
                 )
             except Exception as e:
-                print(f"   [Telegram] Dispatch Failed: {e}")
+                print(f"Failed to send Telegram message: {e}")
         else:
             print(msg)
 
@@ -376,5 +366,5 @@ class ZenRowsConsensusEngine:
 if __name__ == "__main__":
     print("Initiating Consensus Engine (Statarea + Vitibet + Forebet)...")
     live_configs = get_dynamic_configs()
-    asyncio.run(ZenRowsConsensusEngine(live_configs).run_pipeline())
+    asyncio.run(ConsensusEngine(live_configs).run_pipeline())
     print("Routine Complete.")
