@@ -239,22 +239,27 @@ class ConsensusEngine:
         url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
         prompt = f"""
-        You are the Chief Risk Officer for an institutional sports betting syndicate. 
-        Your task is to analyze today's football consensus matches and build an optimized, risk-managed portfolio to maximize return while aggressively preventing total slip failure from statistical anomalies or defensive collapses (e.g., unexpected blowouts).
+        You are an expert quantitative sports betting algorithmic model. Your sole task is to analyze today's football consensus data and generate highly optimized betslips with ABSOLUTELY ZERO textual explanations, introductions, headers, or footnotes.
 
-        Here is the raw data of consensus matches found today (Each match has 2+ predictive sites in agreement on the outcome 1=Home Win, X=Draw, 2=Away Win):
+        Here is today's raw consensus data:
         {json.dumps(consensus_list, indent=2)}
 
-        CRITICAL PORTFOLIO RULES:
-        1. Evaluate individual fixture stability. Look at team matchups to detect high-volatility scenarios.
-        2. If total matches > 4, you MUST split them into exactly THREE distinct combination tickets:
-           - TICKET 1: MEGA ACCUMULATOR (All matches grouped together for high exponential yield).
-           - TICKET 2 (HALF A): High-Confidence Safe Anchors. Select the absolute most mathematically reliable fixtures from the list.
-           - TICKET 3 (HALF B): Secondary Value Portfolio. The remaining fixtures grouped together to isolate risk.
-        3. For every single match, provide an "AI Counter-Strategy Advice" footnote. Suggest whether the user should stake on the pure outcome, or soften it using a Double Chance market (1X or X2) or an Over/Under Goals market to safeguard against sudden defensive collapses.
-        4. Frame the entire analysis as a professional, highly polished Telegram message. Use clean spacing and avoid using excessive special markdown symbols that might break a standard text renderer. Use emojis strategically (🏆, 🛡️, ⚙️, 💰) to segment sections clearly.
+        STRICT ARCHITECTURE RULES:
+        1. NO paragraphs of text. NO explanations. NO risk assessment commentary. NO counter-strategy footnotes at the bottom.
+        2. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines themselves. For volatile matchups, change the output from a pure outcome (like '➔ 1') to the optimized market directly (such as '➔ 1X', '➔ Over 2.5', '➔ Draw No Bet', etc.).
+        3. Output exactly three clean combination slips formatted precisely like this:
 
-        Generate the final Telegram response text immediately. Do not include any chat filler or markdown code blocks around the message.
+        🏆 TICKET 1: MEGA ACCA (All Matches)
+        • [Match Name] ➔ [Optimized Prediction]
+        • [Match Name] ➔ [Optimized Prediction]
+
+        🛡️ TICKET 2: SPLIT COMBO - HALF A
+        • [Match Name] ➔ [Optimized Prediction]
+
+        🛡️ TICKET 3: SPLIT COMBO - HALF B
+        • [Match Name] ➔ [Optimized Prediction]
+
+        4. Do not wrap the code in markdown code blocks. Start outputting the slips immediately.
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -387,10 +392,9 @@ class ConsensusEngine:
             
             try:
                 r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
-                # If Telegram rejects the fancy AI Markdown, retry as plain text!
                 if r.status_code != 200:
                     print(f"Telegram rejected Markdown format. Retrying as plain text... Error: {r.text}")
-                    payload.pop("parse_mode") # Strip out the formatting rule
+                    payload.pop("parse_mode")
                     tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
             except Exception as e:
                 print(f"Telegram alert failed entirely: {e}")
