@@ -217,9 +217,9 @@ class ConsensusEngine:
             print("Skipping AI Layer: No GEMINI_API_KEY found.")
             return None
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        # Fixed endpoint using the latest stable flash model
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
         
-        # Comprehensive context prompt to guide the model's analytical framework
         prompt = f"""
         You are the Chief Risk Officer for an institutional sports betting syndicate. 
         Your task is to analyze today's football consensus matches and build an optimized, risk-managed portfolio to maximize return while aggressively preventing total slip failure from statistical anomalies or defensive collapses (e.g., unexpected blowouts).
@@ -381,17 +381,14 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets()
 
-        # Phase 3: Route to LLM for processing, fallback to standard parsing if failing
         ai_optimized_message = None
         if consensus_list:
             print("Forwarding raw board data to AI Analysis layer...")
             ai_optimized_message = self.ask_llm_to_optimize_tickets(consensus_list)
 
         if ai_optimized_message:
-            # If AI cleanly formatted everything, combine it with settlement data and status
             msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
         else:
-            # Standalone fallback logic if Gemini key is missing/fails
             msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
             if not consensus_list:
                 msg += "No matches found with 2+ sites in agreement today.\n\n"
@@ -414,7 +411,6 @@ class ConsensusEngine:
                     msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({total_matches})** 🔥\n\n"
                     for match in consensus_list: msg += f"{match}\n"
 
-        # Append historical updates and hardware statuses cleanly
         if settled_reports:
             msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
             for rep in settled_reports: msg += f"{rep}\n"
