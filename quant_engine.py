@@ -208,18 +208,12 @@ class ConsensusEngine:
         return agreed_matches, structured_tickets
 
     def ask_llm_to_optimize_tickets(self, consensus_list):
-        print("\n" + "="*50)
-        print("🚀 INITIALIZING AI QUANT LAYER...")
-        print("="*50)
-
         if not GEMINI_API_KEY:
-            print("❌ ERROR: No GEMINI_API_KEY found. Skipping AI.")
+            self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY in GitHub Secrets"
             return None
 
-        # Dynamically discover the correct active model name
         model_name = "models/gemini-2.5-flash"  
         try:
-            print("📡 Handshaking with Google AI Servers to find active model...")
             list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
             resp = requests.get(list_url, timeout=10)
             if resp.status_code == 200:
@@ -230,11 +224,12 @@ class ConsensusEngine:
                     if "generateContent" in methods and "flash" in name.lower() and "preview" not in name.lower():
                         model_name = name
                         break
+                self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
+            else:
+                self.diagnostics["AI_Handshake"] = f"🔴 Handshake HTTP {resp.status_code}"
         except Exception as e:
-            print(f"⚠️ Handshake failed, using fallback.")
+            self.diagnostics["AI_Handshake"] = f"🔴 Handshake Exception: {str(e)[:40]}"
 
-        print(f"✅ LOCKED ONTO MODEL: {model_name}\n")
-        
         url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
         prompt = f"""
@@ -262,13 +257,13 @@ class ConsensusEngine:
             response = requests.post(url, json=payload, timeout=30)
             if response.status_code == 200:
                 data = response.json()
-                print("🧠 AI Optimization Successful! Sending to Telegram...")
+                self.diagnostics["AI_Status"] = "🟢 Optimization Complete"
                 return data['candidates'][0]['content']['parts'][0]['text']
             else:
-                print(f"❌ Gemini API returned error {response.status_code}: {response.text}")
+                self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}: {response.text[:60]}"
                 return None
         except Exception as e:
-            print(f"❌ Failed to communicate with Gemini Engine: {e}")
+            self.diagnostics["AI_Status"] = f"🔴 Request Exception: {str(e)[:60]}"
             return None
 
     def save_tickets_to_memory(self, new_tickets):
@@ -401,7 +396,6 @@ class ConsensusEngine:
 
         ai_optimized_message = None
         if consensus_list:
-            print("\n*** INITIATING AI ROUTING ***")
             ai_optimized_message = self.ask_llm_to_optimize_tickets(consensus_list)
 
         if ai_optimized_message:
