@@ -487,6 +487,12 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Match Preview vs Cajamarca V Juan Pablo Ii College",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ]
 }
