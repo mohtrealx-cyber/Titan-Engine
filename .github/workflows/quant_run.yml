@@ -10,6 +10,7 @@ jobs:
   run-quant-engine:
     runs-on: ubuntu-latest
 
+    # This grants the workflow permission to push files back to the repository
     permissions:
       contents: write
 
