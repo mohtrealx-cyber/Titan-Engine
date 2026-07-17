@@ -493,6 +493,12 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Match Preview vs Pakhtakor V Lokomotiv Tashkent",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ]
 }
