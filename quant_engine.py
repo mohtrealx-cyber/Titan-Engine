@@ -223,11 +223,9 @@ class ConsensusEngine:
                 for m in models:
                     name = m.get("name", "")
                     methods = m.get("supportedGenerationMethods", [])
-                    # Find all active generation models with 'flash' in the name
                     if "generateContent" in methods and "flash" in name.lower() and "preview" not in name.lower():
                         valid_models.append(name)
                 
-                # Sort alphabetically descending (forces 3.5 above 2.5)
                 if valid_models:
                     valid_models.sort(reverse=True)
                     model_name = valid_models[0]
@@ -254,7 +252,7 @@ class ConsensusEngine:
            - TICKET 2 (HALF A): High-Confidence Safe Anchors. Select the absolute most mathematically reliable fixtures from the list.
            - TICKET 3 (HALF B): Secondary Value Portfolio. The remaining fixtures grouped together to isolate risk.
         3. For every single match, provide an "AI Counter-Strategy Advice" footnote. Suggest whether the user should stake on the pure outcome, or soften it using a Double Chance market (1X or X2) or an Over/Under Goals market to safeguard against sudden defensive collapses.
-        4. Frame the entire analysis as a professional, highly polished Telegram message using clean Markdown formatting. Use emojis strategically (🏆, 🛡️, ⚙️, 💰) to segment sections clearly.
+        4. Frame the entire analysis as a professional, highly polished Telegram message. Use clean spacing and avoid using excessive special markdown symbols that might break a standard text renderer. Use emojis strategically (🏆, 🛡️, ⚙️, 💰) to segment sections clearly.
 
         Generate the final Telegram response text immediately. Do not include any chat filler or markdown code blocks around the message.
         """
@@ -384,11 +382,18 @@ class ConsensusEngine:
 
     def send_telegram_alert(self, msg):
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-            tls_requests.post(
-                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"},
-                impersonate="chrome120", timeout=10
-            )
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"}
+            
+            try:
+                r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+                # If Telegram rejects the fancy AI Markdown, retry as plain text!
+                if r.status_code != 200:
+                    print(f"Telegram rejected Markdown format. Retrying as plain text... Error: {r.text}")
+                    payload.pop("parse_mode") # Strip out the formatting rule
+                    tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+            except Exception as e:
+                print(f"Telegram alert failed entirely: {e}")
 
     async def run_pipeline(self):
         loop = asyncio.get_running_loop()
