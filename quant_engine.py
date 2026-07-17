@@ -143,7 +143,7 @@ class ZenRowsConsensusEngine:
                         self.log_prediction_qa(site_name, home, away, pick)
                         valid_count += 1
                         
-                except Exception as e: 
+                except Exception: 
                     continue
                 
             self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
@@ -194,7 +194,7 @@ class ZenRowsConsensusEngine:
             try:
                 with open(file_path, "r") as f:
                     memory = json.load(f)
-            except: pass
+            except Exception: pass
             
         today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
         if today_date not in memory:
@@ -208,6 +208,151 @@ class ZenRowsConsensusEngine:
         try:
             with open(file_path, "w") as f:
                 json.dump(memory, f, indent=4)
-        except: pass
+        except Exception: pass
 
-    def fetch
+    def fetch_results_from_statarea(self, target_date):
+        results = {}
+        url = f"https://www.statarea.com/predictions/date/{target_date}/"
+        try:
+            r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.content, 'html.parser')
+                for row in soup.find_all("div", class_="matchrow"):
+                    text = row.get_text(separator=" ").upper()
+                    padded_text = f" {text} "
+                    
+                    if any(flag in padded_text for flag in [" FT ", "FINISHED", " AET ", " PEN "]):
+                        home_elems = row.find_all("div", class_="name")
+                        if len(home_elems) >= 2:
+                            home = self.clean_team_name(home_elems[0].text)
+                            away = self.clean_team_name(home_elems[1].text)
+                            
+                            score_match = re.search(r'\b(\d{1,2})\s*-\s*(\d{1,2})\b', text)
+                            if score_match:
+                                score = f"{score_match.group(1)}-{score_match.group(2)}"
+                                results[f"{home} vs {away}"] = score
+        except Exception: pass
+        return results
+
+    def settle_pending_tickets(self):
+        memory_path = "pending_tickets.json"
+        if not os.path.exists(memory_path): return []
+        
+        try:
+            with open(memory_path, "r") as f:
+                memory = json.load(f)
+        except Exception: return []
+            
+        settled_reports = []
+        needs_save = False
+        
+        dates_to_check = set()
+        for date_str, tickets in memory.items():
+            for t in tickets:
+                if t.get("status") == "PENDING":
+                    dates_to_check.add(date_str)
+                    
+        if not dates_to_check: return []
+        
+        results_matrix = {}
+        for d in dates_to_check:
+            results_matrix.update(self.fetch_results_from_statarea(d))
+            
+        for date_str, tickets in memory.items():
+            for t in tickets:
+                if t.get("status") == "PENDING":
+                    match_key = t["match"]
+                    prediction = t["prediction"]
+                    
+                    score = None
+                    for res_key, res_score in results_matrix.items():
+                        if res_key.lower() == match_key.lower():
+                            score = res_score
+                            break
+                            
+                    if score:
+                        try:
+                            home_g, away_g = map(int, score.split("-"))
+                            if home_g > away_g: actual = "1"
+                            elif home_g == away_g: actual = "X"
+                            else: actual = "2"
+                            
+                            if prediction == actual: t["status"] = "WON 🟢"
+                            else: t["status"] = "LOST 🔴"
+                                
+                            t["score"] = score
+                            needs_save = True
+                            
+                            settled_reports.append(
+                                f"• **{match_key}** ➔ **{t['status']}** (Score: {score})"
+                            )
+                        except Exception: pass
+                            
+        if needs_save:
+            try:
+                with open(memory_path, "w") as f:
+                    json.dump(memory, f, indent=4)
+            except Exception: pass
+                
+        return settled_reports
+
+    def send_telegram_alert(self, msg):
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            print("   [Telegram] Dispatching slip via Telegram API...")
+            try:
+                tls_requests.post(
+                    f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
+                    json={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"}, 
+                    impersonate="chrome120", timeout=10
+                )
+            except Exception as e:
+                print(f"   [Telegram] Dispatch Failed: {e}")
+        else:
+            print(msg)
+
+    async def run_pipeline(self):
+        loop = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+            await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
+        
+        consensus_list, structured_tickets = self.process_consensus_signals()
+        
+        if structured_tickets:
+            self.save_tickets_to_memory(structured_tickets)
+            
+        settled_reports = self.settle_pending_tickets()
+        
+        msg = "🤝 **CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + Forebet)*\n\n"
+        
+        if not consensus_list:
+            msg += "No matches found with 2+ sites in agreement today.\n\n"
+        else:
+            msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({len(consensus_list)})** 🔥\n\n"
+            for match in consensus_list: msg += f"{match}\n"
+            
+            total_matches = len(consensus_list)
+            if total_matches >= 2:
+                half_idx = total_matches // 2
+                msg += "💰 **RECOMMENDED STAKING PLAN (250 KES TOTAL)** 💰\n"
+                msg += f"🎟️ **Ticket 1 (Mega Acca - All {total_matches} Matches):** 50 KES\n"
+                msg += f"🎟️ **Ticket 2 (Half 1 - First {half_idx} Matches):** 100 KES\n"
+                msg += f"🎟️ **Ticket 3 (Half 2 - Last {total_matches - half_idx} Matches):** 100 KES\n\n"
+            else:
+                msg += "💰 **RECOMMENDED STAKING PLAN:**\n"
+                msg += "🎟️ **Single Ticket:** 250 KES\n\n"
+                
+        if settled_reports:
+            msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
+            for rep in settled_reports: msg += f"{rep}\n"
+            msg += "\n"
+                
+        msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
+        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
+                
+        self.send_telegram_alert(msg)
+
+if __name__ == "__main__":
+    print("Initiating Consensus Engine (Statarea + Vitibet + Forebet)...")
+    live_configs = get_dynamic_configs()
+    asyncio.run(ZenRowsConsensusEngine(live_configs).run_pipeline())
+    print("Routine Complete.")
