@@ -5,6 +5,7 @@ import time
 import asyncio
 import datetime
 import difflib
+import random
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
@@ -101,9 +102,30 @@ class ZenRowsConsensusEngine:
     # ==========================================================
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
-            # We bypass ZenRows completely and use curl_cffi directly for all sites
             print(f"   [Scraper] Extracting data from {site_name}...")
-            r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
+            
+            # --- STEALTH HEADERS & BROWSER ROULETTE ---
+            # Forebet monitors static fingerprints, so we rotate them dynamically
+            browsers = ["chrome110", "chrome116", "chrome120", "safari15_3", "safari15_5", "edge101"]
+            target_browser = random.choice(browsers)
+            
+            stealth_headers = {
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1",
+                "Referer": "https://www.google.com/"
+            }
+            
+            r = tls_requests.get(
+                cfg["url"], 
+                headers=stealth_headers, 
+                impersonate=target_browser, 
+                timeout=30
+            )
             
             if r.status_code != 200: 
                 self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
