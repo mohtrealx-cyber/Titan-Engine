@@ -500,5 +500,115 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-18": [
+        {
+            "match": "Ludogorets Razgrad vs Lokomotiv Plovdiv",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Penarol vs Boston River",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Molde vs Brann",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Viking vs Sandefjord",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Lillestrom vs Kfum Oslo",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Cs Universitatea Craiova vs Uta Arad",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Okzhetpes vs Zhetysu",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Always Ready vs Universitario De Vinto",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Osters If vs Ik Brage",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Cavalry Fc vs Hfx Wanderers",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Grotta vs Aegir",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Throttur Reykjavik vs Volsungur",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Tartu Welco Elekter vs Fc Tallinn",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Thor Akureyri V Vikingur Reykjavik",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Atletico Goianiense V Athletic Club",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Wuhan Three Towns V Sichuan Jiuniu",
+            "prediction": "X",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Guangxi Hengchen V Shaanxi Union",
+            "prediction": "X",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Incheon United V Jeonbuk Motors",
+            "prediction": "X",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
