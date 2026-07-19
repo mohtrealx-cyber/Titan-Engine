@@ -689,6 +689,48 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Radnik Surdulica vs Mladost Lucani",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Botev Vratsa vs Cherno More Varna",
+            "prediction": "X",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Universitatea Cluj vs Farul Constan\u021ba",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Gualberto Villarroel Sj vs The Strongest",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Central Espanol vs Cerro Largo",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Ogre United vs Bfc Daugavpils",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Tecnico Universitario vs Aucas",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ]
 }
