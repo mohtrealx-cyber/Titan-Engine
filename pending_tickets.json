@@ -610,5 +610,85 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-19": [
+        {
+            "match": "Hammarby vs Degerfors If",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Ordabasy vs Spartak Semey",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Fc Anyang vs Gwangju Fc",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Suwon Bluewings vs Paju Frontier",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Gyeongnam Fc vs Ansan Greeners",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Kr Reykjavik vs Stjarnan",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Botev Vratsa V Cherno More Varna",
+            "prediction": "X",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Ogre United V Bfc Daugavpils",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Universitatea Cluj V Fc Farul Constanta",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Radnik Surdulica V Mladost Lucani",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Gualberto Villarroel V The Strongest",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Tecnico Universitario V Aucas",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Match Preview vs Central Espanol V Cerro Largo",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
