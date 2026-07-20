@@ -266,7 +266,14 @@ class ConsensusEngine:
         • [Match Name] ➔ [Optimized Prediction]
         """
 
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.0,
+                "topK": 1,
+                "topP": 0.1
+            }
+        }
         
         try:
             response = requests.post(url, json=payload, timeout=30)
