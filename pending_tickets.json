@@ -732,5 +732,31 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-20": [
+        {
+            "match": "Botev Plovdiv vs Lokomotiv Sofia",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Suduva Marijampole vs Hegelmann Litauen",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Hk Kopavogur vs Vestri",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Corvinul Hunedoara vs Csikszereda",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
