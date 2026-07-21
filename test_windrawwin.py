@@ -8,14 +8,16 @@ print("========================================")
 print("  STARTING WINDRAWWIN SCRAPER (SCRAPERAPI)")
 print("========================================")
 
-# Helper function to convert fractional odds to decimal
+# Helper function to convert fractional odds to decimal, handling "Evs"
 def fraction_to_decimal(fraction_str):
     try:
-        if '/' in fraction_str:
-            num, den = fraction_str.split('/')
-            # Convert to decimal probability (e.g., 9/4 -> 2.25 + 1.00 = 3.25)
+        val = fraction_str.strip().lower()
+        if val == "evs":
+            return 2.00
+        if '/' in val:
+            num, den = val.split('/')
             return round((float(num) / float(den)) + 1.0, 2)
-        return float(fraction_str)
+        return float(val)
     except Exception:
         return fraction_str
 
@@ -31,12 +33,10 @@ proxy_url = f"http://api.scraperapi.com?api_key={API_KEY}&url={target_url}&rende
 
 try:
     print("Sending request via ScraperAPI proxy...")
-    # ScraperAPI can take up to 60 seconds to rotate proxies and render JS
     response = requests.get(proxy_url, timeout=60)
     
     print(f"HTTP Status Code: {response.status_code}")
-    print(f"Downloaded HTML Length: {len(response.text)} characters")
-
+    
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "lxml")
         
@@ -51,43 +51,59 @@ try:
 
         print(f"Total potential match rows detected: {len(rows)}")
         
-        # --- DEBUGGING SNIPPET: Inspect skipped rows ---
-        print("\n--- DEBUG: Analyzing Skipped Rows ---")
-        skipped_count = 0
-        for row in rows:
-            cols = [td.get_text(separator=" ", strip=True) for td in row.find_all(['td', 'th'])]
-            cols = [c for c in cols if c] # Filter empty cells
-            
-            # If the row has data but fails our " v " check
-            if cols and not any(" v " in c for c in cols):
-                if skipped_count < 8:
-                    print(f"SKIPPED {skipped_count + 1}: {cols}")
-                    skipped_count += 1
-        print("---------------------------------------\n")
-        
         parsed_matches = []
 
         if rows:
             for row in rows:
-                # Extract text from each individual cell (<td> or <th>) and ignore empty ones
                 columns = [td.get_text(separator=" ", strip=True) for td in row.find_all(['td', 'th'])]
+                columns = [col for col in columns if col] # Filter empty cells
                 
-                # Filter out empty cells
-                columns = [col for col in columns if col]
                 if not columns:
                     continue
 
-                # 1. Identify the match column by looking for the " v " separator
-                match_col = next((col for col in columns if " v " in col), None)
-                if not match_col:
-                    continue # Skip non-match rows (like headers or ads)
+                is_single_col_match = False
+                is_multi_col_match = False
+                v_index = None
 
-                home_team, away_team = match_col.split(" v ", 1)
-                match_idx = columns.index(match_col)
+                # 1. Structure Check: Acca Banners vs Main Tables
+                match_col = next((col for col in columns if " v " in col), None)
                 
-                # 2. Extract Prediction and Odds
-                prediction = columns[match_idx + 1] if len(columns) > match_idx + 1 else "Unknown"
-                odds = columns[match_idx + 2] if len(columns) > match_idx + 2 else "N/A"
+                if match_col:
+                    is_single_col_match = True
+                else:
+                    # Look for standalone "v" or "-" which separates teams in the main tables
+                    for i, col in enumerate(columns):
+                        if col.strip().lower() == "v" or col.strip() == "-":
+                            v_index = i
+                            is_multi_col_match = True
+                            break
+
+                if not is_single_col_match and not is_multi_col_match:
+                    continue # Skip irrelevant rows (headers, ads, handicap sub-markets)
+
+                # 2. Extract Data Based on Structure
+                if is_single_col_match:
+                    home_team, away_team = match_col.split(" v ", 1)
+                    match_idx = columns.index(match_col)
+                    prediction = columns[match_idx + 1] if len(columns) > match_idx + 1 else "Unknown"
+                    odds = columns[match_idx + 2] if len(columns) > match_idx + 2 else "N/A"
+                    
+                elif is_multi_col_match:
+                    # Ensure indices won't throw out of bounds errors
+                    if v_index >= 1 and v_index + 1 < len(columns):
+                        home_team = columns[v_index - 1]
+                        away_team = columns[v_index + 1]
+                        prediction = columns[v_index + 2] if len(columns) > v_index + 2 else "Unknown"
+                        
+                        # The odds column floats depending on if a "Stake" column exists. 
+                        # Searching backwards to find the first valid odds format.
+                        odds = "N/A"
+                        for col in reversed(columns[v_index+2:]):
+                            if "/" in col or col.lower() == "evs" or (col.replace('.', '', 1).isdigit() and len(col) < 6):
+                                odds = col
+                                break
+                    else:
+                        continue
 
                 # 3. Classify the Market Type
                 pred_upper = prediction.upper()
@@ -100,6 +116,8 @@ try:
                         market = "BTTS"
                 elif "OVER" in pred_upper or "UNDER" in pred_upper:
                     market = "Over/Under Goals"
+                elif "-" in prediction and prediction.replace("-", "").isdigit():
+                    market = "Correct Score"
                 
                 # 4. Structure the output
                 match_data = {
@@ -113,7 +131,7 @@ try:
                 
                 parsed_matches.append(match_data)
                 
-            print(f"Successfully extracted and categorized {len(parsed_matches)} matches.")
+            print(f"\nSuccessfully extracted and categorized {len(parsed_matches)} matches.")
             if parsed_matches:
                 print("Sample data from first 10 rows:\n")
                 for i, match in enumerate(parsed_matches[:10]):
