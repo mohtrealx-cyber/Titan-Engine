@@ -51,6 +51,20 @@ try:
 
         print(f"Total potential match rows detected: {len(rows)}")
         
+        # --- DEBUGGING SNIPPET: Inspect skipped rows ---
+        print("\n--- DEBUG: Analyzing Skipped Rows ---")
+        skipped_count = 0
+        for row in rows:
+            cols = [td.get_text(separator=" ", strip=True) for td in row.find_all(['td', 'th'])]
+            cols = [c for c in cols if c] # Filter empty cells
+            
+            # If the row has data but fails our " v " check
+            if cols and not any(" v " in c for c in cols):
+                if skipped_count < 8:
+                    print(f"SKIPPED {skipped_count + 1}: {cols}")
+                    skipped_count += 1
+        print("---------------------------------------\n")
+        
         parsed_matches = []
 
         if rows:
@@ -99,11 +113,11 @@ try:
                 
                 parsed_matches.append(match_data)
                 
-            print(f"\nSuccessfully extracted and categorized {len(parsed_matches)} matches.")
-            print("Sample data from first 10 rows:\n")
-            
-            for i, match in enumerate(parsed_matches[:10]):
-                print(f"Row {i + 1}: {match}")
+            print(f"Successfully extracted and categorized {len(parsed_matches)} matches.")
+            if parsed_matches:
+                print("Sample data from first 10 rows:\n")
+                for i, match in enumerate(parsed_matches[:10]):
+                    print(f"Row {i + 1}: {match}")
 
             # 5. Export to JSON
             output_filename = "windrawwin_predictions.json"
