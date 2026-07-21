@@ -30,7 +30,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": True  # Enabled to bypass GitHub Actions IP blocks
+            "use_scraperapi": True  
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
@@ -192,19 +192,16 @@ class ConsensusEngine:
 
     def process_consensus_signals(self):
         agreed_matches = []
+        niche_matches = []
         structured_tickets = []
         ai_input_data = []
 
-        # Target all expected 4 platforms
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin"]
         
-        # Calculate adaptive consensus threshold based on healthy scrapers
         active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status)
         required_consensus = 3 if active_scrapers_count >= 4 else 2
 
         for match, listings in self.master_matrix.items():
-            if len(listings) < required_consensus: continue
-
             prediction_weights = {}
             sites_backing = {}
             for site, pick in listings:
@@ -212,7 +209,12 @@ class ConsensusEngine:
                 if pick not in sites_backing: sites_backing[pick] = []
                 sites_backing[pick].append(site)
 
+            if not prediction_weights:
+                continue
+
             top_pick = max(prediction_weights, key=prediction_weights.get)
+            
+            # --- TIER 1: CORE CONSENSUS ---
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
@@ -222,11 +224,9 @@ class ConsensusEngine:
                     f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
                 )
 
-                # --- SHOW WHAT THE LEFT OUT SITE BACKED ---
                 left_out_sites = [s for s in all_scrapers if s not in backing_sites_list]
                 for left_out in left_out_sites:
                     other_pick = None
-                    # Check if the left-out site predicted a different outcome
                     for pick, sites in sites_backing.items():
                         if pick != top_pick and left_out in sites:
                             other_pick = pick
@@ -240,19 +240,40 @@ class ConsensusEngine:
                 agreed_matches.append(match_text)
 
                 structured_tickets.append({
-                    "match": match,
-                    "prediction": top_pick,
-                    "status": "PENDING",
-                    "score": "-"
+                    "match": match, "prediction": top_pick, "status": "PENDING", "score": "-"
                 })
 
                 ai_input_data.append({
-                    "match": match,
-                    "consensus_pick": top_pick,
-                    "backed_by": backing_sites_str
+                    "match": match, "consensus_pick": top_pick, 
+                    "backed_by": backing_sites_str, "tier": "Core Consensus"
                 })
 
-        return agreed_matches, structured_tickets, ai_input_data, required_consensus
+            # --- TIER 2: NICHE CONSENSUS (2/2 PERFECT AGREEMENT ONLY) ---
+            elif required_consensus == 3 and len(listings) == 2 and prediction_weights[top_pick] == 2:
+                backing_sites_list = sites_backing[top_pick]
+                backing_sites_str = " + ".join(backing_sites_list)
+                
+                match_text = (
+                    f"• **{match}** ➔ {top_pick}\n"
+                    f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
+                )
+                
+                left_out_sites = [s for s in all_scrapers if s not in backing_sites_list]
+                for left_out in left_out_sites:
+                    match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
+                    
+                niche_matches.append(match_text)
+                
+                structured_tickets.append({
+                    "match": match, "prediction": top_pick, "status": "PENDING", "score": "-"
+                })
+
+                ai_input_data.append({
+                    "match": match, "consensus_pick": top_pick, 
+                    "backed_by": backing_sites_str, "tier": "Niche Coverage"
+                })
+
+        return agreed_matches, niche_matches, structured_tickets, ai_input_data, required_consensus
 
     def ask_llm_to_optimize_tickets(self, ai_input_data):
         if not GEMINI_API_KEY:
@@ -288,7 +309,7 @@ class ConsensusEngine:
         prompt = f"""
         You are an expert quantitative sports betting algorithmic model. Your sole task is to analyze today's football consensus data and generate highly optimized betslips with ABSOLUTELY ZERO textual explanations, introductions, headers, or footnotes.
 
-        Here is today's raw consensus data:
+        Here is today's raw consensus data. Note that matches tagged 'Niche Coverage' are from obscure leagues where data was scarce but completely unanimous:
         {json.dumps(ai_input_data, indent=2)}
 
         STRICT ARCHITECTURE RULES:
@@ -296,7 +317,7 @@ class ConsensusEngine:
         2. IF there are 3 or more matches provided: Divide them into up to THREE completely separate, non-overlapping tickets:
            🛡️ TICKET 1: SAFE ANCHORS 
            ⚖️ TICKET 2: BALANCED GROWTH 
-           🎯 TICKET 3: VALUE & VOLATILITY
+           🎯 TICKET 3: VALUE & VOLATILITY (Good place for Niche matches)
         3. IF there are only 1 or 2 matches provided: DO NOT create three tickets. Output a single ticket formatted exactly like this:
            🔥 TICKET 1: PREMIUM SINGLES/DOUBLES
            • [Match Name] ➔ [Optimized Prediction]
@@ -446,7 +467,7 @@ class ConsensusEngine:
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
 
-        consensus_list, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
+        agreed_matches, niche_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
 
         if structured_tickets:
             self.save_tickets_to_memory(structured_tickets)
@@ -457,12 +478,19 @@ class ConsensusEngine:
         if ai_input_data:
             ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data)
 
+        # Build Main Telegram Message
         msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         
-        if not consensus_list:
+        if not agreed_matches:
             msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
         else:
-            for match in consensus_list: 
+            for match in agreed_matches: 
+                msg += f"{match}\n"
+                
+        # Append Niche Matches if they exist
+        if niche_matches:
+            msg += "🕵️ **NICHE CONSENSUS (100% AGREEMENT ON OBSCURE MATCHES)** 🕵️\n\n"
+            for match in niche_matches:
                 msg += f"{match}\n"
                 
         if ai_optimized_message:
