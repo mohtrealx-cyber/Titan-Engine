@@ -1,14 +1,14 @@
-name: Test WinDrawWin Scraper
+name: Titan Engine Pipeline
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Allows you to trigger the run manually from the Actions tab
 
 jobs:
-  test-scraper:
+  scrape-and-parse:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -18,10 +18,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 lxml
+          pip install requests beautifulsoup4 lxml google-generativeai
 
-      - name: Run Scraper Test
+      - name: Run Titan Engine Script
         env:
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python test_windrawwin.py
