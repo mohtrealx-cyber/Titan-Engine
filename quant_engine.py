@@ -30,7 +30,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": False
+            "use_scraperapi": True  # Enabled to bypass GitHub Actions IP blocks
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
@@ -195,8 +195,12 @@ class ConsensusEngine:
         structured_tickets = []
         ai_input_data = []
 
+        # Calculate adaptive consensus threshold based on healthy scrapers
+        active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status)
+        required_consensus = 3 if active_scrapers_count >= 4 else 2
+
         for match, listings in self.master_matrix.items():
-            if len(listings) < 3: continue
+            if len(listings) < required_consensus: continue
 
             prediction_weights = {}
             sites_backing = {}
@@ -206,7 +210,7 @@ class ConsensusEngine:
                 sites_backing[pick].append(site)
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
-            if prediction_weights[top_pick] >= 3:
+            if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
 
                 agreed_matches.append(
@@ -227,7 +231,7 @@ class ConsensusEngine:
                     "backed_by": backing_sites_str
                 })
 
-        return agreed_matches, structured_tickets, ai_input_data
+        return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
     def ask_llm_to_optimize_tickets(self, ai_input_data):
         if not GEMINI_API_KEY:
@@ -427,7 +431,7 @@ class ConsensusEngine:
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
 
-        consensus_list, structured_tickets, ai_input_data = self.process_consensus_signals()
+        consensus_list, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
 
         if structured_tickets:
             self.save_tickets_to_memory(structured_tickets)
@@ -438,10 +442,10 @@ class ConsensusEngine:
         if ai_input_data:
             ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data)
 
-        msg = "🤝 **RAW CONSENSUS DATA (3+ SITES AGREEMENT)** 🤝\n\n"
+        msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         
         if not consensus_list:
-            msg += "No matches found with 3+ sites in agreement today.\n\n"
+            msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
         else:
             for match in consensus_list: 
                 msg += f"{match}\n"
