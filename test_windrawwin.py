@@ -19,6 +19,7 @@ proxy_url = f"http://api.scraperapi.com?api_key={API_KEY}&url={target_url}&rende
 
 try:
     print("Sending request via ScraperAPI proxy...")
+    # ScraperAPI can take up to 60 seconds to rotate proxies and render JS
     response = requests.get(proxy_url, timeout=60)
     
     print(f"HTTP Status Code: {response.status_code}")
