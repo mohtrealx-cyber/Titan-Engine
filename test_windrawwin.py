@@ -1,32 +1,40 @@
 import sys
+import cloudscraper
 from bs4 import BeautifulSoup
-from curl_cffi import requests as cffi_requests
 
 print("========================================")
-print("  STARTING WINDRAWWIN SCRAPER TEST     ")
+print("  STARTING WINDRAWWIN SCRAPER (CLOUDSCRAPER) ")
 print("========================================")
 
-# WinDrawWin predictions page
 url = "https://www.windrawwin.com/predictions/today/"
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept-Language": "en-US,en;q=0.9",
-}
-
 try:
-    print(f"Fetching URL: {url}")
-    # Using curl_cffi to bypass Cloudflare protection
-    response = cffi_requests.get(url, headers=headers, impersonate="chrome120", timeout=20)
+    print(f"Initializing cloudscraper and fetching URL: {url}")
+    
+    # Create a scraper instance that mimics a Windows Chrome browser
+    scraper = cloudscraper.create_scraper(
+        browser={
+            'browser': 'chrome',
+            'platform': 'windows',
+            'desktop': True
+        }
+    )
+    
+    # Increase timeout to give Cloudflare time to process the JS challenge
+    response = scraper.get(url, timeout=30)
     
     print(f"HTTP Status Code: {response.status_code}")
     print(f"Downloaded HTML Length: {len(response.text)} characters")
 
+    # 200 means Cloudflare let us through
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "lxml")
         
+        page_title = soup.title.string.strip() if soup.title else "No Title Found"
+        print(f"Page Title: {page_title}")
+        print("----------------------------------------")
+        
         # Look for match rows on WinDrawWin
-        # WinDrawWin typically groups games in table rows or specific containers
         rows = soup.find_all("tr", class_=lambda x: x and ("wttr" in x or "wtrow" in x or "wtbr" in x))
         
         if not rows:
@@ -34,14 +42,14 @@ try:
             rows = soup.find_all("tr")
 
         print(f"Total potential match rows detected: {len(rows)}")
-        print("----------------------------------------")
         
-        # Print a small snippet of the page text to verify content
-        page_title = soup.title.string.strip() if soup.title else "No Title Found"
-        print(f"Page Title: {page_title}")
-        
+        # Print the first 3 matches as a sample to verify it worked
+        print("Sample data from first 3 rows:")
+        for i, row in enumerate(rows[:3]):
+            print(f"Row {i+1}: {row.text.strip().replace('\n', ' | ')[:100]}...")
+            
     else:
-        print(f"Failed to fetch page. Status code: {response.status_code}")
+        print(f"Failed to bypass Cloudflare. Status code: {response.status_code}")
 
 except Exception as e:
     print(f"AN ERROR OCCURRED: {e}")
