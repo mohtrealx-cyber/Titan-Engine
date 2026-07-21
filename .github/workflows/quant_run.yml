@@ -31,6 +31,9 @@ jobs:
 
       - name: Run Quant Engine
         env:
+          # Mapped Telegram variables to your existing QUANT secrets
+          TELEGRAM_BOT_TOKEN: ${{ secrets.QUANT_TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.QUANT_TELEGRAM_CHAT_ID }}
           TRACKER_TELEGRAM_TOKEN: ${{ secrets.TRACKER_TELEGRAM_TOKEN }}
           TRACKER_TELEGRAM_CHAT_ID: ${{ secrets.TRACKER_TELEGRAM_CHAT_ID }}
           QUANT_TELEGRAM_TOKEN: ${{ secrets.QUANT_TELEGRAM_TOKEN }}
@@ -38,6 +41,7 @@ jobs:
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python test_corners.py
+        
       - name: Commit Memory File Back to GitHub
         run: |
           git config --local user.email "action@github.com"
