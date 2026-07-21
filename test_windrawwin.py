@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import re
 import requests
 from bs4 import BeautifulSoup
 
@@ -105,33 +106,33 @@ try:
                     else:
                         continue
 
-                # 3. Classify the Market Type
+                # 3. Standardize for Titan Engine (Filter for 1X2 Markets Only)
                 pred_upper = prediction.upper()
-                market = "1X2 (Match Winner)" # Default fallback
                 
-                if "BTTS" in pred_upper or "BOTH TEAMS TO SCORE" in pred_upper:
-                    if "WIN" in pred_upper or "DRAW" in pred_upper:
-                        market = "Result & BTTS"
-                    else:
-                        market = "BTTS"
-                elif "OVER" in pred_upper or "UNDER" in pred_upper:
-                    market = "Over/Under Goals"
-                elif "-" in prediction and prediction.replace("-", "").isdigit():
-                    market = "Correct Score"
-                
+                # Check if the prediction implies a Home Win, Away Win, or Draw
+                if "WIN" in pred_upper:
+                    # Isolate the winning team's name case-insensitively (e.g., "Fenerbahce Win and BTTS Yes" -> "Fenerbahce")
+                    winning_team = re.split(r'(?i)\s+win', prediction)[0].strip()
+                    standardized_pred = f"{winning_team} Win"
+                elif "DRAW" in pred_upper:
+                    standardized_pred = "Draw"
+                else:
+                    # Skip matches that are purely BTTS, Correct Score, or Over/Under
+                    continue 
+
                 # 4. Structure the output
                 match_data = {
                     "Home": home_team.strip(),
                     "Away": away_team.strip(),
-                    "Market": market,
-                    "Prediction": prediction.strip(),
+                    "Market": "1X2 (Match Winner)",
+                    "Prediction": standardized_pred,
                     "Odds_Fractional": odds.strip(),
                     "Odds_Decimal": fraction_to_decimal(odds.strip())
                 }
                 
                 parsed_matches.append(match_data)
                 
-            print(f"\nSuccessfully extracted and categorized {len(parsed_matches)} matches.")
+            print(f"\nSuccessfully extracted and standardized {len(parsed_matches)} matches.")
             if parsed_matches:
                 print("Sample data from first 10 rows:\n")
                 for i, match in enumerate(parsed_matches[:10]):
