@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import requests
 from bs4 import BeautifulSoup
 
@@ -91,6 +92,12 @@ try:
             
             for i, match in enumerate(parsed_matches[:10]):
                 print(f"Row {i + 1}: {match}")
+
+            # 5. Export to JSON
+            output_filename = "windrawwin_predictions.json"
+            with open(output_filename, "w") as f:
+                json.dump(parsed_matches, f, indent=4)
+            print(f"\nData successfully saved to {output_filename}")
 
     else:
         print(f"Proxy request failed with status: {response.status_code}")
