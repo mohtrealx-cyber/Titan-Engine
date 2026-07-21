@@ -8,6 +8,17 @@ print("========================================")
 print("  STARTING WINDRAWWIN SCRAPER (SCRAPERAPI)")
 print("========================================")
 
+# Helper function to convert fractional odds to decimal
+def fraction_to_decimal(fraction_str):
+    try:
+        if '/' in fraction_str:
+            num, den = fraction_str.split('/')
+            # Convert to decimal probability (e.g., 9/4 -> 2.25 + 1.00 = 3.25)
+            return round((float(num) / float(den)) + 1.0, 2)
+        return float(fraction_str)
+    except Exception:
+        return fraction_str
+
 # Grabs SCRAPER_API_KEY (with underscore)
 API_KEY = os.environ.get("SCRAPER_API_KEY")
 
@@ -82,7 +93,8 @@ try:
                     "Away": away_team.strip(),
                     "Market": market,
                     "Prediction": prediction.strip(),
-                    "Odds": odds.strip()
+                    "Odds_Fractional": odds.strip(),
+                    "Odds_Decimal": fraction_to_decimal(odds.strip())
                 }
                 
                 parsed_matches.append(match_data)
