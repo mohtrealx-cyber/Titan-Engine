@@ -1,0 +1,18 @@
+- name: Run WinDrawWin Scraper
+        env:
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python test_windrawwin.py
+
+      # Add additional scraper steps here as you build them (e.g., test_forebet.py)
+
+      - name: Run Titan Aggregator
+        run: python aggregate_predictions.py
+
+      - name: Commit and Push Data
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update consensus for $(date +'%Y-%m-%d')"
+          git push
