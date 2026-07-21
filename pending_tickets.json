@@ -5,6 +5,60 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Fenerbahce vs Gornik Zabrze",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Jeonbuk Motors vs Daejeon Citizen",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "East Fife vs Linlithgow Rose",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Partick vs Stenhousemuir",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "St Mirren vs East Kilbride",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Dunfermline vs Cove Rangers",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Stranraer vs Edinburgh City",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Kelty Hearts vs Brora Rangers",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Sogdiana Jizzakh vs Neftchi",
+            "prediction": "2",
+            "status": "PENDING",
+            "score": "-"
         }
     ]
 }
