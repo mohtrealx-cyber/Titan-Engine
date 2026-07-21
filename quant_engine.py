@@ -470,6 +470,18 @@ class ConsensusEngine:
 
         return settled_reports
 
+    def send_telegram_alert(self, msg):
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"}
+            try:
+                r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+                if r.status_code != 200:
+                    payload.pop("parse_mode")
+                    tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+            except Exception as e:
+                print(f"Telegram alert failed: {e}")
+
     async def run_pipeline(self):
         # Time logic: Capture current time in EAT (UTC+3)
         eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
