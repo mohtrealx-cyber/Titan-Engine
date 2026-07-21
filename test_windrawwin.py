@@ -39,16 +39,59 @@ try:
 
         print(f"Total potential match rows detected: {len(rows)}")
         
+        parsed_matches = []
+
         if rows:
-            print("Sample data from first 10 rows:")
-            for i, row in enumerate(rows[:10]):
+            for row in rows:
                 # Extract text from each individual cell (<td> or <th>) and ignore empty ones
                 columns = [td.get_text(separator=" ", strip=True) for td in row.find_all(['td', 'th'])]
                 
-                # Join the columns with a pipe symbol for clean readability
-                if columns:
-                    cleaned_row = " | ".join(filter(None, columns))
-                    print(f"Row {i + 1}: {cleaned_row}")
+                # Filter out empty cells
+                columns = [col for col in columns if col]
+                if not columns:
+                    continue
+
+                # 1. Identify the match column by looking for the " v " separator
+                match_col = next((col for col in columns if " v " in col), None)
+                if not match_col:
+                    continue # Skip non-match rows (like headers or ads)
+
+                home_team, away_team = match_col.split(" v ", 1)
+                match_idx = columns.index(match_col)
+                
+                # 2. Extract Prediction and Odds
+                prediction = columns[match_idx + 1] if len(columns) > match_idx + 1 else "Unknown"
+                odds = columns[match_idx + 2] if len(columns) > match_idx + 2 else "N/A"
+
+                # 3. Classify the Market Type
+                pred_upper = prediction.upper()
+                market = "1X2 (Match Winner)" # Default fallback
+                
+                if "BTTS" in pred_upper or "BOTH TEAMS TO SCORE" in pred_upper:
+                    if "WIN" in pred_upper or "DRAW" in pred_upper:
+                        market = "Result & BTTS"
+                    else:
+                        market = "BTTS"
+                elif "OVER" in pred_upper or "UNDER" in pred_upper:
+                    market = "Over/Under Goals"
+                
+                # 4. Structure the output
+                match_data = {
+                    "Home": home_team.strip(),
+                    "Away": away_team.strip(),
+                    "Market": market,
+                    "Prediction": prediction.strip(),
+                    "Odds": odds.strip()
+                }
+                
+                parsed_matches.append(match_data)
+                
+            print(f"\nSuccessfully extracted and categorized {len(parsed_matches)} matches.")
+            print("Sample data from first 10 rows:\n")
+            
+            for i, match in enumerate(parsed_matches[:10]):
+                print(f"Row {i + 1}: {match}")
+
     else:
         print(f"Proxy request failed with status: {response.status_code}")
 
