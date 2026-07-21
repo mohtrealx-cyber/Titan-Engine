@@ -27,18 +27,17 @@ def fetch_corner_data(url):
 def extract_corner_stats(soup):
     print("🔍 Extracting data from responsive divs...")
     corner_data = {}
+    debug_text = "No debug data found."
     
     rows = soup.find_all('div', class_=lambda c: c and ('statln1' in c or 'statln2' in c))
-    print(f"Found {len(rows)} potential data rows across all tables.")
-    
     first_valid_row_found = False
     
     for i, row in enumerate(rows):
         cols = list(row.stripped_strings)
         
-        # 🛠️ DEBUG: Print the absolute raw data of the first row to locate "Matches Played"
+        # Capture the raw array of the very first valid row for Telegram
         if not first_valid_row_found and len(cols) > 3:
-            print(f"\n🛠️ Debug - Full Row Data: {cols}\n")
+            debug_text = f"🛠️ <b>RAW ARRAY:</b>\n<code>{cols}</code>"
             first_valid_row_found = True
             
         team_name = None
@@ -50,25 +49,20 @@ def extract_corner_stats(soup):
                 if team_name is not None:
                     stats.append(val)
             except ValueError:
-                # The last string before the numbers start is typically the team name
                 if len(stats) == 0 and len(col) > 2 and "Stats" not in col:
                     team_name = col
                     
-        # If we successfully parsed at least 1 number
         if team_name and len(stats) >= 1:
-            # The final number in the sequence is the actual Average Corners per Game
             avg_corners = stats[-1] 
             
-            # Sanity check: Ensure it's not the Total Corners table
             if avg_corners < 25.0 and team_name not in corner_data:
                 corner_data[team_name] = avg_corners
 
-    return corner_data
+    return corner_data, debug_text
 
 def send_telegram_alert(message):
     print("📲 Attempting to send Telegram notification...")
     
-    # Fallback to QUANT_ tokens if TELEGRAM_ tokens aren't explicitly passed
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("QUANT_TELEGRAM_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("QUANT_TELEGRAM_CHAT_ID")
     
@@ -82,7 +76,7 @@ def send_telegram_alert(message):
         res = requests.post(url, json=payload)
         
         if res.status_code == 200:
-            print("✅ Telegram message sent successfully to your DM!")
+            print("✅ Telegram message sent successfully!")
         else:
             print(f"❌ Failed to send Telegram message: {res.text}")
     except Exception as e:
@@ -93,24 +87,18 @@ if __name__ == "__main__":
     soup = fetch_corner_data(test_url)
     
     if soup:
-        stats = extract_corner_stats(soup)
+        stats, debug_text = extract_corner_stats(soup)
         
         if stats:
-            # Sort the dictionary by highest corners first
             sorted_stats = sorted(stats.items(), key=lambda item: item[1], reverse=True)
             
-            msg = "📈 <b>TOP 10 TEAMS BY AVERAGE CORNERS (DEBUG)</b>\n\n"
-            print("\n📈 TOP 10 TEAMS BY AVERAGE CORNERS:")
-            print("-" * 40)
+            # Attach the raw array to the top of the Telegram message
+            msg = f"{debug_text}\n\n📈 <b>TOP 10 TEAMS BY AVERAGE CORNERS</b>\n\n"
             
             for index, (team, corners) in enumerate(sorted_stats[:10]):
                 line = f"{index + 1}. {team}: {corners}"
-                print(line)
                 msg += f"{line}\n"
             
-            print("-" * 40)
-            
-            # Send the scraped data directly to Telegram
             send_telegram_alert(msg)
         else:
             print("⚠️ No valid corner stats could be parsed.")
