@@ -1,5 +1,5 @@
 import os
-from collections import Counter
+import requests # Needed for Telegram API
 from bs4 import BeautifulSoup
 from curl_cffi import requests as tls_requests
 
@@ -24,38 +24,82 @@ def fetch_corner_data(url):
         print(f"❌ Error: {e}")
         return None
 
-def analyze_html_structure(soup):
-    print("🔍 Running structural analysis on HTML...\n")
+def extract_corner_stats(soup):
+    print("🔍 Extracting data from responsive divs...")
+    corner_data = {}
     
-    # 1. Quality Assurance check: is the data actually in the static HTML?
-    page_text = soup.get_text(separator=' ', strip=True)
-    print(f"Total visible text length: {len(page_text)} characters.")
-    print(f"Data present test ('Average'): {'Average' in page_text}")
-    print(f"Data present test ('Chelsea'): {'Chelsea' in page_text}\n")
+    # WinDrawWin uses 'statln1' and 'statln2' for alternating rows instead of <tr>
+    rows = soup.find_all('div', class_=lambda c: c and ('statln1' in c or 'statln2' in c))
+    print(f"Found {len(rows)} potential data rows.")
     
-    # 2. Find the most common recurring <div> classes (our potential dataset rows)
-    print("📊 Top 5 most common <div> structures on the page:")
-    div_classes = []
-    for div in soup.find_all('div'):
-        cls = div.get('class')
-        if cls:
-            div_classes.append(" ".join(cls))
-            
-    top_classes = Counter(div_classes).most_common(5)
-    
-    for cls_name, count in top_classes:
-        print(f"\n--- Class: '{cls_name}' (Appears {count} times) ---")
+    for row in rows:
+        cols = list(row.stripped_strings)
         
-        # Grab the first instance of this exact class combination
-        for div in soup.find_all('div'):
-            if " ".join(div.get('class', [])) == cls_name:
-                snippet = div.text.replace('\n', ' ').strip()
-                print(f"Snippet: {snippet[:150]}...")
-                break
+        team_name = None
+        stats = []
+        
+        for col in cols:
+            try:
+                val = float(col)
+                if team_name is not None:
+                    stats.append(val)
+            except ValueError:
+                # The last string before the numbers start is typically the team name
+                if len(stats) == 0 and len(col) > 2 and "Stats" not in col:
+                    team_name = col
+                    
+        # If we successfully parsed at least 3 numbers (Home, Away, Total)
+        if team_name and len(stats) >= 3:
+            # The 3rd number in the sequence is the total average corners
+            total_corners = stats[2] 
+            corner_data[team_name] = total_corners
+
+    return corner_data
+
+def send_telegram_alert(message):
+    print("📲 Attempting to send Telegram notification...")
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    
+    if not bot_token or not chat_id:
+        print("⚠️ Telegram credentials not found in secrets. Skipping message.")
+        return
+        
+    try:
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+        res = requests.post(url, json=payload)
+        
+        if res.status_code == 200:
+            print("✅ Telegram message sent successfully to your DM!")
+        else:
+            print(f"❌ Failed to send Telegram message: {res.text}")
+    except Exception as e:
+        print(f"❌ Telegram Error: {e}")
 
 if __name__ == "__main__":
     test_url = "https://www.windrawwin.com/statistics/corners/"
     soup = fetch_corner_data(test_url)
     
     if soup:
-        analyze_html_structure(soup)
+        stats = extract_corner_stats(soup)
+        
+        if stats:
+            # Sort the dictionary by highest corners first
+            sorted_stats = sorted(stats.items(), key=lambda item: item[1], reverse=True)
+            
+            msg = "📈 <b>TOP 10 TEAMS BY AVERAGE CORNERS</b>\n\n"
+            print("\n📈 TOP 10 TEAMS BY AVERAGE CORNERS:")
+            print("-" * 40)
+            
+            for index, (team, corners) in enumerate(sorted_stats[:10]):
+                line = f"{index + 1}. {team}: {corners}"
+                print(line)
+                msg += f"{line}\n"
+            
+            print("-" * 40)
+            
+            # Send the scraped data directly to Telegram
+            send_telegram_alert(msg)
+        else:
+            print("⚠️ No valid corner stats could be parsed.")
