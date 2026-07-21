@@ -1,10 +1,11 @@
 import os
 import sys
+import json
 import requests
 from bs4 import BeautifulSoup
 
 print("========================================")
-print("  STARTING WINDRAWWIN HTML DIAGNOSTIC")
+print("  STARTING RAW DATA EXTRACTION (PRE-LLM)")
 print("========================================")
 
 API_KEY = os.environ.get("SCRAPER_API_KEY")
@@ -23,33 +24,55 @@ try:
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "lxml")
         
-        # Target WinDrawWin's specific row classes
+        # Target the rows
         rows = soup.find_all("tr", class_=lambda x: x and ("wttr" in x or "wtrow" in x or "wtbr" in x))
         if not rows:
             rows = soup.find_all("tr")
 
-        print(f"Total potential match rows detected: {len(rows)}")
-        print("\n--- EXTRACTING RAW HTML FROM FIRST 3 DATA ROWS ---")
-        
-        debug_count = 0
+        raw_matches = []
+
         for row in rows:
             cells = row.find_all('td')
             
-            # Filter out empty rows or headers to find actual match data
-            if len(cells) >= 3:
-                if debug_count < 3:
-                    print(f"\n========== ROW {debug_count + 1} HTML ==========")
-                    print(row.prettify())
-                    debug_count += 1
-                else:
-                    break
+            # Make sure the row has enough columns and contains the odds button
+            if len(cells) >= 4:
+                odds_btn = row.find('a', class_='btnstsm')
+                
+                if odds_btn:
+                    # Jackpot! Pull directly from the hidden HTML attributes
+                    home_team = odds_btn.get('data-home', 'Unknown')
+                    away_team = odds_btn.get('data-away', 'Unknown')
+                    decimal_odds = odds_btn.get('data-odds', 'N/A')
                     
+                    # The messy prediction text we want to feed the LLM
+                    raw_prediction = cells[2].get_text(strip=True)
+                    
+                    # Skip if there's no actual prediction text
+                    if not raw_prediction:
+                        continue
+
+                    raw_matches.append({
+                        "Home": home_team,
+                        "Away": away_team,
+                        "Raw_Prediction": raw_prediction,
+                        "Decimal_Odds": decimal_odds
+                    })
+
+        print(f"\nSuccessfully extracted {len(raw_matches)} raw matches.")
+        
+        if raw_matches:
+            print("\nSample of data ready for the LLM:\n")
+            for i, match in enumerate(raw_matches[:5]):
+                print(f"Row {i + 1}: {match}")
+
+        # Save to JSON so the LLM script can read it
+        output_filename = "windrawwin_raw_for_llm.json"
+        with open(output_filename, "w") as f:
+            json.dump(raw_matches, f, indent=4)
+        print(f"\nRaw data successfully saved to {output_filename}")
+
     else:
         print(f"Proxy request failed with status: {response.status_code}")
 
 except Exception as e:
     print(f"AN ERROR OCCURRED: {e}")
-
-print("\n========================================")
-print("  DIAGNOSTIC COMPLETED")
-print("========================================")
