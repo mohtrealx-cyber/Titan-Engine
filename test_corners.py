@@ -1,4 +1,5 @@
 import os
+from collections import Counter
 from bs4 import BeautifulSoup
 from curl_cffi import requests as tls_requests
 
@@ -23,30 +24,38 @@ def fetch_corner_data(url):
         print(f"❌ Error: {e}")
         return None
 
-def extract_corner_stats(soup):
-    print("🔍 Diagnosing HTML structure...")
+def analyze_html_structure(soup):
+    print("🔍 Running structural analysis on HTML...\n")
     
-    # 1. Print the title to see if we hit a CAPTCHA/Cloudflare block
-    title = soup.title.text.strip() if soup.title else "No Title Found"
-    print(f"📄 Page Title: {title}")
+    # 1. Quality Assurance check: is the data actually in the static HTML?
+    page_text = soup.get_text(separator=' ', strip=True)
+    print(f"Total visible text length: {len(page_text)} characters.")
+    print(f"Data present test ('Average'): {'Average' in page_text}")
+    print(f"Data present test ('Chelsea'): {'Chelsea' in page_text}\n")
     
-    # 2. Find all tables to see what classes they actually use
-    tables = soup.find_all('table')
-    print(f"📊 Found {len(tables)} tables on the page.")
+    # 2. Find the most common recurring <div> classes (our potential dataset rows)
+    print("📊 Top 5 most common <div> structures on the page:")
+    div_classes = []
+    for div in soup.find_all('div'):
+        cls = div.get('class')
+        if cls:
+            div_classes.append(" ".join(cls))
+            
+    top_classes = Counter(div_classes).most_common(5)
     
-    for i, table in enumerate(tables):
-        classes = table.get('class', ['No Class'])
-        print(f"--- Table {i+1} | Class: {classes} ---")
+    for cls_name, count in top_classes:
+        print(f"\n--- Class: '{cls_name}' (Appears {count} times) ---")
         
-        # Print a small snippet of the table's text to see if it holds team names
-        snippet = table.text.replace('\n', ' ').strip()[:150]
-        print(f"Snippet: {snippet}...\n")
-        
-    return None
+        # Grab the first instance of this exact class combination
+        for div in soup.find_all('div'):
+            if " ".join(div.get('class', [])) == cls_name:
+                snippet = div.text.replace('\n', ' ').strip()
+                print(f"Snippet: {snippet[:150]}...")
+                break
 
 if __name__ == "__main__":
     test_url = "https://www.windrawwin.com/statistics/corners/"
     soup = fetch_corner_data(test_url)
     
     if soup:
-        extract_corner_stats(soup)
+        analyze_html_structure(soup)
