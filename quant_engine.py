@@ -340,7 +340,7 @@ class ConsensusEngine:
             return None
 
     # ==========================================================================
-    # IMMUTABLE DAILY LOCKING ARCHITECTURE
+    # IMMUTABLE DAILY LOCKING ARCHITECTURE & BACKWARDS COMPATIBILITY
     # ==========================================================================
     def load_memory(self):
         if os.path.exists(MEMORY_FILE):
@@ -385,7 +385,8 @@ class ConsensusEngine:
 
         dates_to_check = set()
         for date_str, payload in memory.items():
-            tickets = payload.get("tickets", [])
+            # BACKWARDS COMPATIBILITY: Handle old list format vs new dict format
+            tickets = payload if isinstance(payload, list) else payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
                     dates_to_check.add(date_str)
@@ -397,7 +398,8 @@ class ConsensusEngine:
             results_matrix.update(self.fetch_results_from_statarea(d))
 
         for date_str, payload in memory.items():
-            tickets = payload.get("tickets", [])
+            # BACKWARDS COMPATIBILITY
+            tickets = payload if isinstance(payload, list) else payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
                     match_key = t["match"]
@@ -448,8 +450,10 @@ class ConsensusEngine:
         today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
         memory = self.load_memory()
 
-        # Check if today's picks are ALREADY LOCKED
-        if today_date in memory and memory[today_date].get("locked"):
+        today_payload = memory.get(today_date)
+
+        # Check if today's picks are ALREADY LOCKED (Safely checks against old list format)
+        if isinstance(today_payload, dict) and today_payload.get("locked"):
             print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
             daily_data = memory[today_date]
             agreed_matches = daily_data.get("agreed_matches", [])
@@ -458,7 +462,7 @@ class ConsensusEngine:
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["Daily_Lock"] = f"🔒 LOCKED ON {today_date}"
         else:
-            print(f"🔓 First run for {today_date}. Scraping and generating tickets...")
+            print(f"🔓 First run for {today_date} (or upgrading old format). Scraping and generating tickets...")
             loop = asyncio.get_running_loop()
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
                 await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
@@ -469,7 +473,7 @@ class ConsensusEngine:
             if ai_input_data:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data)
 
-            # LOCK TODAY'S DATA PERMANENTLY
+            # LOCK TODAY'S DATA PERMANENTLY (Upgrades old list format to new dict format automatically)
             memory[today_date] = {
                 "locked": True,
                 "agreed_matches": agreed_matches,
