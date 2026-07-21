@@ -1,64 +1,76 @@
 {
-    "2026-07-21": [
-        {
-            "match": "Falkenbergs Ff vs Helsingborg",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "Fenerbahce vs Gornik Zabrze",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "Jeonbuk Motors vs Daejeon Citizen",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "East Fife vs Linlithgow Rose",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "Partick vs Stenhousemuir",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "St Mirren vs East Kilbride",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "Dunfermline vs Cove Rangers",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "Stranraer vs Edinburgh City",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "Kelty Hearts vs Brora Rangers",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "Sogdiana Jizzakh vs Neftchi",
-            "prediction": "2",
-            "status": "PENDING",
-            "score": "-"
-        }
-    ]
+    "2026-07-21": {
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Falkenbergs Ff vs Helsingborg** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa PredictZ: Not Listed\n"
+        ],
+        "niche_matches": [
+            "\u2022 **Sogdiana Jizzakh vs Neftchi** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n",
+            "\u2022 **Fenerbahce vs Gornik Zabrze** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n",
+            "\u2022 **East Fife vs Linlithgow Rose** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n",
+            "\u2022 **Partick vs Stenhousemuir** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n",
+            "\u2022 **St Mirren vs East Kilbride** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n",
+            "\u2022 **Dunfermline vs Cove Rangers** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n",
+            "\u2022 **Stranraer vs Edinburgh City** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n",
+            "\u2022 **Kelty Hearts vs Brora Rangers** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83d\udee1\ufe0f TICKET 1: SAFE ANCHORS \n\u2022 Falkenbergs Ff vs Helsingborg \u2794 1X\n\u2022 Partick vs Stenhousemuir \u2794 1\n\u2022 St Mirren vs East Kilbride \u2794 1\n\n\u2696\ufe0f TICKET 2: BALANCED GROWTH \n\u2022 Dunfermline vs Cove Rangers \u2794 1\n\u2022 East Fife vs Linlithgow Rose \u2794 1\n\u2022 Fenerbahce vs Gornik Zabrze \u2794 1\n\n\ud83c\udfaf TICKET 3: VALUE & VOLATILITY\n\u2022 Stranraer vs Edinburgh City \u2794 1\n\u2022 Kelty Hearts vs Brora Rangers \u2794 1\n\u2022 Sogdiana Jizzakh vs Neftchi \u2794 X2",
+        "req_threshold": 3,
+        "tickets": [
+            {
+                "match": "Falkenbergs Ff vs Helsingborg",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Sogdiana Jizzakh vs Neftchi",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Fenerbahce vs Gornik Zabrze",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "East Fife vs Linlithgow Rose",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Partick vs Stenhousemuir",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "St Mirren vs East Kilbride",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Dunfermline vs Cove Rangers",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Stranraer vs Edinburgh City",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Kelty Hearts vs Brora Rangers",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
+    }
 }
