@@ -23,5 +23,5 @@ jobs:
 
       - name: Run Scraper Test
         env:
-          SCRAPERAPI_KEY: ${{ secrets.SCRAPERAPI_KEY }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
         run: python test_windrawwin.py
