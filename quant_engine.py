@@ -47,6 +47,14 @@ def get_dynamic_configs():
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
             "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
             "use_scraperapi": True
+        },
+        "WinDrawWin": {
+            "url": "https://www.windrawwin.com/predictions/today/",
+            "row_selector": "div", "row_class": "wtrow",
+            "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
+            "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
+            "pick_selector": "div", "pick_class": "wtoddsdesc", "pick_index": 0,
+            "use_scraperapi": True
         }
     }
 
@@ -117,7 +125,13 @@ class ConsensusEngine:
                 return
 
             soup = BeautifulSoup(r.content, 'html.parser')
-            row_target = re.compile("pttr|ptrow") if site_name == "PredictZ" else cfg["row_class"]
+            
+            # Use dynamic regex to catch row classes for PredictZ (pt) and WinDrawWin (wt)
+            if site_name in ["PredictZ", "WinDrawWin"]:
+                row_target = re.compile(r"(pt|wt)(tr|row)")
+            else:
+                row_target = cfg["row_class"]
+                
             rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
             if not rows:
@@ -135,10 +149,13 @@ class ConsensusEngine:
 
                     home, away, pick = None, None, None
 
-                    if site_name == "PredictZ":
-                        h_elem = row.find(class_="pttmobh")
-                        a_elem = row.find(class_="pttmoba")
-                        p_elem = row.find(class_=re.compile("ptoddsdesc|ptmobpred"))
+                    # Sister-site logic for PredictZ and WinDrawWin
+                    if site_name in ["PredictZ", "WinDrawWin"]:
+                        prefix = "pt" if site_name == "PredictZ" else "wt"
+                        
+                        h_elem = row.find(class_=f"{prefix}tmobh")
+                        a_elem = row.find(class_=f"{prefix}tmoba")
+                        p_elem = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred"))
 
                         if h_elem and a_elem and p_elem:
                             home = h_elem.text
@@ -149,10 +166,10 @@ class ConsensusEngine:
                             if len(links) >= 2:
                                 home = links[0].text
                                 away = links[1].text
-                                p_div = row.find(class_=re.compile("ptprd|ptpred"))
+                                p_div = row.find(class_=re.compile(f"{prefix}prd|{prefix}pred"))
                                 if p_div: pick = p_div.text
                             else:
-                                for td in row.find_all("div", class_="pttd"):
+                                for td in row.find_all("div", class_=f"{prefix}td"):
                                     norm = self.normalize_prediction(td.text)
                                     if norm:
                                         pick = norm
@@ -405,7 +422,7 @@ class ConsensusEngine:
 
     async def run_pipeline(self):
         loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool: # Increased workers to 4 for the 4 sites
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
 
         consensus_list, structured_tickets = self.process_consensus_signals()
@@ -422,7 +439,7 @@ class ConsensusEngine:
         if ai_optimized_message:
             msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
         else:
-            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
+            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ + WinDrawWin)*\n\n"
             if not consensus_list:
                 msg += "No matches found with 2+ sites in agreement today.\n\n"
             else:
