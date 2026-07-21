@@ -3,7 +3,8 @@ import sys
 import json
 import requests
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 # --- 1. SETUP & VALIDATE KEYS ---
 SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY")
@@ -70,13 +71,10 @@ if not raw_matches:
     print("No matches to parse. Exiting.")
     sys.exit(0)
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel(
-    "gemini-1.5-flash",
-    generation_config={"response_mime_type": "application/json"}
-)
+# Initialize the new GenAI client
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Testing the first 3 matches. Change this to raw_matches once verified.
+# Testing the first 3 matches.
 test_batch = raw_matches[:3] 
 print(f"Sending batch of {len(test_batch)} to the LLM for parsing...\n")
 
@@ -102,7 +100,15 @@ Extract the odds immediately following the '1 X 2' text in the block.
 prompt = system_prompt + "\n\nRaw Match Data:\n" + json.dumps(test_batch, indent=2)
 
 try:
-    response = model.generate_content(prompt)
+    # Use the current model and the new types.GenerateContentConfig syntax
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+        )
+    )
+    
     parsed_data = json.loads(response.text)
     
     print("--- LLM PARSING SUCCESSFUL ---")
