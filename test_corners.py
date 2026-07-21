@@ -28,13 +28,19 @@ def extract_corner_stats(soup):
     print("🔍 Extracting data from responsive divs...")
     corner_data = {}
     
-    # WinDrawWin uses 'statln1' and 'statln2' for alternating rows instead of <tr>
     rows = soup.find_all('div', class_=lambda c: c and ('statln1' in c or 'statln2' in c))
     print(f"Found {len(rows)} potential data rows across all tables.")
+    
+    first_valid_row_found = False
     
     for i, row in enumerate(rows):
         cols = list(row.stripped_strings)
         
+        # 🛠️ DEBUG: Print the absolute raw data of the first row to locate "Matches Played"
+        if not first_valid_row_found and len(cols) > 3:
+            print(f"\n🛠️ Debug - Full Row Data: {cols}\n")
+            first_valid_row_found = True
+            
         team_name = None
         stats = []
         
@@ -53,8 +59,7 @@ def extract_corner_stats(soup):
             # The final number in the sequence is the actual Average Corners per Game
             avg_corners = stats[-1] 
             
-            # THE FIX: If the number is > 25, it's from the "Total Corners" table, not the Average table.
-            # We also ensure we only save the FIRST instance we see of a team (which is their average).
+            # Sanity check: Ensure it's not the Total Corners table
             if avg_corners < 25.0 and team_name not in corner_data:
                 corner_data[team_name] = avg_corners
 
@@ -94,7 +99,7 @@ if __name__ == "__main__":
             # Sort the dictionary by highest corners first
             sorted_stats = sorted(stats.items(), key=lambda item: item[1], reverse=True)
             
-            msg = "📈 <b>TOP 10 TEAMS BY AVERAGE CORNERS</b>\n\n"
+            msg = "📈 <b>TOP 10 TEAMS BY AVERAGE CORNERS (DEBUG)</b>\n\n"
             print("\n📈 TOP 10 TEAMS BY AVERAGE CORNERS:")
             print("-" * 40)
             
