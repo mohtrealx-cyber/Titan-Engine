@@ -18,6 +18,8 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
+MEMORY_FILE = "pending_tickets.json"
+
 def get_dynamic_configs():
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
     today_date = eat_time.strftime('%Y-%m-%d')
@@ -181,12 +183,12 @@ class ConsensusEngine:
                         self.log_prediction_qa(site_name, home, away, pick)
                         valid_count += 1
 
-                except Exception as e:
+                except Exception:
                     continue
 
             self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
 
-        except Exception as e:
+        except Exception:
             self.diagnostics[site_name] = "🔴 TIMEOUT/ERROR"
             return
 
@@ -197,7 +199,6 @@ class ConsensusEngine:
         ai_input_data = []
 
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin"]
-        
         active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status)
         required_consensus = 3 if active_scrapers_count >= 4 else 2
 
@@ -248,7 +249,7 @@ class ConsensusEngine:
                     "backed_by": backing_sites_str, "tier": "Core Consensus"
                 })
 
-            # --- TIER 2: NICHE CONSENSUS (2/2 PERFECT AGREEMENT ONLY) ---
+            # --- TIER 2: NICHE CONSENSUS (2/2 PERFECT AGREEMENT) ---
             elif required_consensus == 3 and len(listings) == 2 and prediction_weights[top_pick] == 2:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
@@ -277,7 +278,7 @@ class ConsensusEngine:
 
     def ask_llm_to_optimize_tickets(self, ai_input_data):
         if not GEMINI_API_KEY:
-            self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY in GitHub Secrets"
+            self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
         model_name = "models/gemini-3.5-flash"  
@@ -299,8 +300,6 @@ class ConsensusEngine:
                     model_name = valid_models[0]
 
                 self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
-            else:
-                self.diagnostics["AI_Handshake"] = f"🔴 Handshake HTTP {resp.status_code}"
         except Exception as e:
             self.diagnostics["AI_Handshake"] = f"🔴 Handshake Exception: {str(e)[:40]}"
 
@@ -309,7 +308,7 @@ class ConsensusEngine:
         prompt = f"""
         You are an expert quantitative sports betting algorithmic model. Your sole task is to analyze today's football consensus data and generate highly optimized betslips with ABSOLUTELY ZERO textual explanations, introductions, headers, or footnotes.
 
-        Here is today's raw consensus data. Note that matches tagged 'Niche Coverage' are from obscure leagues where data was scarce but completely unanimous:
+        Here is today's raw consensus data:
         {json.dumps(ai_input_data, indent=2)}
 
         STRICT ARCHITECTURE RULES:
@@ -317,12 +316,12 @@ class ConsensusEngine:
         2. IF there are 3 or more matches provided: Divide them into up to THREE completely separate, non-overlapping tickets:
            🛡️ TICKET 1: SAFE ANCHORS 
            ⚖️ TICKET 2: BALANCED GROWTH 
-           🎯 TICKET 3: VALUE & VOLATILITY (Good place for Niche matches)
-        3. IF there are only 1 or 2 matches provided: DO NOT create three tickets. Output a single ticket formatted exactly like this:
+           🎯 TICKET 3: VALUE & VOLATILITY
+        3. IF there are only 1 or 2 matches provided: Output a single ticket:
            🔥 TICKET 1: PREMIUM SINGLES/DOUBLES
            • [Match Name] ➔ [Optimized Prediction]
-        4. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change '➔ 1' to '➔ 1X' or '➔ Draw No Bet' depending on the risk tier).
-        5. NO paragraphs of text. NO explanations. Do not wrap output in markdown code blocks. Output ONLY the tickets in the requested format.
+        4. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change '➔ 1' to '➔ 1X' or '➔ Draw No Bet').
+        5. NO paragraphs of text. NO explanations. Output ONLY the formatted tickets.
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -334,34 +333,28 @@ class ConsensusEngine:
                 self.diagnostics["AI_Status"] = "🟢 Optimization Complete"
                 return data['candidates'][0]['content']['parts'][0]['text']
             else:
-                self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}: {response.text[:60]}"
+                self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}"
                 return None
         except Exception as e:
-            self.diagnostics["AI_Status"] = f"🔴 Request Exception: {str(e)[:60]}"
+            self.diagnostics["AI_Status"] = f"🔴 Exception: {str(e)[:60]}"
             return None
 
-    def save_tickets_to_memory(self, new_tickets):
-        file_path = "pending_tickets.json"
-        memory = {}
-        if os.path.exists(file_path):
+    # ==========================================================================
+    # IMMUTABLE DAILY LOCKING ARCHITECTURE
+    # ==========================================================================
+    def load_memory(self):
+        if os.path.exists(MEMORY_FILE):
             try:
-                with open(file_path, "r") as f:
-                    memory = json.load(f)
-            except: pass
+                with open(MEMORY_FILE, "r") as f:
+                    return json.load(f)
+            except Exception: pass
+        return {}
 
-        today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
-        if today_date not in memory:
-            memory[today_date] = []
-
-        existing_matches = [t["match"] for t in memory[today_date]]
-        for t in new_tickets:
-            if t["match"] not in existing_matches:
-                memory[today_date].append(t)
-
+    def save_memory(self, memory):
         try:
-            with open(file_path, "w") as f:
+            with open(MEMORY_FILE, "w") as f:
                 json.dump(memory, f, indent=4)
-        except: pass
+        except Exception: pass
 
     def fetch_results_from_statarea(self, target_date):
         results = {}
@@ -383,23 +376,16 @@ class ConsensusEngine:
                         if score_match:
                             score = f"{score_match.group(1)}-{score_match.group(2)}"
                             results[f"{home} vs {away}"] = score
-        except: pass
+        except Exception: pass
         return results
 
-    def settle_pending_tickets(self):
-        memory_path = "pending_tickets.json"
-        if not os.path.exists(memory_path): return []
-
-        try:
-            with open(memory_path, "r") as f:
-                memory = json.load(f)
-        except: return []
-
+    def settle_pending_tickets(self, memory):
         settled_reports = []
         needs_save = False
 
         dates_to_check = set()
-        for date_str, tickets in memory.items():
+        for date_str, payload in memory.items():
+            tickets = payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
                     dates_to_check.add(date_str)
@@ -410,7 +396,8 @@ class ConsensusEngine:
         for d in dates_to_check:
             results_matrix.update(self.fetch_results_from_statarea(d))
 
-        for date_str, tickets in memory.items():
+        for date_str, payload in memory.items():
+            tickets = payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
                     match_key = t["match"]
@@ -438,13 +425,10 @@ class ConsensusEngine:
                             settled_reports.append(
                                 f"• **{match_key}** ➔ **{t['status']}** (Score: {score})"
                             )
-                        except: pass
+                        except Exception: pass
 
         if needs_save:
-            try:
-                with open(memory_path, "w") as f:
-                    json.dump(memory, f, indent=4)
-            except: pass
+            self.save_memory(memory)
 
         return settled_reports
 
@@ -452,46 +436,64 @@ class ConsensusEngine:
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
             payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"}
-            
             try:
                 r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
                 if r.status_code != 200:
-                    print(f"Telegram rejected Markdown format. Retrying as plain text... Error: {r.text}")
                     payload.pop("parse_mode")
                     tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
             except Exception as e:
-                print(f"Telegram alert failed entirely: {e}")
+                print(f"Telegram alert failed: {e}")
 
     async def run_pipeline(self):
-        loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-            await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
+        today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
+        memory = self.load_memory()
 
-        agreed_matches, niche_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
+        # Check if today's picks are ALREADY LOCKED
+        if today_date in memory and memory[today_date].get("locked"):
+            print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
+            daily_data = memory[today_date]
+            agreed_matches = daily_data.get("agreed_matches", [])
+            niche_matches = daily_data.get("niche_matches", [])
+            ai_optimized_message = daily_data.get("ai_optimized_message")
+            req_threshold = daily_data.get("req_threshold", 3)
+            self.diagnostics["Daily_Lock"] = f"🔒 LOCKED ON {today_date}"
+        else:
+            print(f"🔓 First run for {today_date}. Scraping and generating tickets...")
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+                await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
 
-        if structured_tickets:
-            self.save_tickets_to_memory(structured_tickets)
+            agreed_matches, niche_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
 
-        settled_reports = self.settle_pending_tickets()
+            ai_optimized_message = None
+            if ai_input_data:
+                ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data)
 
-        ai_optimized_message = None
-        if ai_input_data:
-            ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data)
+            # LOCK TODAY'S DATA PERMANENTLY
+            memory[today_date] = {
+                "locked": True,
+                "agreed_matches": agreed_matches,
+                "niche_matches": niche_matches,
+                "ai_optimized_message": ai_optimized_message,
+                "req_threshold": req_threshold,
+                "tickets": structured_tickets
+            }
+            self.save_memory(memory)
+            self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
 
-        # Build Main Telegram Message
+        # Settle results across all pending days
+        settled_reports = self.settle_pending_tickets(memory)
+
+        # Build Message
         msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
-        
         if not agreed_matches:
             msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
         else:
-            for match in agreed_matches: 
-                msg += f"{match}\n"
+            for match in agreed_matches: msg += f"{match}\n"
                 
-        # Append Niche Matches if they exist
         if niche_matches:
             msg += "🕵️ **NICHE CONSENSUS (100% AGREEMENT ON OBSCURE MATCHES)** 🕵️\n\n"
-            for match in niche_matches:
-                msg += f"{match}\n"
+            for match in niche_matches: msg += f"{match}\n"
                 
         if ai_optimized_message:
             msg += f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}\n\n"
