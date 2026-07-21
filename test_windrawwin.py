@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 print("========================================")
-print("  STARTING WINDRAWWIN MAIN TABLE DIAGNOSTIC")
+print("  STARTING LINK-BASED DIAGNOSTIC")
 print("========================================")
 
 API_KEY = os.environ.get("SCRAPER_API_KEY")
@@ -23,27 +23,25 @@ try:
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "lxml")
         
-        # Target the rows
-        rows = soup.find_all("tr", class_=lambda x: x and ("wttr" in x or "wtrow" in x or "wtbr" in x))
-        if not rows:
-            rows = soup.find_all("tr")
-
-        print(f"Total potential match rows detected: {len(rows)}")
-        print("\n--- EXTRACTING RAW HTML FROM MAIN TABLE ---")
+        # Look for the actual match links instead of table rows
+        match_links = soup.find_all("a", href=lambda h: h and "/tips/" in h and "-v-" in h)
         
-        main_table_count = 0
-        for i, row in enumerate(rows):
-            cells = row.find_all('td')
-            
-            # Skip the promoted rows that have the 'btnstsm' class
-            if not row.find('a', class_='btnstsm') and len(cells) >= 3:
-                print(f"\n========== MAIN TABLE ROW HTML ==========")
-                print(row.prettify())
-                main_table_count += 1
+        print(f"Total match links detected: {len(match_links)}")
+        print("\n--- EXTRACTING HTML SURROUNDING MATCH LINKS ---")
+        
+        # The first few are the banner. Let's check matches #10 and #50
+        for idx in [10, 50]:
+            if idx < len(match_links):
+                print(f"\n========== STRUCTURE AROUND MATCH {idx} ==========")
                 
-                # We just need 3 examples to see the pattern
-                if main_table_count >= 3:
-                    break
+                # Climb up two levels to grab the whole row/container
+                container = match_links[idx].find_parent().find_parent()
+                
+                if container:
+                    # Print the HTML (capped at 1500 chars to avoid massive text walls)
+                    print(container.prettify()[:1500])
+                else:
+                    print("Could not find a parent container.")
                     
     else:
         print(f"Proxy request failed with status: {response.status_code}")
