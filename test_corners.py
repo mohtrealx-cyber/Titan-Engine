@@ -30,7 +30,7 @@ def extract_corner_stats(soup):
     
     # WinDrawWin uses 'statln1' and 'statln2' for alternating rows instead of <tr>
     rows = soup.find_all('div', class_=lambda c: c and ('statln1' in c or 'statln2' in c))
-    print(f"Found {len(rows)} potential data rows.")
+    print(f"Found {len(rows)} potential data rows across all tables.")
     
     for i, row in enumerate(rows):
         cols = list(row.stripped_strings)
@@ -50,13 +50,13 @@ def extract_corner_stats(soup):
                     
         # If we successfully parsed at least 1 number
         if team_name and len(stats) >= 1:
-            # Print the raw array of the first row just to verify our targeting
-            if i == 0:
-                print(f"🛠️ Debug - First Row Raw Stats Array: {stats}")
-                
             # The final number in the sequence is the actual Average Corners per Game
             avg_corners = stats[-1] 
-            corner_data[team_name] = avg_corners
+            
+            # THE FIX: If the number is > 25, it's from the "Total Corners" table, not the Average table.
+            # We also ensure we only save the FIRST instance we see of a team (which is their average).
+            if avg_corners < 25.0 and team_name not in corner_data:
+                corner_data[team_name] = avg_corners
 
     return corner_data
 
