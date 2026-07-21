@@ -30,6 +30,7 @@ try:
     
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "lxml")
+        # Find all match rows based on WinDrawWin's specific layout
         match_rows = soup.find_all("div", class_=lambda c: c and ("wtrow" in c or "wttr" in c))
         seen_urls = set()
 
@@ -74,9 +75,8 @@ if not raw_matches:
 # Initialize the new GenAI client
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Testing the first 3 matches.
-test_batch = raw_matches[:3] 
-print(f"Sending batch of {len(test_batch)} to the LLM for parsing...\n")
+# Passing all extracted matches directly to the model
+print(f"Sending batch of {len(raw_matches)} to the LLM for parsing...\n")
 
 system_prompt = """
 You are a sports data extraction engine. 
@@ -97,12 +97,12 @@ Your job is to extract the betting prediction and odds, and return a JSON array 
 Extract the odds immediately following the '1 X 2' text in the block.
 """
 
-prompt = system_prompt + "\n\nRaw Match Data:\n" + json.dumps(test_batch, indent=2)
+prompt = system_prompt + "\n\nRaw Match Data:\n" + json.dumps(raw_matches, indent=2)
 
 try:
-    # Use the current model and the new types.GenerateContentConfig syntax
+    # Using the current 3.5 model with the updated SDK config types
     response = client.models.generate_content(
-        model='gemini-2.5-flash',
+        model='gemini-3.5-flash',
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
