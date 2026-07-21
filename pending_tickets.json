@@ -74,23 +74,30 @@
         ]
     },
     "2026-07-22": {
-        "locked": true,
-        "agreed_matches": [
-            "\u2022 **Bodo/Glimt vs Ham-Kam** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
-            "\u2022 **Fc Seoul vs Pohang Steelers** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n"
+        "locked": false,
+        "agreed_matches": [],
+        "niche_matches": [
+            "\u2022 **Match Preview vs Independiente Del Valle V Tecnico Universitario** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Cruz Azul vs Puebla** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Bodo/Glimt vs Ham-Kam** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n"
         ],
-        "niche_matches": [],
-        "ai_optimized_message": "\ud83d\udd25 TICKET 1: PREMIUM SINGLES/DOUBLES\n\u2022 Bodo/Glimt vs Ham-Kam \u2794 1 (Handicap -1)\n\u2022 Fc Seoul vs Pohang Steelers \u2794 1X",
-        "req_threshold": 2,
+        "ai_optimized_message": "\ud83d\udee1\ufe0f TICKET 1: THE IRONCLAD SLIP\n\u2022 Cruz Azul vs Puebla \u2794 1X\n\n\u2696\ufe0f TICKET 2: BALANCED GROWTH\n\u2022 Bodo/Glimt vs Ham-Kam \u2794 Over 2.5 Goals\n\n\ud83c\udfaf TICKET 3: VALUE & VOLATILITY\n\u2022 Match Preview vs Independiente Del Valle V Tecnico Universitario \u2794 1",
+        "req_threshold": 3,
         "tickets": [
             {
-                "match": "Bodo/Glimt vs Ham-Kam",
+                "match": "Match Preview vs Independiente Del Valle V Tecnico Universitario",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Fc Seoul vs Pohang Steelers",
+                "match": "Cruz Azul vs Puebla",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Bodo/Glimt vs Ham-Kam",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
