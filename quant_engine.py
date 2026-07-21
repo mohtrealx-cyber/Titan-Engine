@@ -439,7 +439,11 @@ class ConsensusEngine:
             ai_optimized_message = self.ask_llm_to_optimize_tickets(consensus_list)
             
             if ai_optimized_message:
-                msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
+                msg = "🤝 **RAW CONSENSUS MATCHES** 🤝\n*(Agreed by 2+ Sites)*\n\n"
+                for match in consensus_list: 
+                    msg += f"{match}\n"
+                
+                msg += f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}\n\n"
             else:
                 msg = "🤝 **QUANT CONSENSUS ENGINE (AI FALLBACK)** 🤝\n\n"
                 third = total_matches // 3
