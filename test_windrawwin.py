@@ -7,11 +7,11 @@ print("========================================")
 print("  STARTING WINDRAWWIN SCRAPER (SCRAPERAPI)")
 print("========================================")
 
-# Retrieve key injected by GitHub Actions
-API_KEY = os.environ.get("SCRAPERAPI_KEY")
+# Grabs SCRAPER_API_KEY (with underscore)
+API_KEY = os.environ.get("SCRAPER_API_KEY")
 
 if not API_KEY:
-    print("ERROR: SCRAPERAPI_KEY environment variable not found!")
+    print("ERROR: SCRAPER_API_KEY environment variable not found!")
     sys.exit(1)
 
 target_url = "https://www.windrawwin.com/predictions/today/"
@@ -19,7 +19,6 @@ proxy_url = f"http://api.scraperapi.com?api_key={API_KEY}&url={target_url}&rende
 
 try:
     print("Sending request via ScraperAPI proxy...")
-    # ScraperAPI can take up to 60 seconds to rotate proxies and render JS
     response = requests.get(proxy_url, timeout=60)
     
     print(f"HTTP Status Code: {response.status_code}")
