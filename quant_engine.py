@@ -64,6 +64,7 @@ class ConsensusEngine:
     def __init__(self, configs):
         self.configs = configs
         self.master_matrix = {}
+        self.corner_stats = {} # NEW: Isolated memory for corner stats
         self.diagnostics = {}
 
     def normalize_prediction(self, raw_text):
@@ -110,6 +111,39 @@ class ConsensusEngine:
         existing_sites = [entry[0] for entry in self.master_matrix[final_key]]
         if site_name not in existing_sites:
             self.master_matrix[final_key].append((site_name, normalized_pick))
+
+    # ==========================================================================
+    # CORNER STATS SCRAPER MODULE (NEW & ISOLATED)
+    # ==========================================================================
+    def fetch_corners_sync(self):
+        url = "https://www.windrawwin.com/statistics/corners/"
+        try:
+            if SCRAPER_API_KEY:
+                proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
+                r = tls_requests.get(proxy_url, timeout=60)
+            else:
+                r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+            
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.content, 'html.parser')
+                rows = soup.find_all("div", class_="wtrow")
+                valid_corners = 0
+                for row in rows:
+                    divs = row.find_all("div")
+                    if len(divs) >= 5:
+                        team = self.clean_team_name(divs[1].text)
+                        try:
+                            avg_c = float(divs[4].text)
+                            if avg_c < 25.0:  # Sanity filter against Total Season metrics
+                                self.corner_stats[team] = avg_c
+                                valid_corners += 1
+                        except ValueError:
+                            pass
+                self.diagnostics["Corners_Engine"] = f"🟢 OK ({valid_corners} Teams)"
+            else:
+                self.diagnostics["Corners_Engine"] = f"🔴 FAILED (HTTP {r.status_code})"
+        except Exception:
+            self.diagnostics["Corners_Engine"] = "🔴 TIMEOUT/ERROR"
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
@@ -199,7 +233,7 @@ class ConsensusEngine:
         ai_input_data = []
 
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin"]
-        active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status)
+        active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status and "Teams" not in status)
         required_consensus = 3 if active_scrapers_count >= 4 else 2
 
         for match, listings in self.master_matrix.items():
@@ -276,7 +310,7 @@ class ConsensusEngine:
 
         return agreed_matches, niche_matches, structured_tickets, ai_input_data, required_consensus
 
-    def ask_llm_to_optimize_tickets(self, ai_input_data):
+    def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         if not GEMINI_API_KEY:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
@@ -305,23 +339,28 @@ class ConsensusEngine:
 
         url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
+        # UPGRADED PROMPT: Now acts as a portfolio manager with both datasets
         prompt = f"""
-        You are an expert quantitative sports betting algorithmic model. Your sole task is to analyze today's football consensus data and generate highly optimized betslips with ABSOLUTELY ZERO textual explanations, introductions, headers, or footnotes.
+        You are an expert quantitative sports betting algorithmic model. Your task is to analyze today's football consensus data AND high-corner statistical advantages to generate highly optimized betslips with ABSOLUTELY ZERO textual explanations, introductions, headers, or footnotes.
 
-        Here is today's raw consensus data:
+        Here is today's raw consensus data (Match Winners/Goals):
         {json.dumps(ai_input_data, indent=2)}
+
+        Here is today's active High-Corner Team data (Teams playing today with high total corner averages):
+        {json.dumps(active_corner_teams, indent=2)}
 
         STRICT ARCHITECTURE RULES:
         1. NEVER repeat the same match across multiple tickets. A match can only appear ONCE in your entire output.
-        2. IF there are 3 or more matches provided: Divide them into up to THREE completely separate, non-overlapping tickets:
-           🛡️ TICKET 1: SAFE ANCHORS 
+        2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners' or 'Over 9.5 Corners') if the corner data provides a mathematically safer floor. Mix and match to build the most secure tickets possible.
+        3. IF there are 3 or more matches available: Divide them into up to THREE completely separate, non-overlapping tickets:
+           🛡️ TICKET 1: THE IRONCLAD SLIP (Highest Safety - Mix safest consensus & safest corners) 
            ⚖️ TICKET 2: BALANCED GROWTH 
-           🎯 TICKET 3: VALUE & VOLATILITY
-        3. IF there are only 1 or 2 matches provided: Output a single ticket:
+           🎯 TICKET 3: VALUE & VOLATILITY (Niche matches)
+        4. IF there are only 1 or 2 matches available: Output a single ticket:
            🔥 TICKET 1: PREMIUM SINGLES/DOUBLES
            • [Match Name] ➔ [Optimized Prediction]
-        4. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change '➔ 1' to '➔ 1X' or '➔ Draw No Bet').
-        5. NO paragraphs of text. NO explanations. Output ONLY the formatted tickets.
+        5. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change '➔ 1' to '➔ 1X', or replace with '➔ Over 8.5 Corners').
+        6. NO paragraphs of text. NO explanations. Output ONLY the formatted tickets.
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -385,7 +424,6 @@ class ConsensusEngine:
 
         dates_to_check = set()
         for date_str, payload in memory.items():
-            # BACKWARDS COMPATIBILITY: Handle old list format vs new dict format
             tickets = payload if isinstance(payload, list) else payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
@@ -398,7 +436,6 @@ class ConsensusEngine:
             results_matrix.update(self.fetch_results_from_statarea(d))
 
         for date_str, payload in memory.items():
-            # BACKWARDS COMPATIBILITY
             tickets = payload if isinstance(payload, list) else payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
@@ -452,7 +489,6 @@ class ConsensusEngine:
 
         today_payload = memory.get(today_date)
 
-        # Check if today's picks are ALREADY LOCKED (Safely checks against old list format)
         if isinstance(today_payload, dict) and today_payload.get("locked"):
             print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
             daily_data = memory[today_date]
@@ -462,18 +498,33 @@ class ConsensusEngine:
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["Daily_Lock"] = f"🔒 LOCKED ON {today_date}"
         else:
-            print(f"🔓 First run for {today_date} (or upgrading old format). Scraping and generating tickets...")
+            print(f"🔓 First run for {today_date}. Scraping and generating tickets...")
             loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-                await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+                # NEW: Added fetch_corners_sync to the concurrent execution pool
+                tasks = [loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()]
+                tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
+                await asyncio.gather(*tasks)
 
             agreed_matches, niche_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
 
-            ai_optimized_message = None
-            if ai_input_data:
-                ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data)
+            # Cross-reference today's matches with high-corner teams
+            active_corner_teams = []
+            for match in self.master_matrix.keys():
+                parts = match.split(" vs ")
+                if len(parts) == 2:
+                    h, a = parts[0].strip(), parts[1].strip()
+                    # Filter for teams playing today with a corner average > 9.5
+                    if h in self.corner_stats and self.corner_stats[h] >= 9.5:
+                        active_corner_teams.append({"match": match, "team": h, "avg_corners": self.corner_stats[h]})
+                    if a in self.corner_stats and self.corner_stats[a] >= 9.5:
+                        active_corner_teams.append({"match": match, "team": a, "avg_corners": self.corner_stats[a]})
 
-            # LOCK TODAY'S DATA PERMANENTLY (Upgrades old list format to new dict format automatically)
+            ai_optimized_message = None
+            if ai_input_data or active_corner_teams:
+                # Pass both datasets to Titan AI
+                ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
+
             memory[today_date] = {
                 "locked": True,
                 "agreed_matches": agreed_matches,
@@ -485,10 +536,9 @@ class ConsensusEngine:
             self.save_memory(memory)
             self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
 
-        # Settle results across all pending days
         settled_reports = self.settle_pending_tickets(memory)
 
-        # Build Message
+        # Build Message (Unchanged formatting to preserve existing visuals)
         msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
             msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
