@@ -416,48 +416,52 @@ class ConsensusEngine:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
 
         consensus_list, structured_tickets = self.process_consensus_signals()
-
-        if structured_tickets:
-            self.save_tickets_to_memory(structured_tickets)
-
         settled_reports = self.settle_pending_tickets()
 
-        ai_optimized_message = None
-        if consensus_list:
-            ai_optimized_message = self.ask_llm_to_optimize_tickets(consensus_list)
+        msg = ""
+        total_matches = len(consensus_list)
 
-        if ai_optimized_message:
-            msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
+        if total_matches < 3:
+            msg = "🛑 **SYSTEM OVERRIDE: LOW VOLUME (NO BET DAY)** 🛑\n\n"
+            msg += f"The engine only found **{total_matches}** matches that passed the strict consensus filter today.\n\n"
+            msg += "⚠️ **Verdict: NOT SAFE TO BET.** The volume is too low to properly diversify risk across three tickets. Preserve your bankroll for a better board.\n\n"
+            
+            if total_matches > 0:
+                msg += "*(Matches found for monitoring purposes only:)*\n"
+                for match in consensus_list: 
+                    msg += f"{match}\n"
+            
+            self.diagnostics["AI_Status"] = "⚪ Skipped (Low Volume)"
         else:
-            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
-            if not consensus_list:
-                msg += "No matches found with 2+ sites in agreement today.\n\n"
+            if structured_tickets:
+                self.save_tickets_to_memory(structured_tickets)
+            
+            ai_optimized_message = self.ask_llm_to_optimize_tickets(consensus_list)
+            
+            if ai_optimized_message:
+                msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
             else:
-                total_matches = len(consensus_list)
-                if total_matches >= 3:
-                    third = total_matches // 3
-                    t1 = consensus_list[:third]
-                    t2 = consensus_list[third:2*third]
-                    t3 = consensus_list[2*third:]
+                msg = "🤝 **QUANT CONSENSUS ENGINE (AI FALLBACK)** 🤝\n\n"
+                third = total_matches // 3
+                t1 = consensus_list[:third]
+                t2 = consensus_list[third:2*third]
+                t3 = consensus_list[2*third:]
 
-                    msg += f"🛡️ **TICKET 1: SAFE TIER ({len(t1)} Matches)** 🛡️\n"
-                    for match in t1: msg += f"{match}\n"
-
-                    msg += f"⚖️ **TICKET 2: BALANCED TIER ({len(t2)} Matches)** ⚖️\n"
-                    for match in t2: msg += f"{match}\n"
-
-                    msg += f"🎯 **TICKET 3: VALUE TIER ({len(t3)} Matches)** 🎯\n"
-                    for match in t3: msg += f"{match}\n"
-                else:
-                    msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({total_matches})** 🔥\n\n"
-                    for match in consensus_list: msg += f"{match}\n"
+                msg += f"🛡️ **TICKET 1: SAFE TIER ({len(t1)} Matches)** 🛡️\n"
+                for match in t1: msg += f"{match}\n"
+                
+                msg += f"\n⚖️ **TICKET 2: BALANCED TIER ({len(t2)} Matches)** ⚖️\n"
+                for match in t2: msg += f"{match}\n"
+                
+                msg += f"\n🎯 **TICKET 3: VALUE TIER ({len(t3)} Matches)** 🎯\n"
+                for match in t3: msg += f"{match}\n\n"
 
         if settled_reports:
-            msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
+            msg += "\n📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
             for rep in settled_reports: msg += f"{rep}\n"
             msg += "\n"
 
-        msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
+        msg += "\n⚙️ **SCRAPER STATUS** ⚙️\n"
         for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
 
         self.send_telegram_alert(msg)
