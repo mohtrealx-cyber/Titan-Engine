@@ -5,7 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 
 print("========================================")
-print("  STARTING TITAN ENGINE RAW EXTRACTION")
+print("  STARTING TITAN ENGINE RAW EXTRACTION (V2)")
 print("========================================")
 
 API_KEY = os.environ.get("SCRAPER_API_KEY")
@@ -15,8 +15,6 @@ if not API_KEY:
     sys.exit(1)
 
 target_url = "https://www.windrawwin.com/predictions/today/"
-
-# Keeping render=true OFF to prevent ScraperAPI 500 timeouts
 proxy_url = f"http://api.scraperapi.com?api_key={API_KEY}&url={target_url}"
 
 try:
@@ -26,37 +24,34 @@ try:
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "lxml")
         
-        # Target the anchors directly - this is the most stable element on the page
-        match_links = soup.find_all("a", href=lambda h: h and "/tips/" in h and "-v-" in h)
+        # Target the row containers directly instead of climbing the DOM
+        # WinDrawWin heavily uses 'wtrow' for standard rows and 'wttr' for others
+        match_rows = soup.find_all("div", class_=lambda c: c and ("wtrow" in c or "wttr" in c))
         
         raw_matches = []
         seen_urls = set()
 
-        for link in match_links:
-            url = link['href']
+        for row in match_rows:
+            # Look for the match link INSIDE this specific row container
+            link = row.find("a", href=lambda h: h and "/tips/" in h and "-v-" in h)
             
-            # Skip duplicates (WDW sometimes lists a match twice)
-            if url in seen_urls:
-                continue
-            seen_urls.add(url)
-            
-            # Extract teams
-            teams_str = link.get_text(strip=True)
-            if " v " in teams_str:
-                home_team, away_team = teams_str.split(" v ", 1)
-            else:
-                home_team, away_team = "Unknown", "Unknown"
+            if link:
+                url = link['href']
+                
+                # Skip duplicate listings
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                
+                # Extract teams
+                teams_str = link.get_text(strip=True)
+                if " v " in teams_str:
+                    home_team, away_team = teams_str.split(" v ", 1)
+                else:
+                    home_team, away_team = "Unknown", "Unknown"
 
-            # Climb up the DOM to the parent row container
-            # Usually it's a div with 'wtrow' or 'wttr', but we fall back to climbing 3 levels up
-            row_container = link.find_parent('div', class_=lambda c: c and ('wtrow' in c or 'wttr' in c))
-            
-            if not row_container:
-                row_container = link.find_parent().find_parent().find_parent()
-            
-            if row_container:
-                # Grab ALL text inside this row, strip out the messy newlines, and space it out
-                raw_text_block = " ".join(row_container.stripped_strings)
+                # Grab ONLY the text inside this specific row container
+                raw_text_block = " ".join(row.stripped_strings)
                 
                 raw_matches.append({
                     "Home": home_team.strip(),
@@ -64,7 +59,7 @@ try:
                     "Raw_Data_Block": raw_text_block
                 })
 
-        print(f"\nSuccessfully extracted {len(raw_matches)} match blocks.")
+        print(f"\nSuccessfully extracted {len(raw_matches)} isolated match blocks.")
         
         if raw_matches:
             print("\nSample of data ready for the LLM:\n")
