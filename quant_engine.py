@@ -196,7 +196,7 @@ class ConsensusEngine:
         ai_input_data = []
 
         for match, listings in self.master_matrix.items():
-            if len(listings) < 3: continue # Strict 3+ sites check
+            if len(listings) < 3: continue
 
             prediction_weights = {}
             sites_backing = {}
@@ -273,21 +273,16 @@ class ConsensusEngine:
         4. TICKET 3 (VALUE TIER): The remaining matches that carry more volatility.
         5. NO paragraphs of text. NO explanations. NO footnotes at the bottom.
         6. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines themselves. For volatile matchups, change the output from a pure outcome (like '➔ 1') to the optimized market directly (such as '➔ 1X', '➔ Over 1.5 Goals', '➔ Draw No Bet', etc.).
-        7. CRITICAL REQUIREMENT: Under EVERY match line, you MUST preserve and output the exact backing sites provided in the input object in the format:
-           ↳ Backed by: [backed_by]
-        8. Do not wrap output in markdown code blocks. Output the tickets EXACTLY like this structure:
+        7. Do not wrap output in markdown code blocks. Output the tickets EXACTLY like this structure:
 
         🛡️ TICKET 1: SAFE ANCHORS 
         • [Match Name] ➔ [Optimized Prediction]
-          ↳ Backed by: [backed_by]
 
         ⚖️ TICKET 2: BALANCED GROWTH 
         • [Match Name] ➔ [Optimized Prediction]
-          ↳ Backed by: [backed_by]
 
         🎯 TICKET 3: VALUE & VOLATILITY
         • [Match Name] ➔ [Optimized Prediction]
-          ↳ Backed by: [backed_by]
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -443,9 +438,6 @@ class ConsensusEngine:
         if ai_input_data:
             ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data)
 
-        # ---------------------------------------------------------
-        # NEW TELEGRAM MESSAGE FORMAT (Outputs Raw AND AI Results)
-        # ---------------------------------------------------------
         msg = "🤝 **RAW CONSENSUS DATA (3+ SITES AGREEMENT)** 🤝\n\n"
         
         if not consensus_list:
