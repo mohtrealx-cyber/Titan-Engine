@@ -470,18 +470,6 @@ class ConsensusEngine:
 
         return settled_reports
 
-    def send_telegram_alert(self, msg):
-        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"}
-            try:
-                r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
-                if r.status_code != 200:
-                    payload.pop("parse_mode")
-                    tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
-            except Exception as e:
-                print(f"Telegram alert failed: {e}")
-
     async def run_pipeline(self):
         # Time logic: Capture current time in EAT (UTC+3)
         eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
@@ -491,8 +479,17 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # Only reuse picks if they exist AND are explicitly marked as locked
-        if isinstance(today_payload, dict) and today_payload.get("locked"):
+        # --- SELF-HEALING LOCK LOGIC ---
+        is_already_locked = False
+        if isinstance(today_payload, dict):
+            if today_payload.get("locked") and current_hour >= 6:
+                is_already_locked = True
+            elif today_payload.get("locked") and current_hour < 6:
+                print("⚠️ Found a premature lock. Forcing unlock since it is before 6:00 AM EAT.")
+                is_already_locked = False
+
+        # Only reuse picks if they are legitimately locked AFTER 6 AM
+        if is_already_locked:
             print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
             daily_data = memory[today_date]
             agreed_matches = daily_data.get("agreed_matches", [])
