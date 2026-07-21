@@ -758,5 +758,19 @@
             "status": "PENDING",
             "score": "-"
         }
+    ],
+    "2026-07-21": [
+        {
+            "match": "Jeonbuk Motors vs Daejeon Citizen",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        },
+        {
+            "match": "Falkenbergs Ff vs Helsingborg",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
+        }
     ]
 }
