@@ -339,7 +339,6 @@ class ConsensusEngine:
 
         url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
-        # UPGRADED PROMPT: Now acts as a portfolio manager with both datasets
         prompt = f"""
         You are an expert quantitative sports betting algorithmic model. Your task is to analyze today's football consensus data AND high-corner statistical advantages to generate highly optimized betslips with ABSOLUTELY ZERO textual explanations, introductions, headers, or footnotes.
 
@@ -379,7 +378,7 @@ class ConsensusEngine:
             return None
 
     # ==========================================================================
-    # IMMUTABLE DAILY LOCKING ARCHITECTURE & BACKWARDS COMPATIBILITY
+    # IMMUTABLE DAILY LOCKING ARCHITECTURE
     # ==========================================================================
     def load_memory(self):
         if os.path.exists(MEMORY_FILE):
@@ -484,11 +483,15 @@ class ConsensusEngine:
                 print(f"Telegram alert failed: {e}")
 
     async def run_pipeline(self):
-        today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
-        memory = self.load_memory()
+        # Time logic: Capture current time in EAT (UTC+3)
+        eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
+        today_date = eat_time.strftime('%Y-%m-%d')
+        current_hour = eat_time.hour
 
+        memory = self.load_memory()
         today_payload = memory.get(today_date)
 
+        # Only reuse picks if they exist AND are explicitly marked as locked
         if isinstance(today_payload, dict) and today_payload.get("locked"):
             print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
             daily_data = memory[today_date]
@@ -498,23 +501,20 @@ class ConsensusEngine:
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["Daily_Lock"] = f"🔒 LOCKED ON {today_date}"
         else:
-            print(f"🔓 First run for {today_date}. Scraping and generating tickets...")
+            print(f"🔓 Scraping and generating tickets for {today_date}...")
             loop = asyncio.get_running_loop()
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
-                # NEW: Added fetch_corners_sync to the concurrent execution pool
                 tasks = [loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()]
                 tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
                 await asyncio.gather(*tasks)
 
             agreed_matches, niche_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
 
-            # Cross-reference today's matches with high-corner teams
             active_corner_teams = []
             for match in self.master_matrix.keys():
                 parts = match.split(" vs ")
                 if len(parts) == 2:
                     h, a = parts[0].strip(), parts[1].strip()
-                    # Filter for teams playing today with a corner average > 9.5
                     if h in self.corner_stats and self.corner_stats[h] >= 9.5:
                         active_corner_teams.append({"match": match, "team": h, "avg_corners": self.corner_stats[h]})
                     if a in self.corner_stats and self.corner_stats[a] >= 9.5:
@@ -522,11 +522,13 @@ class ConsensusEngine:
 
             ai_optimized_message = None
             if ai_input_data or active_corner_teams:
-                # Pass both datasets to Titan AI
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
+            # ----- DYNAMIC LOCKING AT 6 AM -----
+            should_lock = current_hour >= 6
+
             memory[today_date] = {
-                "locked": True,
+                "locked": should_lock,
                 "agreed_matches": agreed_matches,
                 "niche_matches": niche_matches,
                 "ai_optimized_message": ai_optimized_message,
@@ -534,11 +536,15 @@ class ConsensusEngine:
                 "tickets": structured_tickets
             }
             self.save_memory(memory)
-            self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
+            
+            if should_lock:
+                self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
+            else:
+                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 06:00 EAT)"
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        # Build Message (Unchanged formatting to preserve existing visuals)
+        # Build Message
         msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
             msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
