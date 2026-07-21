@@ -14,67 +14,39 @@ def fetch_corner_data(url):
             response = tls_requests.get(url, impersonate="chrome120", timeout=20)
         
         if response.status_code == 200:
-            print("✅ Connected to WinDrawWin!")
+            print("✅ Connected!")
             return BeautifulSoup(response.text, 'html.parser')
         else:
             print(f"❌ Failed to connect. Status Code: {response.status_code}")
             return None
-            
     except Exception as e:
         print(f"❌ Error: {e}")
         return None
 
 def extract_corner_stats(soup):
-    print("🔍 Searching for corner statistics...")
-    corner_data = {}
+    print("🔍 Diagnosing HTML structure...")
     
-    try:
-        # The stats are usually in a table with the class 'wt' (WinDrawWin Table)
-        stats_table = soup.find('table', class_='wt')
+    # 1. Print the title to see if we hit a CAPTCHA/Cloudflare block
+    title = soup.title.text.strip() if soup.title else "No Title Found"
+    print(f"📄 Page Title: {title}")
+    
+    # 2. Find all tables to see what classes they actually use
+    tables = soup.find_all('table')
+    print(f"📊 Found {len(tables)} tables on the page.")
+    
+    for i, table in enumerate(tables):
+        classes = table.get('class', ['No Class'])
+        print(f"--- Table {i+1} | Class: {classes} ---")
         
-        if not stats_table:
-            print("❌ Could not find the main statistics table on the page.")
-            return None
-            
-        rows = stats_table.find_all('tr')
-        print(f"Found {len(rows)} rows of data. Extracting...")
+        # Print a small snippet of the table's text to see if it holds team names
+        snippet = table.text.replace('\n', ' ').strip()[:150]
+        print(f"Snippet: {snippet}...\n")
         
-        for row in rows:
-            cols = row.find_all('td')
-            # A valid stats row usually has at least 3 columns (Rank, Team, Corners)
-            if len(cols) >= 3:
-                # The team name is usually in the second column
-                team_name = cols[1].text.strip()
-                # The total average corners is usually in the last column
-                avg_corners = cols[-1].text.strip()
-                
-                # Make sure the corners value is actually a number
-                try:
-                    corner_data[team_name] = float(avg_corners)
-                except ValueError:
-                    continue # Skip headers or rows with weird data
-                    
-        return corner_data
-        
-    except Exception as e:
-        print(f"❌ Error parsing HTML: {e}")
-        return None
+    return None
 
 if __name__ == "__main__":
     test_url = "https://www.windrawwin.com/statistics/corners/"
     soup = fetch_corner_data(test_url)
     
     if soup:
-        stats = extract_corner_stats(soup)
-        
-        if stats:
-            print("\n📈 TOP 10 TEAMS BY AVERAGE CORNERS PER GAME:")
-            print("-" * 40)
-            
-            # Sort the dictionary by highest corners first
-            sorted_stats = sorted(stats.items(), key=lambda item: item[1], reverse=True)
-            
-            for index, (team, corners) in enumerate(sorted_stats[:10]):
-                print(f"{index + 1}. {team}: {corners} corners")
-            
-            print("-" * 40)
+        extract_corner_stats(soup)
