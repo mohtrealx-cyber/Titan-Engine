@@ -195,6 +195,9 @@ class ConsensusEngine:
         structured_tickets = []
         ai_input_data = []
 
+        # Target all expected 4 platforms
+        all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin"]
+        
         # Calculate adaptive consensus threshold based on healthy scrapers
         active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status)
         required_consensus = 3 if active_scrapers_count >= 4 else 2
@@ -211,12 +214,30 @@ class ConsensusEngine:
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             if prediction_weights[top_pick] >= required_consensus:
-                backing_sites_str = " + ".join(sites_backing[top_pick])
+                backing_sites_list = sites_backing[top_pick]
+                backing_sites_str = " + ".join(backing_sites_list)
 
-                agreed_matches.append(
+                match_text = (
                     f"• **{match}** ➔ {top_pick}\n"
                     f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
                 )
+
+                # --- SHOW WHAT THE LEFT OUT SITE BACKED ---
+                left_out_sites = [s for s in all_scrapers if s not in backing_sites_list]
+                for left_out in left_out_sites:
+                    other_pick = None
+                    # Check if the left-out site predicted a different outcome
+                    for pick, sites in sites_backing.items():
+                        if pick != top_pick and left_out in sites:
+                            other_pick = pick
+                            break
+                    
+                    if other_pick:
+                        match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
+                    else:
+                        match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
+
+                agreed_matches.append(match_text)
 
                 structured_tickets.append({
                     "match": match,
