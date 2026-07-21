@@ -126,7 +126,6 @@ class ConsensusEngine:
 
             soup = BeautifulSoup(r.content, 'html.parser')
             
-            # Use dynamic regex to catch row classes for PredictZ (pt) and WinDrawWin (wt)
             if site_name in ["PredictZ", "WinDrawWin"]:
                 row_target = re.compile(r"(pt|wt)(tr|row)")
             else:
@@ -149,7 +148,6 @@ class ConsensusEngine:
 
                     home, away, pick = None, None, None
 
-                    # Sister-site logic for PredictZ and WinDrawWin
                     if site_name in ["PredictZ", "WinDrawWin"]:
                         prefix = "pt" if site_name == "PredictZ" else "wt"
                         
@@ -195,6 +193,7 @@ class ConsensusEngine:
     def process_consensus_signals(self):
         agreed_matches = []
         structured_tickets = []
+        ai_input_data = []
 
         for match, listings in self.master_matrix.items():
             if len(listings) < 2: continue
@@ -222,9 +221,15 @@ class ConsensusEngine:
                     "score": "-"
                 })
 
-        return agreed_matches, structured_tickets
+                ai_input_data.append({
+                    "match": match,
+                    "consensus_pick": top_pick,
+                    "backed_by": backing_sites_str
+                })
 
-    def ask_llm_to_optimize_tickets(self, consensus_list):
+        return agreed_matches, structured_tickets, ai_input_data
+
+    def ask_llm_to_optimize_tickets(self, ai_input_data):
         if not GEMINI_API_KEY:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY in GitHub Secrets"
             return None
@@ -259,7 +264,7 @@ class ConsensusEngine:
         You are an expert quantitative sports betting algorithmic model. Your sole task is to analyze today's football consensus data and generate highly optimized betslips with ABSOLUTELY ZERO textual explanations, introductions, headers, or footnotes.
 
         Here is today's raw consensus data:
-        {json.dumps(consensus_list, indent=2)}
+        {json.dumps(ai_input_data, indent=2)}
 
         STRICT ARCHITECTURE RULES:
         1. Divide the provided matches into EXACTLY THREE completely separate, non-overlapping tickets. No match should appear in more than one ticket.
@@ -268,19 +273,21 @@ class ConsensusEngine:
         4. TICKET 3 (VALUE TIER): The remaining matches that carry more volatility.
         5. NO paragraphs of text. NO explanations. NO footnotes at the bottom.
         6. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines themselves. For volatile matchups, change the output from a pure outcome (like '➔ 1') to the optimized market directly (such as '➔ 1X', '➔ Over 1.5 Goals', '➔ Draw No Bet', etc.).
-        7. Do not wrap the code in markdown blocks. Output the tickets EXACTLY like this:
+        7. CRITICAL REQUIREMENT: Under EVERY match line, you MUST preserve and output the exact backing sites provided in the input object in the format:
+           ↳ Backed by: [backed_by]
+        8. Do not wrap output in markdown code blocks. Output the tickets EXACTLY like this structure:
 
         🛡️ TICKET 1: SAFE ANCHORS 
         • [Match Name] ➔ [Optimized Prediction]
-        • [Match Name] ➔ [Optimized Prediction]
+          ↳ Backed by: [backed_by]
 
         ⚖️ TICKET 2: BALANCED GROWTH 
         • [Match Name] ➔ [Optimized Prediction]
-        • [Match Name] ➔ [Optimized Prediction]
+          ↳ Backed by: [backed_by]
 
         🎯 TICKET 3: VALUE & VOLATILITY
         • [Match Name] ➔ [Optimized Prediction]
-        • [Match Name] ➔ [Optimized Prediction]
+          ↳ Backed by: [backed_by]
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -422,10 +429,10 @@ class ConsensusEngine:
 
     async def run_pipeline(self):
         loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool: # Increased workers to 4 for the 4 sites
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             await asyncio.gather(*[loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()])
 
-        consensus_list, structured_tickets = self.process_consensus_signals()
+        consensus_list, structured_tickets, ai_input_data = self.process_consensus_signals()
 
         if structured_tickets:
             self.save_tickets_to_memory(structured_tickets)
@@ -433,8 +440,8 @@ class ConsensusEngine:
         settled_reports = self.settle_pending_tickets()
 
         ai_optimized_message = None
-        if consensus_list:
-            ai_optimized_message = self.ask_llm_to_optimize_tickets(consensus_list)
+        if ai_input_data:
+            ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data)
 
         if ai_optimized_message:
             msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
