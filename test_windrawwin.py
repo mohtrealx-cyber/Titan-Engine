@@ -46,7 +46,9 @@ try:
         # Print the first 3 matches as a sample to verify it worked
         print("Sample data from first 3 rows:")
         for i, row in enumerate(rows[:3]):
-            print(f"Row {i+1}: {row.text.strip().replace('\n', ' | ')[:100]}...")
+            # Clean string outside the f-string to prevent backslash syntax errors in Python < 3.12
+            cleaned_row_text = row.text.strip().replace('\n', ' | ')[:100]
+            print(f"Row {i+1}: {cleaned_row_text}...")
             
     else:
         print(f"Failed to bypass Cloudflare. Status code: {response.status_code}")
