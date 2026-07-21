@@ -196,8 +196,7 @@ class ConsensusEngine:
         ai_input_data = []
 
         for match, listings in self.master_matrix.items():
-            # INCREASED STRICTNESS: Skip immediately if the match isn't present on at least 3 sites
-            if len(listings) < 3: continue
+            if len(listings) < 3: continue # Strict 3+ sites check
 
             prediction_weights = {}
             sites_backing = {}
@@ -207,8 +206,6 @@ class ConsensusEngine:
                 sites_backing[pick].append(site)
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
-            
-            # INCREASED STRICTNESS: Ensure the specific pick has 3 or more sites agreeing
             if prediction_weights[top_pick] >= 3:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
 
@@ -446,31 +443,19 @@ class ConsensusEngine:
         if ai_input_data:
             ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data)
 
-        if ai_optimized_message:
-            msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
+        # ---------------------------------------------------------
+        # NEW TELEGRAM MESSAGE FORMAT (Outputs Raw AND AI Results)
+        # ---------------------------------------------------------
+        msg = "🤝 **RAW CONSENSUS DATA (3+ SITES AGREEMENT)** 🤝\n\n"
+        
+        if not consensus_list:
+            msg += "No matches found with 3+ sites in agreement today.\n\n"
         else:
-            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ + WinDrawWin)*\n\n"
-            if not consensus_list:
-                msg += "No matches found with 3+ sites in agreement today.\n\n"
-            else:
-                total_matches = len(consensus_list)
-                if total_matches >= 3:
-                    third = total_matches // 3
-                    t1 = consensus_list[:third]
-                    t2 = consensus_list[third:2*third]
-                    t3 = consensus_list[2*third:]
-
-                    msg += f"🛡️ **TICKET 1: SAFE TIER ({len(t1)} Matches)** 🛡️\n"
-                    for match in t1: msg += f"{match}\n"
-
-                    msg += f"⚖️ **TICKET 2: BALANCED TIER ({len(t2)} Matches)** ⚖️\n"
-                    for match in t2: msg += f"{match}\n"
-
-                    msg += f"🎯 **TICKET 3: VALUE TIER ({len(t3)} Matches)** 🎯\n"
-                    for match in t3: msg += f"{match}\n"
-                else:
-                    msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({total_matches})** 🔥\n\n"
-                    for match in consensus_list: msg += f"{match}\n"
+            for match in consensus_list: 
+                msg += f"{match}\n"
+                
+        if ai_optimized_message:
+            msg += f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}\n\n"
 
         if settled_reports:
             msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
