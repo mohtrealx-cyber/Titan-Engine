@@ -1,79 +1,75 @@
 import os
 import sys
 import json
-import requests
-from bs4 import BeautifulSoup
+import google.generativeai as genai
 
 print("========================================")
-print("  STARTING TITAN ENGINE RAW EXTRACTION (V2)")
+print("  STARTING TITAN ENGINE LLM PARSER")
 print("========================================")
 
-API_KEY = os.environ.get("SCRAPER_API_KEY")
+# Make sure to set your GEMINI_API_KEY environment variable!
+API_KEY = os.environ.get("GEMINI_API_KEY")
 
 if not API_KEY:
-    print("ERROR: SCRAPER_API_KEY environment variable not found!")
+    print("ERROR: GEMINI_API_KEY environment variable not found!")
     sys.exit(1)
 
-target_url = "https://www.windrawwin.com/predictions/today/"
-proxy_url = f"http://api.scraperapi.com?api_key={API_KEY}&url={target_url}"
+genai.configure(api_key=API_KEY)
 
-try:
-    print("Sending request via ScraperAPI proxy...")
-    response = requests.get(proxy_url, timeout=60)
+# We use 1.5 Flash for speed, and strictly enforce JSON output
+model = genai.GenerativeModel(
+    "gemini-1.5-flash",
+    generation_config={"response_mime_type": "application/json"}
+)
+
+def parse_predictions(input_file="windrawwin_ready_for_llm.json", output_file="titan_engine_final.json"):
+    if not os.path.exists(input_file):
+        print(f"ERROR: {input_file} not found.")
+        return
+
+    with open(input_file, "r") as f:
+        raw_matches = json.load(f)
+
+    print(f"Loaded {len(raw_matches)} raw matches.")
     
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, "lxml")
+    # We will test the first 3 matches first to verify the schema is working perfectly
+    test_batch = raw_matches[:3]
+    print(f"Sending batch of {len(test_batch)} to the LLM for parsing...\n")
+
+    system_prompt = """
+    You are a sports data extraction engine. 
+    I will provide a JSON array of football matches. Each match contains a 'Raw_Data_Block' of unstructured text.
+    Your job is to extract the betting prediction and odds, and return a JSON array of objects following this exact schema:
+    [
+      {
+        "Home": "Home Team Name",
+        "Away": "Away Team Name",
+        "Prediction": "1" for Home Win, "X" for Draw, "2" for Away Win,
+        "Correct_Score": "e.g., 1-1 or 2-0",
+        "Stake": "Small, Medium, or Large",
+        "Odds_1": "Convert fractional home odds to decimal float (e.g., 13/10 = 2.30)",
+        "Odds_X": "Convert fractional draw odds to decimal float",
+        "Odds_2": "Convert fractional away odds to decimal float"
+      }
+    ]
+    Extract the odds immediately following the '1 X 2' text in the block.
+    """
+
+    prompt = system_prompt + "\n\nRaw Match Data:\n" + json.dumps(test_batch, indent=2)
+
+    try:
+        response = model.generate_content(prompt)
+        parsed_data = json.loads(response.text)
         
-        # Target the row containers directly instead of climbing the DOM
-        # WinDrawWin heavily uses 'wtrow' for standard rows and 'wttr' for others
-        match_rows = soup.find_all("div", class_=lambda c: c and ("wtrow" in c or "wttr" in c))
+        print("--- LLM PARSING SUCCESSFUL ---")
+        print(json.dumps(parsed_data, indent=4))
         
-        raw_matches = []
-        seen_urls = set()
-
-        for row in match_rows:
-            # Look for the match link INSIDE this specific row container
-            link = row.find("a", href=lambda h: h and "/tips/" in h and "-v-" in h)
-            
-            if link:
-                url = link['href']
-                
-                # Skip duplicate listings
-                if url in seen_urls:
-                    continue
-                seen_urls.add(url)
-                
-                # Extract teams
-                teams_str = link.get_text(strip=True)
-                if " v " in teams_str:
-                    home_team, away_team = teams_str.split(" v ", 1)
-                else:
-                    home_team, away_team = "Unknown", "Unknown"
-
-                # Grab ONLY the text inside this specific row container
-                raw_text_block = " ".join(row.stripped_strings)
-                
-                raw_matches.append({
-                    "Home": home_team.strip(),
-                    "Away": away_team.strip(),
-                    "Raw_Data_Block": raw_text_block
-                })
-
-        print(f"\nSuccessfully extracted {len(raw_matches)} isolated match blocks.")
+        with open(output_file, "w") as f:
+            json.dump(parsed_data, f, indent=4)
+        print(f"\nSaved structured data to {output_file}")
         
-        if raw_matches:
-            print("\nSample of data ready for the LLM:\n")
-            for i, match in enumerate(raw_matches[:3]):
-                print(f"Row {i + 1}: {match}\n")
+    except Exception as e:
+        print(f"Error during LLM parsing: {e}")
 
-        # Export for the LLM parser
-        output_filename = "windrawwin_ready_for_llm.json"
-        with open(output_filename, "w") as f:
-            json.dump(raw_matches, f, indent=4)
-        print(f"Data successfully saved to {output_filename}")
-
-    else:
-        print(f"Proxy request failed with status: {response.status_code} - {response.text}")
-
-except Exception as e:
-    print(f"AN ERROR OCCURRED: {e}")
+if __name__ == "__main__":
+    parse_predictions()
