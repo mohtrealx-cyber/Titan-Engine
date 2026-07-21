@@ -3,6 +3,7 @@ import sys
 import json
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
 from google import genai
 from google.genai import types
 
@@ -30,7 +31,6 @@ try:
     
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "lxml")
-        # Find all match rows based on WinDrawWin's specific layout
         match_rows = soup.find_all("div", class_=lambda c: c and ("wtrow" in c or "wttr" in c))
         seen_urls = set()
 
@@ -72,10 +72,8 @@ if not raw_matches:
     print("No matches to parse. Exiting.")
     sys.exit(0)
 
-# Initialize the new GenAI client
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Passing all extracted matches directly to the model
 print(f"Sending batch of {len(raw_matches)} to the LLM for parsing...\n")
 
 system_prompt = """
@@ -100,7 +98,6 @@ Extract the odds immediately following the '1 X 2' text in the block.
 prompt = system_prompt + "\n\nRaw Match Data:\n" + json.dumps(raw_matches, indent=2)
 
 try:
-    # Using the current 3.5 model with the updated SDK config types
     response = client.models.generate_content(
         model='gemini-3.5-flash',
         contents=prompt,
@@ -112,11 +109,23 @@ try:
     parsed_data = json.loads(response.text)
     
     print("--- LLM PARSING SUCCESSFUL ---")
-    print(json.dumps(parsed_data, indent=4))
     
-    with open("titan_engine_final.json", "w") as f:
+    # Create a data directory if it doesn't exist
+    os.makedirs("data", exist_ok=True)
+    
+    # Generate today's date for the filename
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    output_filename = f"data/predictions_windrawwin_{today_str}.json"
+    
+    # Save the timestamped daily file
+    with open(output_filename, "w") as f:
         json.dump(parsed_data, f, indent=4)
-    print("\nSaved structured data to titan_engine_final.json")
+        
+    # Also save a 'latest' file for easy overriding access
+    with open("data/latest_windrawwin.json", "w") as f:
+        json.dump(parsed_data, f, indent=4)
+        
+    print(f"\nSaved structured data to {output_filename}")
     
 except Exception as e:
     print(f"Error during LLM parsing: {e}")
