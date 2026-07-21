@@ -196,7 +196,8 @@ class ConsensusEngine:
         ai_input_data = []
 
         for match, listings in self.master_matrix.items():
-            if len(listings) < 2: continue
+            # INCREASED STRICTNESS: Skip immediately if the match isn't present on at least 3 sites
+            if len(listings) < 3: continue
 
             prediction_weights = {}
             sites_backing = {}
@@ -206,7 +207,9 @@ class ConsensusEngine:
                 sites_backing[pick].append(site)
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
-            if prediction_weights[top_pick] >= 2:
+            
+            # INCREASED STRICTNESS: Ensure the specific pick has 3 or more sites agreeing
+            if prediction_weights[top_pick] >= 3:
                 backing_sites_str = " + ".join(sites_backing[top_pick])
 
                 agreed_matches.append(
@@ -448,7 +451,7 @@ class ConsensusEngine:
         else:
             msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ + WinDrawWin)*\n\n"
             if not consensus_list:
-                msg += "No matches found with 2+ sites in agreement today.\n\n"
+                msg += "No matches found with 3+ sites in agreement today.\n\n"
             else:
                 total_matches = len(consensus_list)
                 if total_matches >= 3:
