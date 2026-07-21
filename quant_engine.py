@@ -271,22 +271,16 @@ class ConsensusEngine:
         {json.dumps(ai_input_data, indent=2)}
 
         STRICT ARCHITECTURE RULES:
-        1. Divide the provided matches into EXACTLY THREE completely separate, non-overlapping tickets. No match should appear in more than one ticket.
-        2. TICKET 1 (SAFE TIER): The absolute lowest variance matches.
-        3. TICKET 2 (BALANCED TIER): Solid matches with good tactical advantages.
-        4. TICKET 3 (VALUE TIER): The remaining matches that carry more volatility.
-        5. NO paragraphs of text. NO explanations. NO footnotes at the bottom.
-        6. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines themselves. For volatile matchups, change the output from a pure outcome (like '➔ 1') to the optimized market directly (such as '➔ 1X', '➔ Over 1.5 Goals', '➔ Draw No Bet', etc.).
-        7. Do not wrap output in markdown code blocks. Output the tickets EXACTLY like this structure:
-
-        🛡️ TICKET 1: SAFE ANCHORS 
-        • [Match Name] ➔ [Optimized Prediction]
-
-        ⚖️ TICKET 2: BALANCED GROWTH 
-        • [Match Name] ➔ [Optimized Prediction]
-
-        🎯 TICKET 3: VALUE & VOLATILITY
-        • [Match Name] ➔ [Optimized Prediction]
+        1. NEVER repeat the same match across multiple tickets. A match can only appear ONCE in your entire output.
+        2. IF there are 3 or more matches provided: Divide them into up to THREE completely separate, non-overlapping tickets:
+           🛡️ TICKET 1: SAFE ANCHORS 
+           ⚖️ TICKET 2: BALANCED GROWTH 
+           🎯 TICKET 3: VALUE & VOLATILITY
+        3. IF there are only 1 or 2 matches provided: DO NOT create three tickets. Output a single ticket formatted exactly like this:
+           🔥 TICKET 1: PREMIUM SINGLES/DOUBLES
+           • [Match Name] ➔ [Optimized Prediction]
+        4. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change '➔ 1' to '➔ 1X' or '➔ Draw No Bet' depending on the risk tier).
+        5. NO paragraphs of text. NO explanations. Do not wrap output in markdown code blocks. Output ONLY the tickets in the requested format.
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
