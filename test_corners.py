@@ -1,5 +1,5 @@
 import os
-import requests # Needed for Telegram API
+import requests
 from bs4 import BeautifulSoup
 from curl_cffi import requests as tls_requests
 
@@ -32,7 +32,7 @@ def extract_corner_stats(soup):
     rows = soup.find_all('div', class_=lambda c: c and ('statln1' in c or 'statln2' in c))
     print(f"Found {len(rows)} potential data rows.")
     
-    for row in rows:
+    for i, row in enumerate(rows):
         cols = list(row.stripped_strings)
         
         team_name = None
@@ -48,18 +48,24 @@ def extract_corner_stats(soup):
                 if len(stats) == 0 and len(col) > 2 and "Stats" not in col:
                     team_name = col
                     
-        # If we successfully parsed at least 3 numbers (Home, Away, Total)
-        if team_name and len(stats) >= 3:
-            # The 3rd number in the sequence is the total average corners
-            total_corners = stats[2] 
-            corner_data[team_name] = total_corners
+        # If we successfully parsed at least 1 number
+        if team_name and len(stats) >= 1:
+            # Print the raw array of the first row just to verify our targeting
+            if i == 0:
+                print(f"🛠️ Debug - First Row Raw Stats Array: {stats}")
+                
+            # The final number in the sequence is the actual Average Corners per Game
+            avg_corners = stats[-1] 
+            corner_data[team_name] = avg_corners
 
     return corner_data
 
 def send_telegram_alert(message):
     print("📲 Attempting to send Telegram notification...")
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    
+    # Fallback to QUANT_ tokens if TELEGRAM_ tokens aren't explicitly passed
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("QUANT_TELEGRAM_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("QUANT_TELEGRAM_CHAT_ID")
     
     if not bot_token or not chat_id:
         print("⚠️ Telegram credentials not found in secrets. Skipping message.")
