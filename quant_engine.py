@@ -320,6 +320,7 @@ class ConsensusEngine:
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
+                contradictions = []
 
                 match_text = (
                     f"• **{match}** ➔ {top_pick}\n"
@@ -334,12 +335,23 @@ class ConsensusEngine:
                             other_pick = pick
                             break
                     
-                    if other_pick: match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
-                    else: match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
+                    if other_pick: 
+                        match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
+                        contradictions.append(f"{left_out} ({other_pick})")
+                    else: 
+                        match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
 
                 agreed_matches.append(match_text)
                 structured_tickets.append({"match": match, "prediction": top_pick, "status": "PENDING", "score": "-"})
-                ai_input_data.append({"match": match, "consensus_pick": top_pick, "backed_by": backing_sites_str, "tier": "Core Consensus"})
+                
+                # Added 'contradictions' list to AI data
+                ai_input_data.append({
+                    "match": match, 
+                    "consensus_pick": top_pick, 
+                    "backed_by": backing_sites_str, 
+                    "contradictions": contradictions, 
+                    "tier": "Core Consensus"
+                })
 
             elif required_consensus == 3 and len(listings) == 2 and prediction_weights[top_pick] == 2:
                 backing_sites_list = sites_backing[top_pick]
@@ -356,7 +368,15 @@ class ConsensusEngine:
                     
                 niche_matches.append(match_text)
                 structured_tickets.append({"match": match, "prediction": top_pick, "status": "PENDING", "score": "-"})
-                ai_input_data.append({"match": match, "consensus_pick": top_pick, "backed_by": backing_sites_str, "tier": "Niche Coverage"})
+                
+                # Niche matches by definition have 0 contradictions here
+                ai_input_data.append({
+                    "match": match, 
+                    "consensus_pick": top_pick, 
+                    "backed_by": backing_sites_str, 
+                    "contradictions": [], 
+                    "tier": "Niche Coverage"
+                })
 
         return agreed_matches, niche_matches, structured_tickets, ai_input_data, required_consensus
 
@@ -365,7 +385,6 @@ class ConsensusEngine:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        # Fixed fallback versioning to Gemini 1.5 Flash
         model_name = "models/gemini-1.5-flash"  
         try:
             list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
@@ -405,8 +424,9 @@ class ConsensusEngine:
         1. NEVER repeat the same match across multiple tickets. A match can only appear ONCE in your entire output.
         2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners' or 'Over 9.5 Corners') if the corner data provides a mathematically safer floor. Mix and match to build the most secure tickets possible.
         3. IF there are 3 or more matches available: Divide them into up to THREE completely separate, non-overlapping tickets:
-           🛡️ TICKET 1: THE IRONCLAD SLIP (MUST contain EXACTLY THREE matches sourced exclusively from the 'Core Consensus' tier. If fewer than 3 Core matches exist, fill the remaining spots with the safest Corner predictions to ensure it remains a 3-leg treble). 
-           ⚖️ TICKET 2: BALANCED GROWTH (Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners).
+           🛡️ TICKET 1: THE IRONCLAD SLIP (MUST contain EXACTLY THREE matches sourced exclusively from the 'Core Consensus' tier. 
+           CRITICAL RULE: You MUST NOT include any match in Ticket 1 that has items inside its "contradictions" list. Ticket 1 matches must have zero contradictions. If fewer than 3 pristine matches exist, fill the remaining spots with the safest Corner predictions). 
+           ⚖️ TICKET 2: BALANCED GROWTH (Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here).
            🎯 TICKET 3: VALUE & VOLATILITY (Use the remaining 'Niche Coverage' matches and higher-risk options).
         4. IF there are only 1 or 2 matches available: Output a single ticket:
            🔥 TICKET 1: PREMIUM SINGLES/DOUBLES
