@@ -57,6 +57,14 @@ def get_dynamic_configs():
             "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
             "pick_selector": "div", "pick_class": "wtoddsdesc", "pick_index": 0,
             "use_scraperapi": True
+        },
+        "SoccerVista": {
+            "url": "https://www.soccervista.com/",
+            "row_selector": "tr", "row_class": "",
+            "home_selector": "td", "home_class": "", "home_index": 0,
+            "away_selector": "td", "away_class": "", "away_index": 1,
+            "pick_selector": "td", "pick_class": "", "pick_index": 4,
+            "use_scraperapi": False
         }
     }
 
@@ -179,10 +187,12 @@ class ConsensusEngine:
             
             if site_name in ["PredictZ", "WinDrawWin"]:
                 row_target = re.compile(r"(pt|wt)(tr|row)")
+                rows = soup.find_all("div", class_=row_target)
+            elif site_name == "SoccerVista":
+                rows = soup.find_all("tr")
             else:
                 row_target = cfg["row_class"]
-                
-            rows = soup.find_all(cfg["row_selector"], class_=row_target)
+                rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
             if not rows:
                 self.diagnostics[site_name] = f"🟡 BLOCKED"
@@ -223,6 +233,30 @@ class ConsensusEngine:
                                     if norm:
                                         pick = norm
                                         break
+                                        
+                    # Custom parsing rules for SoccerVista tables
+                    elif site_name == "SoccerVista":
+                        tds = row.find_all("td")
+                        if len(tds) >= 4:
+                            home_elem = row.find(class_=re.compile(r"home|team1", re.IGNORECASE))
+                            away_elem = row.find(class_=re.compile(r"away|team2", re.IGNORECASE))
+                            
+                            if home_elem and away_elem:
+                                home = home_elem.text
+                                away = away_elem.text
+                            else:
+                                # Fallback assumption based on standard SoccerVista tabular data
+                                home = tds[1].text if len(tds) > 1 else None
+                                away = tds[2].text if len(tds) > 2 else None
+                                
+                            # Search the remaining columns for the direct 1, X, 2 marker
+                            for td in tds[3:]:
+                                text = td.get_text(strip=True).upper()
+                                if text in ["1", "X", "2", "1X", "X2", "12"]:
+                                    pick = text
+                                    break
+                    
+                    # Original parsing for Statarea and Vitibet
                     else:
                         home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
                         away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
@@ -247,7 +281,8 @@ class ConsensusEngine:
         structured_tickets = []
         ai_input_data = []
 
-        all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin"]
+        # Updated to include SoccerVista in the consensus engine logic
+        all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin", "SoccerVista"]
         active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status and "Teams" not in status)
         required_consensus = 3 if active_scrapers_count >= 4 else 2
 
@@ -524,7 +559,7 @@ class ConsensusEngine:
         else:
             print(f"🔓 Scraping and generating tickets for {today_date}...")
             loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
                 tasks = [loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()]
                 tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
                 await asyncio.gather(*tasks)
