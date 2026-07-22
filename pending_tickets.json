@@ -75,23 +75,29 @@
     },
     "2026-07-22": {
         "locked": false,
-        "agreed_matches": [
-            "\u2022 **Independiente Del Valle vs Tecnico Universitario** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n"
-        ],
+        "agreed_matches": [],
         "niche_matches": [
+            "\u2022 **Match Preview vs Independiente Del Valle V Tecnico Universitario** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Cruz Azul vs Puebla** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
             "\u2022 **Bodo/Glimt vs Ham-Kam** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n"
         ],
-        "ai_optimized_message": "\ud83d\udd25 TICKET 1: PREMIUM SINGLES/DOUBLES\n\u2022 Bodo/Glimt vs Ham-Kam \u2794 1\n\u2022 Independiente Del Valle vs Tecnico Universitario \u2794 1",
+        "ai_optimized_message": "\ud83d\udee1\ufe0f TICKET 1: THE IRONCLAD SLIP\n\u2022 Cruz Azul vs Puebla \u2794 Over 8.5 Corners\n\n\u2696\ufe0f TICKET 2: BALANCED GROWTH\n\u2022 Bodo/Glimt vs Ham-Kam \u2794 1X\n\n\ud83c\udfaf TICKET 3: VALUE & VOLATILITY\n\u2022 Atletico Mineiro vs Bahia \u2794 Over 9.5 Corners",
         "req_threshold": 3,
         "tickets": [
             {
-                "match": "Bodo/Glimt vs Ham-Kam",
+                "match": "Match Preview vs Independiente Del Valle V Tecnico Universitario",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Independiente Del Valle vs Tecnico Universitario",
+                "match": "Cruz Azul vs Puebla",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Bodo/Glimt vs Ham-Kam",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
