@@ -81,7 +81,11 @@ class ConsensusEngine:
         return None
 
     def clean_team_name(self, name):
-        return name.strip().title()
+        # Strip common web scraping button artifacts
+        cleaned = re.sub(r'(?i)\b(match preview|preview)\b', '', str(name))
+        # Collapse multiple spaces and clean whitespace
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        return cleaned.title()
 
     def is_match_active_or_played(self, row):
         text = row.get_text(separator=" ").upper()
@@ -116,14 +120,12 @@ class ConsensusEngine:
     # CORNER STATS SCRAPER MODULE (TOTALCORNER PIVOT)
     # ==========================================================================
     def fetch_corners_sync(self):
-        # Pivoting to TotalCorner - Dedicated quantitative corner data for TODAY'S matches
         url = "https://www.totalcorner.com/match/today"
         try:
             if SCRAPER_API_KEY:
                 proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
                 r = tls_requests.get(proxy_url, timeout=60)
             else:
-                # Using curl_cffi to bypass Cloudflare protection naturally
                 r = tls_requests.get(url, impersonate="chrome120", timeout=20)
             
             if r.status_code == 200:
@@ -134,21 +136,17 @@ class ConsensusEngine:
                 for row in rows:
                     cols = [c.text.strip() for c in row.find_all(["td", "th"]) if c.text.strip()]
                     
-                    # Ensure the row has enough data to be a valid match row
                     if len(cols) >= 5:
-                        # Find team names securely by targeting their specific href patterns
                         team_links = row.find_all("a", href=re.compile(r"/team/"))
                         
                         if len(team_links) >= 2:
                             home_team = self.clean_team_name(team_links[0].text)
                             away_team = self.clean_team_name(team_links[1].text)
                             
-                            # Extract numbers that look like corner averages or lines (e.g., 9.5, 10.2)
                             row_text = row.get_text(separator=" ")
                             averages = re.findall(r'\b([7-9]\.\d|1[0-5]\.\d)\b', row_text)
                             
                             if averages:
-                                # Map the highest valid floating point number as the match's corner expectancy
                                 highest_avg = max([float(x) for x in averages])
                                 
                                 if highest_avg >= 8.5:
