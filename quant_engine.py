@@ -59,7 +59,7 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "SoccerVista": {
-            "url": "https://www.soccervista.com/",
+            "url": "https://www.soccervista.com/predictions/", # 🚀 FIX 1: Corrected URL for full daily list
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
@@ -163,7 +163,6 @@ class ConsensusEngine:
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
             if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                # 🚀 FIX 1: Command ScraperAPI to use a Javascript engine specifically to bypass SoccerVista's Cloudflare
                 render_flag = "&render=true" if site_name == "SoccerVista" else ""
                 proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}{render_flag}"
                 r = tls_requests.get(proxy_url, timeout=60)
@@ -228,14 +227,12 @@ class ConsensusEngine:
                                         pick = norm
                                         break
                                         
-                    # 🚀 FIX 2: Custom parsing rules perfectly mapped to SoccerVista's 7-column table layout
                     elif site_name == "SoccerVista":
                         tds = row.find_all("td")
                         if len(tds) >= 5:
                             raw_home = tds[1].text
                             raw_away = tds[3].text
                             
-                            # SoccerVista injects Form Guides like "W D L W W" at the start of the Home team and end of Away team
                             home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
                             away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
                             
@@ -248,14 +245,23 @@ class ConsensusEngine:
                         away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
                         pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
 
-                    # 🚀 FIX 3: Catch-All logic to clean up the `• vs TeamA V TeamB` PredictZ/WinDrawWin bug!
-                    if (home is None or not str(home).strip()) and (away and " v " in str(away).lower()):
-                        parts = re.split(r'(?i)\s+v\s+', str(away), maxsplit=1)
-                        if len(parts) == 2: home, away = parts[0].strip(), parts[1].strip()
+                    # 🚀 FIX 2: Bulletproof, case-insensitive string cleaner to catch uppercase 'V' and 'VS'
+                    home_str = str(home).strip() if home else ""
+                    away_str = str(away).strip() if away else ""
 
-                    if (away is None or not str(away).strip()) and (home and " v " in str(home).lower()):
-                        parts = re.split(r'(?i)\s+v\s+', str(home), maxsplit=1)
-                        if len(parts) == 2: home, away = parts[0].strip(), parts[1].strip()
+                    # If 'home' is completely missing but 'away' has both teams bundled
+                    if (not home_str or home_str == "None") and away_str:
+                        if re.search(r'(?i)\s+vs?\s+', away_str):
+                            parts = re.split(r'(?i)\s+vs?\s+', away_str, maxsplit=1)
+                            home_str, away_str = parts[0].strip(), parts[1].strip()
+
+                    # If 'away' is completely missing but 'home' has both teams bundled
+                    if (not away_str or away_str == "None") and home_str:
+                        if re.search(r'(?i)\s+vs?\s+', home_str):
+                            parts = re.split(r'(?i)\s+vs?\s+', home_str, maxsplit=1)
+                            home_str, away_str = parts[0].strip(), parts[1].strip()
+
+                    home, away = home_str, away_str
 
                     if home and away and pick:
                         self.log_prediction_qa(site_name, home, away, pick)
