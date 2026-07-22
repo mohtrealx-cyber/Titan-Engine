@@ -89,7 +89,6 @@ class ConsensusEngine:
         return None
 
     def clean_team_name(self, name):
-        # 🚀 FIX: Added 'results' and 'result' to the regex filter to strip the new HTML artifact
         cleaned = re.sub(r'(?i)\b(match preview|preview|results?)\b', '', str(name))
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         return cleaned.title()
@@ -366,7 +365,8 @@ class ConsensusEngine:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        model_name = "models/gemini-3.5-flash"  
+        # Fixed fallback versioning to Gemini 1.5 Flash
+        model_name = "models/gemini-1.5-flash"  
         try:
             list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
             resp = requests.get(list_url, timeout=10)
@@ -391,26 +391,28 @@ class ConsensusEngine:
         url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
         prompt = f"""
-        You are an expert quantitative sports betting algorithmic model. Your task is to analyze today's football consensus data AND high-corner statistical advantages to generate highly optimized betslips with ABSOLUTELY ZERO textual explanations, introductions, headers, or footnotes.
+        You are Titan, an elite quantitative sports betting AI Portfolio Manager.
+        Your objective is to analyze the following raw consensus data and corner statistics, 
+        and construct highly optimized, risk-mitigated betting tickets.
 
-        Here is today's raw consensus data (Match Winners/Goals):
+        === RAW CONSENSUS DATA ===
         {json.dumps(ai_input_data, indent=2)}
 
-        Here is today's active High-Corner Team data (Teams playing today with high total corner averages):
+        === HIGH-PROBABILITY CORNER STATISTICS ===
         {json.dumps(active_corner_teams, indent=2)}
 
         STRICT ARCHITECTURE RULES:
         1. NEVER repeat the same match across multiple tickets. A match can only appear ONCE in your entire output.
         2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners' or 'Over 9.5 Corners') if the corner data provides a mathematically safer floor. Mix and match to build the most secure tickets possible.
         3. IF there are 3 or more matches available: Divide them into up to THREE completely separate, non-overlapping tickets:
-           🛡️ TICKET 1: THE IRONCLAD SLIP (Highest Safety - Mix safest consensus & safest corners) 
-           ⚖️ TICKET 2: BALANCED GROWTH 
-           🎯 TICKET 3: VALUE & VOLATILITY (Niche matches)
+           🛡️ TICKET 1: THE IRONCLAD SLIP (MUST contain EXACTLY THREE matches sourced exclusively from the 'Core Consensus' tier. If fewer than 3 Core matches exist, fill the remaining spots with the safest Corner predictions to ensure it remains a 3-leg treble). 
+           ⚖️ TICKET 2: BALANCED GROWTH (Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners).
+           🎯 TICKET 3: VALUE & VOLATILITY (Use the remaining 'Niche Coverage' matches and higher-risk options).
         4. IF there are only 1 or 2 matches available: Output a single ticket:
            🔥 TICKET 1: PREMIUM SINGLES/DOUBLES
            • [Match Name] ➔ [Optimized Prediction]
-        5. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change '➔ 1' to '➔ 1X', or replace with '➔ Over 8.5 Corners').
-        6. NO paragraphs of text. NO explanations. Output ONLY the formatted tickets.
+        5. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change a risky '➔ 1' to '➔ 1X', or replace a risky Win with '➔ Over 8.5 Corners').
+        6. NO paragraphs of text. NO explanations. NO conversational filler. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
