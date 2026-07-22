@@ -1,0 +1,376 @@
+[
+    {
+        "Match": "Medellin vs Vasco da Gama",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 3.1,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Medium",
+                "Odds_1": 2.37,
+                "Odds_X": 3.1,
+                "Odds_2": 3.2
+            }
+        }
+    },
+    {
+        "Match": "Egnatia Rrogozhine vs NK Celje",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 3.5,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Medium",
+                "Odds_1": 3.7,
+                "Odds_X": 3.5,
+                "Odds_2": 1.8
+            }
+        }
+    },
+    {
+        "Match": "Levski Sofia vs CS Universitatea Craiova",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 1.89,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-1",
+                "Stake": "Medium",
+                "Odds_1": 1.89,
+                "Odds_X": 3.2,
+                "Odds_2": 3.8
+            }
+        }
+    },
+    {
+        "Match": "Omonia Nicosia vs Kairat",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 1.67,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-1",
+                "Stake": "Medium",
+                "Odds_1": 1.67,
+                "Odds_X": 3.4,
+                "Odds_2": 4.5
+            }
+        }
+    },
+    {
+        "Match": "Bohemians vs Ballkani",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 1.65,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-0",
+                "Stake": "Large",
+                "Odds_1": 1.65,
+                "Odds_X": 3.5,
+                "Odds_2": 5.0
+            }
+        }
+    },
+    {
+        "Match": "Neftchi Baku vs Dinamo Minsk",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 3.0,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Medium",
+                "Odds_1": 1.9,
+                "Odds_X": 3.0,
+                "Odds_2": 3.9
+            }
+        }
+    },
+    {
+        "Match": "Spartak Trnava vs CSKA 1948",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 3.1,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Medium",
+                "Odds_1": 2.3,
+                "Odds_X": 3.1,
+                "Odds_2": 2.8
+            }
+        }
+    },
+    {
+        "Match": "Zeleznicar Pancevo vs Braga",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 1.29,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "1-2",
+                "Stake": "Medium",
+                "Odds_1": 8.0,
+                "Odds_X": 4.75,
+                "Odds_2": 1.29
+            }
+        }
+    },
+    {
+        "Match": "Queen of South vs Aberdeen",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 1.33,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "1-2",
+                "Stake": "Medium",
+                "Odds_1": 6.0,
+                "Odds_X": 5.75,
+                "Odds_2": 1.33
+            }
+        }
+    },
+    {
+        "Match": "Bodo/Glimt vs HamKam",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 1.1,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "3-0",
+                "Stake": "Medium",
+                "Odds_1": 1.1,
+                "Odds_X": 9.5,
+                "Odds_2": 21.0
+            }
+        }
+    },
+    {
+        "Match": "Lillestrom vs Viking FK",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 2.15,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "0-1",
+                "Stake": "Medium",
+                "Odds_1": 3.2,
+                "Odds_X": 3.6,
+                "Odds_2": 2.15
+            }
+        }
+    },
+    {
+        "Match": "Coritiba vs Palmeiras",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 1.87,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "0-1",
+                "Stake": "Large",
+                "Odds_1": 4.33,
+                "Odds_X": 3.4,
+                "Odds_2": 1.87
+            }
+        }
+    },
+    {
+        "Match": "Ceara vs CRB",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 3.6,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "0-1",
+                "Stake": "Large",
+                "Odds_1": 2.15,
+                "Odds_X": 3.0,
+                "Odds_2": 3.6
+            }
+        }
+    },
+    {
+        "Match": "Operario vs Ponte Preta",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 1.35,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-0",
+                "Stake": "Large",
+                "Odds_1": 1.35,
+                "Odds_X": 4.75,
+                "Odds_2": 8.0
+            }
+        }
+    },
+    {
+        "Match": "Independiente del Valle vs Tecnico Universitario",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 1.19,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-0",
+                "Stake": "Large",
+                "Odds_1": 1.19,
+                "Odds_X": 5.5,
+                "Odds_2": 13.0
+            }
+        }
+    },
+    {
+        "Match": "Macara vs Deportivo Cuenca",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 2.75,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Small",
+                "Odds_1": 2.15,
+                "Odds_X": 2.75,
+                "Odds_2": 3.5
+            }
+        }
+    },
+    {
+        "Match": "Bucheon 1995 vs FC Anyang",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 2.5,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "0-1",
+                "Stake": "Large",
+                "Odds_1": 2.62,
+                "Odds_X": 3.25,
+                "Odds_2": 2.5
+            }
+        }
+    },
+    {
+        "Match": "FC Seoul vs Pohang Steelers",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 3.4,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Medium",
+                "Odds_1": 1.72,
+                "Odds_X": 3.4,
+                "Odds_2": 4.75
+            }
+        }
+    },
+    {
+        "Match": "Gwangju FC vs Gimcheon Sangmu",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": 2.1,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "0-1",
+                "Stake": "Large",
+                "Odds_1": 3.25,
+                "Odds_X": 3.2,
+                "Odds_2": 2.1
+            }
+        }
+    },
+    {
+        "Match": "Kokand 1912 vs AGMK",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Medium",
+                "Odds_1": null,
+                "Odds_X": null,
+                "Odds_2": null
+            }
+        }
+    },
+    {
+        "Match": "Lokomotiv Tashkent vs Andijon",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Small",
+                "Odds_1": null,
+                "Odds_X": null,
+                "Odds_2": null
+            }
+        }
+    },
+    {
+        "Match": "Mash AL Mubarek vs Nasaf",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Medium",
+                "Odds_1": null,
+                "Odds_X": null,
+                "Odds_2": null
+            }
+        }
+    }
+]
