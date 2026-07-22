@@ -76,57 +76,64 @@
     "2026-07-22": {
         "locked": false,
         "agreed_matches": [
-            "\u2022 **Bodo/Glimt vs Ham-Kam** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + Statarea`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Fc Seoul vs Pohang Steelers** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + Statarea`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: X\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Independiente Del Valle vs Tecnico Universitario** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+            "\u2022 ** vs Bodo/Glimt V Ham-Kam** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 ** vs Independiente Del Valle V Tecnico Universitario** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 ** vs Cruz Azul V Puebla** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 ** vs Fc Seoul V Pohang Steelers** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
         ],
         "niche_matches": [
-            "\u2022 **Cruz Azul vs Puebla** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Lillestrom vs Viking** \u2794 X\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Vila Nova vs Fortaleza Ec** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 ** vs Levski Sofia V Cs Universitatea Craiova** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+            "\u2022 ** vs Levski Sofia V Cs Universitatea Craiova** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 ** vs Lillestrom V Viking Fk** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 ** vs Vila Nova V Fortaleza Ce** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 ** vs Macara V Deportivo Cuenca** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
         ],
-        "ai_optimized_message": "\ud83d\udee1\ufe0f TICKET 1: THE IRONCLAD SLIP\n\u2022 Bodo/Glimt vs Ham-Kam \u2794 1X\n\u2022 Independiente Del Valle vs Tecnico Universitario \u2794 1\n\n\u2696\ufe0f TICKET 2: BALANCED GROWTH\n\u2022 Fc Seoul vs Pohang Steelers \u2794 1X\n\u2022 Cruz Azul vs Puebla \u2794 Over 8.5 Corners\n\n\ud83c\udfaf TICKET 3: VALUE & VOLATILITY\n\u2022 Vila Nova vs Fortaleza Ec \u2794 Over 8.5 Corners\n\u2022 Lillestrom vs Viking \u2794 X2",
+        "ai_optimized_message": "\ud83d\udee1\ufe0f TICKET 1: THE IRONCLAD SLIP\n\u2022 Bodo/Glimt V Ham-Kam \u2794 1\n\u2022 Independiente Del Valle V Tecnico Universitario \u2794 1\n\n\u2696\ufe0f TICKET 2: BALANCED GROWTH\n\u2022 Cruz Azul V Puebla \u2794 1X\n\u2022 Fc Seoul V Pohang Steelers \u2794 Over 1.5 Goals\n\n\ud83c\udfaf TICKET 3: VALUE & VOLATILITY\n\u2022 Levski Sofia V Cs Universitatea Craiova \u2794 1X\n\u2022 Vila Nova V Fortaleza Ce \u2794 1X\n\u2022 Macara V Deportivo Cuenca \u2794 1X",
         "req_threshold": 3,
         "tickets": [
             {
-                "match": "Cruz Azul vs Puebla",
+                "match": " vs Levski Sofia V Cs Universitatea Craiova",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Bodo/Glimt vs Ham-Kam",
+                "match": " vs Bodo/Glimt V Ham-Kam",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Lillestrom vs Viking",
+                "match": " vs Lillestrom V Viking Fk",
                 "prediction": "X",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Fc Seoul vs Pohang Steelers",
+                "match": " vs Vila Nova V Fortaleza Ce",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Independiente Del Valle vs Tecnico Universitario",
+                "match": " vs Macara V Deportivo Cuenca",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Vila Nova vs Fortaleza Ec",
+                "match": " vs Independiente Del Valle V Tecnico Universitario",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": " vs Levski Sofia V Cs Universitatea Craiova",
+                "match": " vs Cruz Azul V Puebla",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": " vs Fc Seoul V Pohang Steelers",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
