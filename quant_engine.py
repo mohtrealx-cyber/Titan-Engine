@@ -113,51 +113,53 @@ class ConsensusEngine:
             self.master_matrix[final_key].append((site_name, normalized_pick))
 
     # ==========================================================================
-    # CORNER STATS SCRAPER MODULE (UPDATED HEADER BYPASS)
+    # CORNER STATS SCRAPER MODULE (TOTALCORNER PIVOT)
     # ==========================================================================
     def fetch_corners_sync(self):
-        url = "https://www.windrawwin.com/statistics/corners/"
+        # Pivoting to TotalCorner - Dedicated quantitative corner data for TODAY'S matches
+        url = "https://www.totalcorner.com/match/today"
         try:
             if SCRAPER_API_KEY:
                 proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
                 r = tls_requests.get(proxy_url, timeout=60)
             else:
+                # Using curl_cffi to bypass Cloudflare protection naturally
                 r = tls_requests.get(url, impersonate="chrome120", timeout=20)
             
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
-                rows = soup.find_all(["tr", "div"], class_=re.compile(r"wtrow|wtr|pttr"))
+                rows = soup.find_all("tr")
                 
-                if not rows:
-                    for table in soup.find_all("table"):
-                        rows.extend(table.find_all("tr"))
-
                 valid_corners = 0
                 for row in rows:
-                    cols = [c.text.strip() for c in row.find_all(["td", "div"]) if c.text.strip()]
+                    cols = [c.text.strip() for c in row.find_all(["td", "th"]) if c.text.strip()]
                     
-                    # Filter out league header rows or short rows
-                    if len(cols) >= 4:
-                        # Check if the row is a header containing "Stats" or similar text
-                        if any("stats" in c.lower() for c in cols):
-                            continue
-                            
-                        # The team name is typically the first or second string, and the last is the average
-                        potential_team = cols[0] if not cols[0].replace('.', '', 1).isdigit() else cols[1]
+                    # Ensure the row has enough data to be a valid match row
+                    if len(cols) >= 5:
+                        # Find team names securely by targeting their specific href patterns
+                        team_links = row.find_all("a", href=re.compile(r"/team/"))
                         
-                        try:
-                            avg_c = float(cols[-1])
-                            if 0.0 < avg_c < 25.0:
-                                clean_team = self.clean_team_name(potential_team)
-                                self.corner_stats[clean_team] = avg_c
-                                valid_corners += 1
-                        except ValueError:
-                            pass
+                        if len(team_links) >= 2:
+                            home_team = self.clean_team_name(team_links[0].text)
+                            away_team = self.clean_team_name(team_links[1].text)
                             
-                self.diagnostics["Corners_Engine"] = f"🟢 OK ({valid_corners} Teams)"
+                            # Extract numbers that look like corner averages or lines (e.g., 9.5, 10.2)
+                            row_text = row.get_text(separator=" ")
+                            averages = re.findall(r'\b([7-9]\.\d|1[0-5]\.\d)\b', row_text)
+                            
+                            if averages:
+                                # Map the highest valid floating point number as the match's corner expectancy
+                                highest_avg = max([float(x) for x in averages])
+                                
+                                if highest_avg >= 8.5:
+                                    self.corner_stats[home_team] = highest_avg
+                                    self.corner_stats[away_team] = highest_avg
+                                    valid_corners += 1
+                                    
+                self.diagnostics["Corners_Engine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
             else:
                 self.diagnostics["Corners_Engine"] = f"🔴 FAILED (HTTP {r.status_code})"
-        except Exception:
+        except Exception as e:
             self.diagnostics["Corners_Engine"] = "🔴 TIMEOUT/ERROR"
 
     def fetch_and_scrape_sync(self, site_name, cfg):
