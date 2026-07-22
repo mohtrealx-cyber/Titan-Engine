@@ -59,12 +59,12 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "SoccerVista": {
-            "url": "https://www.soccervista.com/",
+            "url": "https://www.soccervista.com/predictions/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
             "pick_selector": "td", "pick_class": "", "pick_index": 4,
-            "use_scraperapi": False
+            "use_scraperapi": True
         }
     }
 
@@ -281,7 +281,7 @@ class ConsensusEngine:
         structured_tickets = []
         ai_input_data = []
 
-        # Updated to include SoccerVista in the consensus engine logic
+        # Includes SoccerVista in the consensus engine logic
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin", "SoccerVista"]
         active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status and "Teams" not in status)
         required_consensus = 3 if active_scrapers_count >= 4 else 2
