@@ -59,7 +59,7 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "SoccerVista": {
-            "url": "https://www.soccervista.com/predictions/",
+            "url": "https://www.soccervista.com/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
@@ -89,9 +89,7 @@ class ConsensusEngine:
         return None
 
     def clean_team_name(self, name):
-        # Strip common web scraping button artifacts
         cleaned = re.sub(r'(?i)\b(match preview|preview)\b', '', str(name))
-        # Collapse multiple spaces and clean whitespace
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         return cleaned.title()
 
@@ -124,9 +122,6 @@ class ConsensusEngine:
         if site_name not in existing_sites:
             self.master_matrix[final_key].append((site_name, normalized_pick))
 
-    # ==========================================================================
-    # CORNER STATS SCRAPER MODULE (TOTALCORNER PIVOT)
-    # ==========================================================================
     def fetch_corners_sync(self):
         url = "https://www.totalcorner.com/match/today"
         try:
@@ -143,10 +138,8 @@ class ConsensusEngine:
                 valid_corners = 0
                 for row in rows:
                     cols = [c.text.strip() for c in row.find_all(["td", "th"]) if c.text.strip()]
-                    
                     if len(cols) >= 5:
                         team_links = row.find_all("a", href=re.compile(r"/team/"))
-                        
                         if len(team_links) >= 2:
                             home_team = self.clean_team_name(team_links[0].text)
                             away_team = self.clean_team_name(team_links[1].text)
@@ -156,7 +149,6 @@ class ConsensusEngine:
                             
                             if averages:
                                 highest_avg = max([float(x) for x in averages])
-                                
                                 if highest_avg >= 8.5:
                                     self.corner_stats[home_team] = highest_avg
                                     self.corner_stats[away_team] = highest_avg
@@ -171,7 +163,9 @@ class ConsensusEngine:
     def fetch_and_scrape_sync(self, site_name, cfg):
         try:
             if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}"
+                # 🚀 FIX 1: Command ScraperAPI to use a Javascript engine specifically to bypass SoccerVista's Cloudflare
+                render_flag = "&render=true" if site_name == "SoccerVista" else ""
+                proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}{render_flag}"
                 r = tls_requests.get(proxy_url, timeout=60)
             else:
                 if cfg.get("use_scraperapi") and not SCRAPER_API_KEY:
@@ -234,33 +228,34 @@ class ConsensusEngine:
                                         pick = norm
                                         break
                                         
-                    # Custom parsing rules for SoccerVista tables
+                    # 🚀 FIX 2: Custom parsing rules perfectly mapped to SoccerVista's 7-column table layout
                     elif site_name == "SoccerVista":
                         tds = row.find_all("td")
-                        if len(tds) >= 4:
-                            home_elem = row.find(class_=re.compile(r"home|team1", re.IGNORECASE))
-                            away_elem = row.find(class_=re.compile(r"away|team2", re.IGNORECASE))
+                        if len(tds) >= 5:
+                            raw_home = tds[1].text
+                            raw_away = tds[3].text
                             
-                            if home_elem and away_elem:
-                                home = home_elem.text
-                                away = away_elem.text
-                            else:
-                                # Fallback assumption based on standard SoccerVista tabular data
-                                home = tds[1].text if len(tds) > 1 else None
-                                away = tds[2].text if len(tds) > 2 else None
-                                
-                            # Search the remaining columns for the direct 1, X, 2 marker
-                            for td in tds[3:]:
-                                text = td.get_text(strip=True).upper()
-                                if text in ["1", "X", "2", "1X", "X2", "12"]:
-                                    pick = text
-                                    break
-                    
-                    # Original parsing for Statarea and Vitibet
+                            # SoccerVista injects Form Guides like "W D L W W" at the start of the Home team and end of Away team
+                            home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
+                            away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
+                            
+                            pick_raw = tds[4].text.strip().upper()
+                            if pick_raw in ["1", "X", "2", "1X", "X2", "12"]:
+                                pick = pick_raw
+
                     else:
                         home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
                         away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
                         pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
+
+                    # 🚀 FIX 3: Catch-All logic to clean up the `• vs TeamA V TeamB` PredictZ/WinDrawWin bug!
+                    if (home is None or not str(home).strip()) and (away and " v " in str(away).lower()):
+                        parts = re.split(r'(?i)\s+v\s+', str(away), maxsplit=1)
+                        if len(parts) == 2: home, away = parts[0].strip(), parts[1].strip()
+
+                    if (away is None or not str(away).strip()) and (home and " v " in str(home).lower()):
+                        parts = re.split(r'(?i)\s+v\s+', str(home), maxsplit=1)
+                        if len(parts) == 2: home, away = parts[0].strip(), parts[1].strip()
 
                     if home and away and pick:
                         self.log_prediction_qa(site_name, home, away, pick)
@@ -281,7 +276,6 @@ class ConsensusEngine:
         structured_tickets = []
         ai_input_data = []
 
-        # Includes SoccerVista in the consensus engine logic
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin", "SoccerVista"]
         active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status and "Teams" not in status)
         required_consensus = 3 if active_scrapers_count >= 4 else 2
@@ -299,7 +293,6 @@ class ConsensusEngine:
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             
-            # --- TIER 1: CORE CONSENSUS ---
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
@@ -317,23 +310,13 @@ class ConsensusEngine:
                             other_pick = pick
                             break
                     
-                    if other_pick:
-                        match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
-                    else:
-                        match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
+                    if other_pick: match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
+                    else: match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
 
                 agreed_matches.append(match_text)
+                structured_tickets.append({"match": match, "prediction": top_pick, "status": "PENDING", "score": "-"})
+                ai_input_data.append({"match": match, "consensus_pick": top_pick, "backed_by": backing_sites_str, "tier": "Core Consensus"})
 
-                structured_tickets.append({
-                    "match": match, "prediction": top_pick, "status": "PENDING", "score": "-"
-                })
-
-                ai_input_data.append({
-                    "match": match, "consensus_pick": top_pick, 
-                    "backed_by": backing_sites_str, "tier": "Core Consensus"
-                })
-
-            # --- TIER 2: NICHE CONSENSUS (2/2 PERFECT AGREEMENT) ---
             elif required_consensus == 3 and len(listings) == 2 and prediction_weights[top_pick] == 2:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
@@ -348,15 +331,8 @@ class ConsensusEngine:
                     match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
                     
                 niche_matches.append(match_text)
-                
-                structured_tickets.append({
-                    "match": match, "prediction": top_pick, "status": "PENDING", "score": "-"
-                })
-
-                ai_input_data.append({
-                    "match": match, "consensus_pick": top_pick, 
-                    "backed_by": backing_sites_str, "tier": "Niche Coverage"
-                })
+                structured_tickets.append({"match": match, "prediction": top_pick, "status": "PENDING", "score": "-"})
+                ai_input_data.append({"match": match, "consensus_pick": top_pick, "backed_by": backing_sites_str, "tier": "Niche Coverage"})
 
         return agreed_matches, niche_matches, structured_tickets, ai_input_data, required_consensus
 
