@@ -89,7 +89,8 @@ class ConsensusEngine:
         return None
 
     def clean_team_name(self, name):
-        cleaned = re.sub(r'(?i)\b(match preview|preview)\b', '', str(name))
+        # 🚀 FIX: Added 'results' and 'result' to the regex filter to strip the new HTML artifact
+        cleaned = re.sub(r'(?i)\b(match preview|preview|results?)\b', '', str(name))
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         return cleaned.title()
 
@@ -227,7 +228,6 @@ class ConsensusEngine:
                                         pick = norm
                                         break
                                         
-                    # 🚀 FIX 2: Dynamic text matching to interpret SoccerVista's "10 on [TEAM]" bet-unit format
                     elif site_name == "SoccerVista":
                         tds = row.find_all("td")
                         if len(tds) >= 4:
@@ -257,7 +257,6 @@ class ConsensusEngine:
                         away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
                         pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
 
-                    # 🚀 FIX 1: Strip invisible "Match Preview" artifacts BEFORE doing the regex V/VS split
                     home_str = self.clean_team_name(home) if home else ""
                     away_str = self.clean_team_name(away) if away else ""
 
