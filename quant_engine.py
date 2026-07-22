@@ -64,7 +64,7 @@ class ConsensusEngine:
     def __init__(self, configs):
         self.configs = configs
         self.master_matrix = {}
-        self.corner_stats = {} # NEW: Isolated memory for corner stats
+        self.corner_stats = {} 
         self.diagnostics = {}
 
     def normalize_prediction(self, raw_text):
@@ -126,15 +126,21 @@ class ConsensusEngine:
             
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
-                rows = soup.find_all("div", class_="wtrow")
+                
+                rows = soup.find_all(["tr", "div"], class_=re.compile(r"wtrow|wtr|pttr"))
+                
+                if not rows:
+                    for table in soup.find_all("table"):
+                        rows.extend(table.find_all("tr"))
+
                 valid_corners = 0
                 for row in rows:
-                    divs = row.find_all("div")
-                    if len(divs) >= 5:
-                        team = self.clean_team_name(divs[1].text)
+                    cols = row.find_all(["td", "div"])
+                    if len(cols) >= 5:
+                        team = self.clean_team_name(cols[1].text)
                         try:
-                            avg_c = float(divs[4].text)
-                            if avg_c < 25.0:  # Sanity filter against Total Season metrics
+                            avg_c = float(cols[4].text.strip())
+                            if 0.0 < avg_c < 25.0:  
                                 self.corner_stats[team] = avg_c
                                 valid_corners += 1
                         except ValueError:
@@ -483,7 +489,6 @@ class ConsensusEngine:
                 print(f"Telegram alert failed: {e}")
 
     async def run_pipeline(self):
-        # Time logic: Capture current time in EAT (UTC+3)
         eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
         today_date = eat_time.strftime('%Y-%m-%d')
         current_hour = eat_time.hour
@@ -491,7 +496,6 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # --- SELF-HEALING LOCK LOGIC ---
         is_already_locked = False
         if isinstance(today_payload, dict):
             if today_payload.get("locked") and current_hour >= 6:
@@ -500,7 +504,6 @@ class ConsensusEngine:
                 print("⚠️ Found a premature lock. Forcing unlock since it is before 6:00 AM EAT.")
                 is_already_locked = False
 
-        # Only reuse picks if they are legitimately locked AFTER 6 AM
         if is_already_locked:
             print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
             daily_data = memory[today_date]
@@ -533,7 +536,6 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            # ----- DYNAMIC LOCKING AT 6 AM -----
             should_lock = current_hour >= 6
 
             memory[today_date] = {
@@ -553,7 +555,6 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        # Build Message
         msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
             msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
