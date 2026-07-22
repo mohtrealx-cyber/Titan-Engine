@@ -59,7 +59,7 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "SoccerVista": {
-            "url": "https://www.soccervista.com/predictions/", # 🚀 FIX 1: Corrected URL for full daily list
+            "url": "https://www.soccervista.com/predictions/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
@@ -227,39 +227,59 @@ class ConsensusEngine:
                                         pick = norm
                                         break
                                         
+                    # 🚀 FIX 2: Dynamic text matching to interpret SoccerVista's "10 on [TEAM]" bet-unit format
                     elif site_name == "SoccerVista":
                         tds = row.find_all("td")
-                        if len(tds) >= 5:
+                        if len(tds) >= 4:
                             raw_home = tds[1].text
-                            raw_away = tds[3].text
+                            raw_away = tds[3].text if len(tds) > 3 else (tds[2].text if len(tds) > 2 else "")
                             
                             home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
                             away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
                             
-                            pick_raw = tds[4].text.strip().upper()
-                            if pick_raw in ["1", "X", "2", "1X", "X2", "12"]:
-                                pick = pick_raw
+                            for td in tds:
+                                txt = td.text.strip().upper()
+                                if "10 ON " in txt:
+                                    target = txt.replace("10 ON ", "").strip()
+                                    if target in ["DRAW", "X"]: pick = "X"
+                                    elif target and (target in home.upper() or home.upper().startswith(target)): pick = "1"
+                                    elif target and (target in away.upper() or away.upper().startswith(target)): pick = "2"
+                                    elif len(target) >= 3 and target[:3] in home.upper(): pick = "1"
+                                    elif len(target) >= 3 and target[:3] in away.upper(): pick = "2"
+                                    else: pick = "1"
+                                    break
+                                elif txt in ["1", "X", "2", "1X", "X2", "12"]:
+                                    pick = txt
+                                    break
 
                     else:
                         home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
                         away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
                         pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
 
-                    # 🚀 FIX 2: Bulletproof, case-insensitive string cleaner to catch uppercase 'V' and 'VS'
-                    home_str = str(home).strip() if home else ""
-                    away_str = str(away).strip() if away else ""
+                    # 🚀 FIX 1: Strip invisible "Match Preview" artifacts BEFORE doing the regex V/VS split
+                    home_str = self.clean_team_name(home) if home else ""
+                    away_str = self.clean_team_name(away) if away else ""
 
-                    # If 'home' is completely missing but 'away' has both teams bundled
-                    if (not home_str or home_str == "None") and away_str:
+                    if not home_str and away_str:
                         if re.search(r'(?i)\s+vs?\s+', away_str):
                             parts = re.split(r'(?i)\s+vs?\s+', away_str, maxsplit=1)
-                            home_str, away_str = parts[0].strip(), parts[1].strip()
+                            home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
 
-                    # If 'away' is completely missing but 'home' has both teams bundled
-                    if (not away_str or away_str == "None") and home_str:
+                    if not away_str and home_str:
                         if re.search(r'(?i)\s+vs?\s+', home_str):
                             parts = re.split(r'(?i)\s+vs?\s+', home_str, maxsplit=1)
-                            home_str, away_str = parts[0].strip(), parts[1].strip()
+                            home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+
+                    if re.search(r'(?i)\s+vs?\s+', away_str) and len(home_str) < 4:
+                        parts = re.split(r'(?i)\s+vs?\s+', away_str, maxsplit=1)
+                        if len(parts) == 2:
+                            home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+
+                    if re.search(r'(?i)\s+vs?\s+', home_str) and len(away_str) < 4:
+                        parts = re.split(r'(?i)\s+vs?\s+', home_str, maxsplit=1)
+                        if len(parts) == 2:
+                            home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
 
                     home, away = home_str, away_str
 
