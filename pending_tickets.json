@@ -76,20 +76,88 @@
     "2026-07-22": {
         "locked": false,
         "agreed_matches": [
-            "\u2022 **Cruz Azul vs Puebla** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + Statarea`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Bodo/Glimt vs Ham-Kam** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + Statarea`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Fc Seoul vs Pohang Steelers** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + Statarea`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: X\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Independiente Del Valle vs Tecnico Universitario** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+            "\u2022 **Independiente Del Valle Results vs Tecnico Universitario Results** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Fc Seoul Results vs Pohang Steelers Results** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: X\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Bodo/Glimt vs Ham-Kam** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
         ],
         "niche_matches": [
-            "\u2022 **Lillestrom vs Viking** \u2794 X\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 ** vs Levski Sofia V Cs Universitatea Craiova** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+            "\u2022 **Medellin Results vs Vasco Da Gama Results** \u2794 X\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Egnatia Rrogozhine Results vs Nk Celje Results** \u2794 X\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Levski Sofia Results vs Cs Universitatea Craiova Results** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Omonia Nicosia Results vs Kairat Results** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Zeleznicar Pancevo Results vs Braga Results** \u2794 2\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Vila Nova Results vs Fortaleza Ce Results** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Bucheon 1995 Results vs Fc Anyang Results** \u2794 2\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Lokomotiv Tashkent Results vs Andijon Results** \u2794 X\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Bohemians vs Ballkani** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Lillestrom vs Viking Fk** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Cruz Azul vs Puebla** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
         ],
-        "ai_optimized_message": "\ud83d\udee1\ufe0f TICKET 1: THE IRONCLAD SLIP\n\u2022 Cruz Azul vs Puebla \u2794 Over 8.5 Corners\n\u2022 Bodo/Glimt vs Ham-Kam \u2794 1X\n\n\u2696\ufe0f TICKET 2: BALANCED GROWTH\n\u2022 Fc Seoul vs Pohang Steelers \u2794 1X\n\u2022 Independiente Del Valle vs Tecnico Universitario \u2794 1\n\n\ud83c\udfaf TICKET 3: VALUE & VOLATILITY\n\u2022 Lillestrom vs Viking \u2794 1X\n\u2022 Levski Sofia vs Cs Universitatea Craiova \u2794 1X",
+        "ai_optimized_message": "\ud83d\udee1\ufe0f TICKET 1: THE IRONCLAD SLIP\n\u2022 Cruz Azul vs Puebla \u2794 Over 8.5 Corners\n\u2022 Bodo/Glimt vs Ham-Kam \u2794 1\n\u2022 Independiente Del Valle Results vs Tecnico Universitario Results \u2794 1\n\n\u2696\ufe0f TICKET 2: BALANCED GROWTH\n\u2022 Fc Seoul Results vs Pohang Steelers Results \u2794 1X\n\u2022 Levski Sofia Results vs Cs Universitatea Craiova Results \u2794 1\n\u2022 Omonia Nicosia Results vs Kairat Results \u2794 1\n\n\ud83c\udfaf TICKET 3: VALUE & VOLATILITY\n\u2022 Zeleznicar Pancevo Results vs Braga Results \u2794 2\n\u2022 Vila Nova Results vs Fortaleza Ce Results \u2794 1X\n\u2022 Bucheon 1995 Results vs Fc Anyang Results \u2794 X2",
         "req_threshold": 3,
         "tickets": [
             {
-                "match": "Cruz Azul vs Puebla",
+                "match": "Medellin Results vs Vasco Da Gama Results",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Egnatia Rrogozhine Results vs Nk Celje Results",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Levski Sofia Results vs Cs Universitatea Craiova Results",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Omonia Nicosia Results vs Kairat Results",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Zeleznicar Pancevo Results vs Braga Results",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Vila Nova Results vs Fortaleza Ce Results",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Independiente Del Valle Results vs Tecnico Universitario Results",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Bucheon 1995 Results vs Fc Anyang Results",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Fc Seoul Results vs Pohang Steelers Results",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Lokomotiv Tashkent Results vs Andijon Results",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Bohemians vs Ballkani",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -101,25 +169,13 @@
                 "score": "-"
             },
             {
-                "match": "Lillestrom vs Viking",
+                "match": "Lillestrom vs Viking Fk",
                 "prediction": "X",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Fc Seoul vs Pohang Steelers",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Independiente Del Valle vs Tecnico Universitario",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": " vs Levski Sofia V Cs Universitatea Craiova",
+                "match": "Cruz Azul vs Puebla",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
