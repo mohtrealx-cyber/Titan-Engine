@@ -113,7 +113,7 @@ class ConsensusEngine:
             self.master_matrix[final_key].append((site_name, normalized_pick))
 
     # ==========================================================================
-    # CORNER STATS SCRAPER MODULE (NEW & ISOLATED)
+    # CORNER STATS SCRAPER MODULE (UPDATED HEADER BYPASS)
     # ==========================================================================
     def fetch_corners_sync(self):
         url = "https://www.windrawwin.com/statistics/corners/"
@@ -126,7 +126,6 @@ class ConsensusEngine:
             
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
-                
                 rows = soup.find_all(["tr", "div"], class_=re.compile(r"wtrow|wtr|pttr"))
                 
                 if not rows:
@@ -135,16 +134,26 @@ class ConsensusEngine:
 
                 valid_corners = 0
                 for row in rows:
-                    cols = row.find_all(["td", "div"])
-                    if len(cols) >= 5:
-                        team = self.clean_team_name(cols[1].text)
+                    cols = [c.text.strip() for c in row.find_all(["td", "div"]) if c.text.strip()]
+                    
+                    # Filter out league header rows or short rows
+                    if len(cols) >= 4:
+                        # Check if the row is a header containing "Stats" or similar text
+                        if any("stats" in c.lower() for c in cols):
+                            continue
+                            
+                        # The team name is typically the first or second string, and the last is the average
+                        potential_team = cols[0] if not cols[0].replace('.', '', 1).isdigit() else cols[1]
+                        
                         try:
-                            avg_c = float(cols[4].text.strip())
-                            if 0.0 < avg_c < 25.0:  
-                                self.corner_stats[team] = avg_c
+                            avg_c = float(cols[-1])
+                            if 0.0 < avg_c < 25.0:
+                                clean_team = self.clean_team_name(potential_team)
+                                self.corner_stats[clean_team] = avg_c
                                 valid_corners += 1
                         except ValueError:
                             pass
+                            
                 self.diagnostics["Corners_Engine"] = f"🟢 OK ({valid_corners} Teams)"
             else:
                 self.diagnostics["Corners_Engine"] = f"🔴 FAILED (HTTP {r.status_code})"
