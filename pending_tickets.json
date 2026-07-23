@@ -171,24 +171,23 @@
     "2026-07-23": {
         "locked": false,
         "agreed_matches": [
-            "\u2022 **Chapecoense-Sc vs Cr Flamengo** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Nashville Sc vs Cf Montreal** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Los Angeles Fc vs Real Salt Lake** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **San Jose Earthquakes vs Orlando City Sc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **San Jose Earthquakes vs Orlando City Sc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Colorado Springs Switchbacks vs Miami Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Navbahor vs Qizilqum Zarafshon** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Qarabagh vs Cska Sofia** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Tromso vs Hradec Kralove** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Vitibet: Not Listed\n",
-            "\u2022 **Rakow Czestochowa vs Valletta** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Nk Rijeka vs Derry City** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n",
-            "\u2022 **Lanus vs Cienciano** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Charlotte vs Atlanta United Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n"
+            "\u2022 **Qarabag vs Cska Sofia** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Tromso vs Hradec Kralove** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Rakow Czestochowa vs Valletta Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
         ],
         "niche_matches": [
-            "\u2022 **Tensung vs Paro** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Nashville Sc vs Cf Montreal** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Lanus vs Cienciano** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **New England Revolution vs Toronto Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Charlotte vs Atlanta United Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Dynamo Kiev vs Paok Salonika** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Hammarby vs Anderlecht** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Sheriff Tiraspol vs Maccabi Tel Aviv** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Besiktas vs Midtjylland** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Fc Twente vs Ferencvarosi** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **St Gallen vs Benfica** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Malisheva vs Hibernian** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
@@ -213,27 +212,20 @@
             "\u2022 **Lugano vs Kf Dukagjini** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Msk Zilina vs Katowice** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Motherwell vs B36 Torshavn** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Nk Rijeka vs Derry City** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Nsi Runavik vs Fc Koper** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Shelbourne vs Nomme Kalju** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Stjarnan Gardabae vs Fc Ilves** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Valur Reykjavik vs Zrinjski Mostar** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Sporting Cristal vs Bragantino** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Bolivar vs Gremio** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Aubstadt vs Schweinfurt** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Botafogo vs Vitoria** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Athletic Club vs Sao Bernardo** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Leones Futbol Club vs Guayaquil City** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **New England Revolution vs Toronto Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+            "\u2022 **Leones Futbol Club vs Guayaquil City** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
         ],
-        "ai_optimized_message": "\ud83d\udee1\ufe0f TICKET 1: THE IRONCLAD SLIP\n\u2022 Chapecoense-Sc vs Cr Flamengo \u2794 2X (Optimized Defensive Cover)\n\u2022 Nashville Sc vs Cf Montreal \u2794 Over 9.5 Corners (Substituted via Corner Data)\n\u2022 Colorado Springs Switchbacks vs Miami Fc \u2794 1X (Optimized Defensive Cover)\n\n\u2696\ufe0f TICKET 2: BALANCED GROWTH\n\u2022 Los Angeles Fc vs Real Salt Lake \u2794 1\n\u2022 San Jose Earthquakes vs Orlando City Sc \u2794 1\n\u2022 Qarabagh vs Cska Sofia \u2794 1X\n\u2022 Tromso vs Hradec Kralove \u2794 1\n\n\ud83c\udfaf TICKET 3: VALUE & VOLATILITY\n\u2022 Rakow Czestochowa vs Valletta \u2794 1\n\u2022 Nk Rijeka vs Derry City \u2794 1\n\u2022 Lanus vs Cienciano \u2794 1\n\u2022 Charlotte vs Atlanta United Fc \u2794 1\n\n\ud83e\uddea TICKET 4: THE CORNER LAB\n\u2022 Nashville Sc vs Cf Montreal \u2794 Over 8.5 Corners\n\u2022 Houston Dynamo vs Dc United \u2794 Over 8.5 Corners\n\u2022 Internacional vs Cruzeiro \u2794 Over 9.5 Corners\n\u2022 Goias vs Sport Recife \u2794 Over 9.5 Corners",
+        "ai_optimized_message": "\ud83d\udee1\ufe0f TICKET 1: THE IRONCLAD SLIP\n\u2022 San Jose Earthquakes vs Orlando City Sc \u2794 1 (Core Consensus, Zero Contradictions)\n\u2022 Colorado Springs Switchbacks vs Miami Fc \u2794 1 (Core Consensus, Zero Contradictions)\n\u2022 Navbahor vs Qizilqum Zarafshon \u2794 1 (Core Consensus, Zero Contradictions)\n\n\u2696\ufe0f TICKET 2: BALANCED GROWTH\n\u2022 Los Angeles Fc vs Real Salt Lake \u2794 1X (Optimized for safety, overcoming PredictZ contradiction)\n\u2022 Qarabag vs Cska Sofia \u2794 1\n\u2022 Tromso vs Hradec Kralove \u2794 1\n\n\ud83c\udfaf TICKET 3: VALUE & VOLATILITY\n\u2022 Rakow Czestochowa vs Valletta Fc \u2794 1\n\u2022 Besiktas vs Midtjylland \u2794 1\n\u2022 St Gallen vs Benfica \u2794 2\n\n\ud83e\uddea TICKET 4: THE CORNER LAB\n\u2022 New England Revolution vs Toronto Fc \u2794 Over 9.5 Corners (Toronto FC avg 12.5)\n\u2022 Inter Miami vs Chicago Fire \u2794 Over 9.5 Corners (Inter Miami/Chicago Fire avg 12.5)\n\u2022 Goias vs Sport Recife \u2794 Over 9.5 Corners (Goias/Sport Recife avg 11.5)\n\u2022 Nautico vs Londrina \u2794 Over 9.5 Corners (Nautico/Londrina avg 11.0)",
         "req_threshold": 3,
         "tickets": [
-            {
-                "match": "Chapecoense-Sc vs Cr Flamengo",
-                "prediction": "2",
-                "status": "PENDING",
-                "score": "-"
-            },
             {
                 "match": "Nashville Sc vs Cf Montreal",
                 "prediction": "1",
@@ -265,13 +257,37 @@
                 "score": "-"
             },
             {
-                "match": "Tensung vs Paro",
-                "prediction": "2",
+                "match": "Lanus vs Cienciano",
+                "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Qarabagh vs Cska Sofia",
+                "match": "Qarabag vs Cska Sofia",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Tromso vs Hradec Kralove",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Rakow Czestochowa vs Valletta Fc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "New England Revolution vs Toronto Fc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Charlotte vs Atlanta United Fc",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -295,7 +311,7 @@
                 "score": "-"
             },
             {
-                "match": "Tromso vs Hradec Kralove",
+                "match": "Besiktas vs Midtjylland",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -350,12 +366,6 @@
             },
             {
                 "match": "Dac Dunajska Streda vs Velez Mostar",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Rakow Czestochowa vs Valletta",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -481,18 +491,6 @@
                 "score": "-"
             },
             {
-                "match": "Lanus vs Cienciano",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Sporting Cristal vs Bragantino",
-                "prediction": "X",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
                 "match": "Bolivar vs Gremio",
                 "prediction": "1",
                 "status": "PENDING",
@@ -518,18 +516,6 @@
             },
             {
                 "match": "Leones Futbol Club vs Guayaquil City",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "New England Revolution vs Toronto Fc",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Charlotte vs Atlanta United Fc",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
