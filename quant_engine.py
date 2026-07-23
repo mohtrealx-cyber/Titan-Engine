@@ -344,7 +344,6 @@ class ConsensusEngine:
                 agreed_matches.append(match_text)
                 structured_tickets.append({"match": match, "prediction": top_pick, "status": "PENDING", "score": "-"})
                 
-                # Added 'contradictions' list to AI data
                 ai_input_data.append({
                     "match": match, 
                     "consensus_pick": top_pick, 
@@ -369,7 +368,6 @@ class ConsensusEngine:
                 niche_matches.append(match_text)
                 structured_tickets.append({"match": match, "prediction": top_pick, "status": "PENDING", "score": "-"})
                 
-                # Niche matches by definition have 0 contradictions here
                 ai_input_data.append({
                     "match": match, 
                     "consensus_pick": top_pick, 
@@ -422,17 +420,18 @@ class ConsensusEngine:
 
         STRICT ARCHITECTURE RULES:
         1. NEVER repeat the same match across multiple tickets. A match can only appear ONCE in your entire output.
-        2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners' or 'Over 9.5 Corners') if the corner data provides a mathematically safer floor. Mix and match to build the most secure tickets possible.
+        2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor. Mix and match to build the most secure tickets possible.
         3. IF there are 3 or more matches available: Divide them into up to THREE completely separate, non-overlapping tickets:
            🛡️ TICKET 1: THE IRONCLAD SLIP (MUST contain EXACTLY THREE matches sourced exclusively from the 'Core Consensus' tier. 
            CRITICAL RULE: You MUST NOT include any match in Ticket 1 that has items inside its "contradictions" list. Ticket 1 matches must have zero contradictions. If fewer than 3 pristine matches exist, fill the remaining spots with the safest Corner predictions). 
            ⚖️ TICKET 2: BALANCED GROWTH (Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here).
            🎯 TICKET 3: VALUE & VOLATILITY (Use the remaining 'Niche Coverage' matches and higher-risk options).
-        4. IF there are only 1 or 2 matches available: Output a single ticket:
+        4. 🧪 TICKET 4: THE CORNER LAB. Create a dedicated corner-only accumulator using strictly the high-probability corner statistics provided. Select the 2 to 4 absolute best teams for 'Over 8.5' or 'Over 9.5' corners. DO NOT exceed 4 matches in this ticket to minimize variance.
+        5. IF there are only 1 or 2 matches available: Output a single ticket:
            🔥 TICKET 1: PREMIUM SINGLES/DOUBLES
            • [Match Name] ➔ [Optimized Prediction]
-        5. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change a risky '➔ 1' to '➔ 1X', or replace a risky Win with '➔ Over 8.5 Corners').
-        6. NO paragraphs of text. NO explanations. NO conversational filler. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
+        6. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change a risky '➔ 1' to '➔ 1X', or replace a risky Win with '➔ Over 8.5 Corners').
+        7. NO paragraphs of text. NO explanations. NO conversational filler. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -544,16 +543,29 @@ class ConsensusEngine:
         return settled_reports
 
     def send_telegram_alert(self, msg):
-        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"}
+        if not (TELEGRAM_TOKEN and TELEGRAM_CHAT_ID):
+            print("Telegram credentials missing.")
+            return
+
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        
+        # Telegram max length is 4096. Chunking the message to prevent silent drops
+        chunk_size = 4000
+        msg_chunks = [msg[i:i+chunk_size] for i in range(0, len(msg), chunk_size)]
+        
+        for chunk in msg_chunks:
+            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
             try:
                 r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
                 if r.status_code != 200:
+                    print(f"Telegram Markdown error: {r.text} - Retrying without formatting...")
                     payload.pop("parse_mode")
-                    tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+                    r2 = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+                    if r2.status_code != 200:
+                        print(f"Telegram fallback failed: {r2.text}")
             except Exception as e:
-                print(f"Telegram alert failed: {e}")
+                print(f"Telegram alert exception: {e}")
+            time.sleep(1) # Sleep briefly between chunks
 
     async def run_pipeline(self):
         eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
