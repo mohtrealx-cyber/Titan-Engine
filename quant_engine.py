@@ -640,7 +640,7 @@ class ConsensusEngine:
         else:
             for match in agreed_matches: msg += f"{match}\n"
                 
-        if niche_matches:
+        if niche_matches and len(agreed_matches) <= 9:
             msg += "🕵️ **NICHE CONSENSUS (100% AGREEMENT ON OBSCURE MATCHES)** 🕵️\n\n"
             for match in niche_matches: msg += f"{match}\n"
                 
