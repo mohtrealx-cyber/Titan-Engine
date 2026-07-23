@@ -641,8 +641,13 @@ class ConsensusEngine:
             for match in agreed_matches: msg += f"{match}\n"
                 
         if niche_matches and len(agreed_matches) <= 9:
-            msg += "🕵️ **NICHE CONSENSUS (100% AGREEMENT ON OBSCURE MATCHES)** 🕵️\n\n"
-            for match in niche_matches: msg += f"{match}\n"
+            msg += "🕵️ **NICHE CONSENSUS (Top 5 Displayed)** 🕵️\n\n"
+            for match in niche_matches[:5]: 
+                msg += f"{match}\n"
+            
+            if len(niche_matches) > 5:
+                hidden_count = len(niche_matches) - 5
+                msg += f"  ↳ *...and {hidden_count} more passed to AI in background.*\n\n"
                 
         if ai_optimized_message:
             msg += f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}\n\n"
