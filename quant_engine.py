@@ -419,23 +419,29 @@ class ConsensusEngine:
         {json.dumps(active_corner_teams, indent=2)}
 
         STRICT ARCHITECTURE RULES:
-        1. NEVER repeat the same match across multiple tickets. A match can only appear ONCE in your entire output.
+        1. NEVER repeat the same match across multiple tickets or reserve slots. Every match used (whether main or reserve) must be completely unique across your entire output.
         2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor. Mix and match to build the most secure tickets possible.
         3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
-           🛡️ Ticket 1: Ironclad (40% of Daily Stake)
-           ⚖️ Ticket 2: Balanced (20% of Daily Stake)
-           🎯 Ticket 3: Volatility (10% of Daily Stake)
-           🧪 Ticket 4: Corner Lab (30% of Daily Stake)
+            🛡️ Ticket 1: Ironclad (40% of Daily Stake)
+            ⚖️ Ticket 2: Balanced (20% of Daily Stake)
+            🎯 Ticket 3: Volatility (10% of Daily Stake)
+            🧪 Ticket 4: Corner Lab (30% of Daily Stake)
         4. TICKET BUILDING LOGIC:
-           - TICKET 1: MUST contain EXACTLY THREE matches sourced exclusively from the 'Core Consensus' tier. CRITICAL RULE: You MUST NOT include any match in Ticket 1 that has items inside its "contradictions" list (zero contradictions). If fewer than 3 pristine matches exist, fill the remaining spots with the safest Corner predictions. 
-           - TICKET 2: Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here.
-           - TICKET 3: Use the remaining 'Niche Coverage' matches and higher-risk options.
-           - TICKET 4: Create a dedicated corner-only accumulator using strictly the high-probability corner statistics provided. Select the 2 to 4 absolute best teams. DO NOT exceed 4 matches to minimize variance.
-        5. IF there are only 1 or 2 matches available for the day: Output a single ticket using this exact header:
-           🔥 Ticket 1: Premium Singles (100% of Daily Stake)
-           • [Match Name] ➔ [Optimized Prediction]
-        6. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change a risky '➔ 1' to '➔ 1X', or replace a risky Win with '➔ Over 8.5 Corners').
-        7. NO paragraphs of text. NO explanations. NO conversational filler. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
+            - TICKET 1: MUST contain EXACTLY THREE main matches sourced exclusively from the 'Core Consensus' tier with ZERO contradictions. If fewer than 3 pristine matches exist, fill remaining spots with safest Corner predictions.
+            - TICKET 2: Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here.
+            - TICKET 3: Use the remaining 'Niche Coverage' matches and higher-risk options.
+            - TICKET 4: Create a dedicated corner-only accumulator using strictly high-probability corner statistics (2 to 4 main matches).
+        5. CRITICAL RESERVE/BACKUP RULE:
+            - At the end of EVERY ticket (Tickets 1, 2, 3, and 4), append EXACTLY ONE additional backup match tagged as follows:
+              `🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]`
+            - The reserve pick MUST fit the criteria/theme of that specific ticket (e.g., Ticket 4's reserve pick MUST be a Corner prediction).
+            - This pick acts strictly as a spare tire if a main match is missing or lacks markets on the bookmaker.
+        6. IF there are only 1 or 2 matches available for the day: Output a single ticket using this exact header:
+            🔥 Ticket 1: Premium Singles (100% of Daily Stake)
+            • [Match Name] ➔ [Optimized Prediction]
+            🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]
+        7. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change a risky '➔ 1' to '➔ 1X', or replace a risky Win with '➔ Over 8.5 Corners').
+        8. NO paragraphs of text. NO explanations. NO conversational filler. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
