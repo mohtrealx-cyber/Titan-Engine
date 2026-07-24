@@ -430,11 +430,14 @@ class ConsensusEngine:
             - TICKET 1: MUST contain EXACTLY THREE main matches sourced exclusively from the 'Core Consensus' tier with ZERO contradictions. If fewer than 3 pristine matches exist, fill remaining spots with safest Corner predictions.
             - TICKET 2: Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here.
             - TICKET 3: Use the remaining 'Niche Coverage' matches and higher-risk options.
-            - TICKET 4: Create a dedicated corner-only accumulator using strictly high-probability corner statistics (2 to 4 main matches).
+            - TICKET 4 (CORNER LAB - CRITICAL LIQUIDITY & MARKET RULE): Create a dedicated corner-only accumulator (2 to 4 main matches) strictly using high-probability corner stats.
+              * MUST ONLY select matches from MAJOR, HIGH-LIQUIDITY TIER 1 & TIER 2 LEAGUES (e.g., Ekstraklasa, Superliga, Allsvenskan, Superettan, Eliteserien, Top European Leagues, Major Domestic Cups, or UEFA Qualifiers).
+              * ABSOLUTELY FORBIDDEN: Do NOT pick obscure, lower-tier, youth, or regional amateur divisions (e.g., Finnish Kakkonen/Kolmonen, lower Icelandic divisions, regional cups) because sportsbooks DO NOT offer corner prop markets for these fixtures.
+              * IF a high-corner team is from an obscure lower-tier division, REJECT IT and swap in a major-league match from consensus or an available high-tier corner pick.
         5. CRITICAL RESERVE/BACKUP RULE:
             - At the end of EVERY ticket (Tickets 1, 2, 3, and 4), append EXACTLY ONE additional backup match tagged as follows:
               `🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]`
-            - The reserve pick MUST fit the criteria/theme of that specific ticket (e.g., Ticket 4's reserve pick MUST be a Corner prediction).
+            - The reserve pick MUST fit the criteria/theme of that specific ticket (e.g., Ticket 4's reserve pick MUST be a Corner prediction from a tradeable major league).
             - This pick acts strictly as a spare tire if a main match is missing or lacks markets on the bookmaker.
         6. IF there are only 1 or 2 matches available for the day: Output a single ticket using this exact header:
             🔥 Ticket 1: Premium Singles (100% of Daily Stake)
