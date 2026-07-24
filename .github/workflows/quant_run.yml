@@ -2,53 +2,41 @@ name: Quant Engine Automation
 
 on:
   schedule:
-    - cron: '45 2 * * *'
-  workflow_dispatch:
-
-# Prevents GitHub from trying to write the JSON file twice if you trigger it manually while it runs
-concurrency: 
-  group: engine
-  cancel-in-progress: true
+    - cron: '0 8 * * *' # Runs daily at 8:00 AM UTC (11:00 AM EAT)
+  workflow_dispatch: # Allows manual trigger for checking settled matches
 
 jobs:
-  run-quant-engine:
+  run-titan-engine:
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # Stops the script from burning minutes if an API hangs
-
     permissions:
-      contents: write
+      contents: write # Grants permission to commit memory files back to the repo
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip'
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Quant Engine
+      - name: Execute Titan Engine
         env:
-          TRACKER_TELEGRAM_TOKEN: ${{ secrets.TRACKER_TELEGRAM_TOKEN }}
-          TRACKER_TELEGRAM_CHAT_ID: ${{ secrets.TRACKER_TELEGRAM_CHAT_ID }}
-          QUANT_TELEGRAM_TOKEN: ${{ secrets.QUANT_TELEGRAM_TOKEN }}
-          QUANT_TELEGRAM_CHAT_ID: ${{ secrets.QUANT_TELEGRAM_CHAT_ID }}
-          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python quant_engine.py
 
-      - name: Commit Memory File Back to GitHub
-        if: always() # Saves JSON data even if the script timed out
+      - name: Save Memory State (Always Run)
+        if: always()
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "Titan Automator"
-          git add pending_tickets.json || true
-          git commit -m "Auto-update memory notebook with today's matches" || echo "No new matches to save"
-          git pull --rebase origin main || true # Protects against push failures
-          git push origin main || true
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add pending_tickets.json lock_state.json || true
+          git commit -m "auto: update settled tickets and lock state" || echo "No changes to commit"
+          git push origin HEAD:main
