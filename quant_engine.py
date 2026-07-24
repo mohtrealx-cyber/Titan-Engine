@@ -5,10 +5,12 @@ import time
 import asyncio
 import datetime
 import difflib
-import requests
-from bs4 import BeautifulSoup
+import traceback
+import threading
 import concurrent.futures
+from bs4 import BeautifulSoup
 from curl_cffi import requests as tls_requests
+import requests
 
 # ==============================================================================
 # CONFIGURATION & SECURE ROUTING FALLBACKS
@@ -74,6 +76,7 @@ class ConsensusEngine:
         self.master_matrix = {}
         self.corner_stats = {} 
         self.diagnostics = {}
+        self.matrix_lock = threading.Lock() # FIXED: Prevents thread crashing
 
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
@@ -110,17 +113,19 @@ class ConsensusEngine:
         raw_match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
         final_key = raw_match_key
 
-        for existing_key in self.master_matrix.keys():
-            similarity = difflib.SequenceMatcher(None, raw_match_key.lower(), existing_key.lower()).ratio()
-            if similarity >= 0.75: 
-                final_key = existing_key
-                break
+        with self.matrix_lock: # FIXED: Race condition safe
+            for existing_key in self.master_matrix.keys():
+                similarity = difflib.SequenceMatcher(None, raw_match_key.lower(), existing_key.lower()).ratio()
+                if similarity >= 0.75: 
+                    final_key = existing_key
+                    break
 
-        if final_key not in self.master_matrix: self.master_matrix[final_key] = []
+            if final_key not in self.master_matrix: 
+                self.master_matrix[final_key] = []
 
-        existing_sites = [entry[0] for entry in self.master_matrix[final_key]]
-        if site_name not in existing_sites:
-            self.master_matrix[final_key].append((site_name, normalized_pick))
+            existing_sites = [entry[0] for entry in self.master_matrix[final_key]]
+            if site_name not in existing_sites:
+                self.master_matrix[final_key].append((site_name, normalized_pick))
 
     def fetch_corners_sync(self):
         url = "https://www.totalcorner.com/match/today"
@@ -129,7 +134,7 @@ class ConsensusEngine:
                 proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
                 r = tls_requests.get(proxy_url, timeout=60)
             else:
-                r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+                r = tls_requests.get(url, impersonate="chrome", timeout=20) # FIXED: Auto-updates TLS fingerprint
             
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
@@ -170,7 +175,7 @@ class ConsensusEngine:
                 if cfg.get("use_scraperapi") and not SCRAPER_API_KEY:
                     self.diagnostics[site_name] = "🔴 MISSING SCRAPER_API_KEY"
                     return
-                r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
+                r = tls_requests.get(cfg["url"], impersonate="chrome", timeout=20)
 
             if r.status_code != 200:
                 self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
@@ -381,26 +386,23 @@ class ConsensusEngine:
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         if not GEMINI_API_KEY:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
-            return None
+            return None, []
 
-        model_name = "models/gemini-1.5-flash"  
+        model_name = "models/gemini-2.5-flash"  # FIXED: Updated default to modern API
         try:
             list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
             resp = requests.get(list_url, timeout=10)
             if resp.status_code == 200:
                 models = resp.json().get("models", [])
-                
                 valid_models = []
                 for m in models:
                     name = m.get("name", "")
                     methods = m.get("supportedGenerationMethods", [])
-                    if "generateContent" in methods and "flash" in name.lower() and "preview" not in name.lower():
+                    if "generateContent" in methods and "flash" in name.lower() and "preview" not in name.lower() and "8b" not in name.lower():
                         valid_models.append(name)
-                
                 if valid_models:
                     valid_models.sort(reverse=True)
                     model_name = valid_models[0]
-
                 self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
         except Exception as e:
             self.diagnostics["AI_Handshake"] = f"🔴 Handshake Exception: {str(e)[:40]}"
@@ -409,8 +411,7 @@ class ConsensusEngine:
         
         prompt = f"""
         You are Titan, an elite quantitative sports betting AI Portfolio Manager.
-        Your objective is to analyze the following raw consensus data and corner statistics, 
-        and construct highly optimized, risk-mitigated betting tickets.
+        Analyze the following raw consensus data and corner statistics to construct optimized betting tickets.
 
         === RAW CONSENSUS DATA ===
         {json.dumps(ai_input_data, indent=2)}
@@ -419,48 +420,61 @@ class ConsensusEngine:
         {json.dumps(active_corner_teams, indent=2)}
 
         STRICT ARCHITECTURE RULES:
-        1. NEVER repeat the same match across multiple tickets or reserve slots. Every match used (whether main or reserve) must be completely unique across your entire output.
-        2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor. Mix and match to build the most secure tickets possible.
-        3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
-            🛡️ Ticket 1: Ironclad (40% of Daily Stake)
-            ⚖️ Ticket 2: Balanced (20% of Daily Stake)
-            🎯 Ticket 3: Volatility (10% of Daily Stake)
-            🧪 Ticket 4: Corner Lab (30% of Daily Stake)
-        4. TICKET BUILDING LOGIC:
-            - TICKET 1: MUST contain EXACTLY THREE main matches sourced exclusively from the 'Core Consensus' tier with ZERO contradictions. If fewer than 3 pristine matches exist, fill remaining spots with safest Corner predictions.
-            - TICKET 2: Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here.
-            - TICKET 3: Use the remaining 'Niche Coverage' matches and higher-risk options.
-            - TICKET 4 (CORNER LAB - CRITICAL LIQUIDITY & MARKET RULE): Create a dedicated corner-only accumulator (2 to 4 main matches) strictly using high-probability corner stats.
-              * MUST ONLY select matches from MAJOR, HIGH-LIQUIDITY TIER 1 & TIER 2 LEAGUES (e.g., Ekstraklasa, Superliga, Allsvenskan, Superettan, Eliteserien, Top European Leagues, Major Domestic Cups, or UEFA Qualifiers).
-              * ABSOLUTELY FORBIDDEN: Do NOT pick obscure, lower-tier, youth, or regional amateur divisions (e.g., Finnish Kakkonen/Kolmonen, lower Icelandic divisions, regional cups) because sportsbooks DO NOT offer corner prop markets for these fixtures.
-              * IF a high-corner team is from an obscure lower-tier division, REJECT IT and swap in a major-league match from consensus or an available high-tier corner pick.
-        5. CRITICAL RESERVE/BACKUP RULE:
-            - At the end of EVERY ticket (Tickets 1, 2, 3, and 4), append EXACTLY ONE additional backup match tagged as follows:
-              `🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]`
-            - The reserve pick MUST fit the criteria/theme of that specific ticket (e.g., Ticket 4's reserve pick MUST be a Corner prediction from a tradeable major league).
-            - This pick acts strictly as a spare tire if a main match is missing or lacks markets on the bookmaker.
-        6. IF there are only 1 or 2 matches available for the day: Output a single ticket using this exact header:
-            🔥 Ticket 1: Premium Singles (100% of Daily Stake)
-            • [Match Name] ➔ [Optimized Prediction]
-            🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]
-        7. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change a risky '➔ 1' to '➔ 1X', or replace a risky Win with '➔ Over 8.5 Corners').
-        8. NO paragraphs of text. NO explanations. NO conversational filler. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
+        1. NEVER repeat the same match across multiple tickets or reserve slots. Every match must be completely unique.
+        2. You are allowed to REPLACE weak consensus matches with Corner predictions (e.g., 'Over 8.5 Corners') if the corner data provides a mathematically safer floor.
+        3. TICKET 4 (CORNER LAB): Create a dedicated corner-only accumulator strictly using high-probability corner stats from MAJOR leagues only. Reject obscure lower-tier divisions.
+        4. YOU MUST RETURN YOUR OUTPUT IN PURE JSON FORMAT MATCHING EXACTLY THIS SCHEMA:
+        {{
+          "tickets": [
+            {{
+              "ticket_name": "🛡️ Ticket 1: Ironclad (40% of Daily Stake)",
+              "matches": [
+                {{"match": "Team A vs Team B", "prediction": "1X"}},
+                {{"match": "Team C vs Team D", "prediction": "Over 8.5 Corners"}}
+              ],
+              "reserve_match": {{"match": "Team E vs Team F", "prediction": "1"}}
+            }}
+          ]
+        }}
+        Create Tickets 1, 2, 3, and 4. No markdown text outside the JSON.
         """
 
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        # FIXED: Enforce strict JSON output from Gemini
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"response_mime_type": "application/json"}
+        }
         
         try:
             response = requests.post(url, json=payload, timeout=30)
             if response.status_code == 200:
                 data = response.json()
+                raw_content = data['candidates'][0]['content']['parts'][0]['text']
+                
+                parsed_json = json.loads(raw_content)
+                ai_message_lines = []
+                ai_structured_tickets = []
+                
+                # Rebuild standard markdown and extract the EXACT tracking tickets
+                for ticket in parsed_json.get("tickets", []):
+                    ai_message_lines.append(f"{ticket['ticket_name']}")
+                    for match in ticket.get("matches", []):
+                        ai_message_lines.append(f"• **{match['match']}** ➔ {match['prediction']}")
+                        ai_structured_tickets.append({"match": match['match'], "prediction": match['prediction'], "status": "PENDING", "score": "-"})
+                    
+                    reserve = ticket.get("reserve_match")
+                    if reserve:
+                        ai_message_lines.append(f"🔄 [RESERVE PICK]: {reserve['match']} ➔ {reserve['prediction']}\n")
+                        ai_structured_tickets.append({"match": reserve['match'], "prediction": reserve['prediction'], "status": "PENDING", "score": "-"})
+                
                 self.diagnostics["AI_Status"] = "🟢 Optimization Complete"
-                return data['candidates'][0]['content']['parts'][0]['text']
+                return "\n".join(ai_message_lines), ai_structured_tickets
             else:
                 self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}"
-                return None
+                return None, []
         except Exception as e:
             self.diagnostics["AI_Status"] = f"🔴 Exception: {str(e)[:60]}"
-            return None
+            return None, []
 
     # ==========================================================================
     # IMMUTABLE DAILY LOCKING ARCHITECTURE
@@ -483,10 +497,12 @@ class ConsensusEngine:
         results = {}
         url = f"https://www.statarea.com/predictions/date/{target_date}/"
         try:
-            r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+            r = tls_requests.get(url, impersonate="chrome", timeout=20)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 for row in soup.find_all("div", class_="matchrow"):
+                    # FIXED: Reset stale variables every loop iteration
+                    home = away = score = None
                     text = row.get_text(separator=" ").upper()
                     padded_text = f" {text} "
                     if any(flag in padded_text for flag in [" FT ", "FINISHED", " AET ", " PEN "]):
@@ -498,6 +514,8 @@ class ConsensusEngine:
                         score_match = re.search(r'\b(\d{1,2})\s*-\s*(\d{1,2})\b', text)
                         if score_match:
                             score = f"{score_match.group(1)}-{score_match.group(2)}"
+                            
+                        if home and away and score:
                             results[f"{home} vs {away}"] = score
         except Exception: pass
         return results
@@ -539,8 +557,13 @@ class ConsensusEngine:
                             elif home_g == away_g: actual = "X"
                             else: actual = "2"
 
-                            if prediction == actual: t["status"] = "WON 🟢"
-                            else: t["status"] = "LOST 🔴"
+                            # Partial match to correctly settle "Over 8.5 Corners" as UNKNOWN if results scrape only fetches goals
+                            if "corner" in prediction.lower():
+                                t["status"] = "MANUAL CHECK 🟡"
+                            elif prediction == actual: 
+                                t["status"] = "WON 🟢"
+                            else: 
+                                t["status"] = "LOST 🔴"
 
                             t["score"] = score
                             needs_save = True
@@ -562,23 +585,28 @@ class ConsensusEngine:
 
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         
-        # Telegram max length is 4096. Chunking the message to prevent silent drops
-        chunk_size = 4000
-        msg_chunks = [msg[i:i+chunk_size] for i in range(0, len(msg), chunk_size)]
+        # FIXED: Intelligent chunking at newlines to prevent broken markdown tags
+        msg_chunks = []
+        current_chunk = ""
+        for line in msg.split("\n"):
+            if len(current_chunk) + len(line) + 1 > 3500:
+                msg_chunks.append(current_chunk)
+                current_chunk = line + "\n"
+            else:
+                current_chunk += line + "\n"
+        if current_chunk:
+            msg_chunks.append(current_chunk)
         
         for chunk in msg_chunks:
             payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
             try:
-                r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+                r = tls_requests.post(url, json=payload, impersonate="chrome", timeout=15)
                 if r.status_code != 200:
-                    print(f"Telegram Markdown error: {r.text} - Retrying without formatting...")
                     payload.pop("parse_mode")
-                    r2 = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
-                    if r2.status_code != 200:
-                        print(f"Telegram fallback failed: {r2.text}")
+                    tls_requests.post(url, json=payload, impersonate="chrome", timeout=15)
             except Exception as e:
                 print(f"Telegram alert exception: {e}")
-            time.sleep(1) # Sleep briefly between chunks
+            time.sleep(1)
 
     async def run_pipeline(self):
         eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
@@ -588,13 +616,11 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
+        # FIXED: Lock is now based purely on if data successfully generated today, not an arbitrary hour
         is_already_locked = False
         if isinstance(today_payload, dict):
-            if today_payload.get("locked") and current_hour >= 6:
+            if today_payload.get("locked"):
                 is_already_locked = True
-            elif today_payload.get("locked") and current_hour < 6:
-                print("⚠️ Found a premature lock. Forcing unlock since it is before 6:00 AM EAT.")
-                is_already_locked = False
 
         if is_already_locked:
             print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
@@ -626,9 +652,13 @@ class ConsensusEngine:
 
             ai_optimized_message = None
             if ai_input_data or active_corner_teams:
-                ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
+                # FIXED: Unpack both the string message and the EXACT JSON parsed tickets
+                ai_optimized_message, ai_structured_tickets = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
+                if ai_structured_tickets:
+                    structured_tickets = ai_structured_tickets # Overwrite memory tracker with AI's creative swaps!
 
-            should_lock = current_hour >= 6
+            # Lock if we successfully found matches to bet on
+            should_lock = len(agreed_matches) > 0 or len(niche_matches) > 0
 
             memory[today_date] = {
                 "locked": should_lock,
@@ -643,7 +673,7 @@ class ConsensusEngine:
             if should_lock:
                 self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else:
-                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 06:00 EAT)"
+                self.diagnostics["Daily_Lock"] = f"🔴 NO MATCHES FOUND (Unlocked)"
 
         settled_reports = self.settle_pending_tickets(memory)
 
@@ -675,6 +705,22 @@ class ConsensusEngine:
 
         self.send_telegram_alert(msg)
 
+# FIXED: Added a top level crash handler to push alerts to Telegram if the bot fails entirely
 if __name__ == "__main__":
-    live_configs = get_dynamic_configs()
-    asyncio.run(ConsensusEngine(live_configs).run_pipeline())
+    try:
+        live_configs = get_dynamic_configs()
+        asyncio.run(ConsensusEngine(live_configs).run_pipeline())
+    except Exception as e:
+        error_details = traceback.format_exc()[-1000:]
+        print(error_details)
+        
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID, 
+            "text": f"🚨 **CRITICAL BOT CRASH** 🚨\n\nThe Quant Engine stopped working:\n```python\n{error_details}\n```",
+            "parse_mode": "Markdown"
+        }
+        try:
+            requests.post(url, json=payload, timeout=10)
+        except:
+            pass
