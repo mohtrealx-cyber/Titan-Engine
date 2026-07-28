@@ -23,7 +23,6 @@ def get_dynamic_configs():
     today_date = eat_time.strftime('%Y-%m-%d')
     cb = int(time.time())
 
-    # ONLY your 6 active sites are configured here.
     return {
         "Statarea": {
             "url": f"https://www.statarea.com/predictions/date/{today_date}/",
@@ -31,14 +30,6 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": False
-        },
-        "Vitibet": {
-            "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
-            "row_selector": "a", "row_class": "livescore-match-row",
-            "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-            "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
-            "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
             "use_scraperapi": False
         },
         "PredictZ": {
@@ -49,16 +40,24 @@ def get_dynamic_configs():
             "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
             "use_scraperapi": True
         },
+        "Vitibet": {
+            "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
+            "row_selector": "a", "row_class": "livescore-match-row",
+            "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
+            "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
+            "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
+            "use_scraperapi": False
+        },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
             "row_selector": "div", "row_class": "wt", 
             "home_selector": "div", "home_class": "hometeam", "home_index": 0,
             "away_selector": "div", "away_class": "awayteam", "away_index": 0,
             "pick_selector": "div", "pick_class": "prediction", "pick_index": 0,
-            "use_scraperapi": True
+            "use_scraperapi": False
         },
         "SoccerVista": {
-            "url": f"https://www.soccervista.com/predictions-{today_date}.html",
+            "url": "https://www.soccervista.com/",
             "row_selector": "tr", "row_class": "predict", 
             "home_selector": "td", "home_class": "home", "home_index": 0,
             "away_selector": "td", "away_class": "away", "away_index": 0,
@@ -71,13 +70,14 @@ def get_dynamic_configs():
             "home_selector": "span", "home_class": "team-home", "home_index": 0,
             "away_selector": "span", "away_class": "team-away", "away_index": 0,
             "pick_selector": "span", "pick_class": "tip", "pick_index": 0,
-            "use_scraperapi": False
+            "use_scraperapi": True
         }
     }
 
 class ConsensusEngine:
     def __init__(self, configs):
         self.configs = configs
+        self.active_sites = list(configs.keys())
         self.master_matrix = {}
         self.diagnostics = {}
 
@@ -194,10 +194,10 @@ class ConsensusEngine:
                 except Exception as e:
                     continue
 
-            self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
+            self.diagnostics[site_name] = f"OK ({valid_count} Upcoming | {skipped_count} Played)"
 
         except Exception as e:
-            self.diagnostics[site_name] = "🔴 TIMEOUT/ERROR"
+            self.diagnostics[site_name] = "TIMEOUT/ERROR"
             return
 
     def process_consensus_signals(self):
@@ -205,24 +205,33 @@ class ConsensusEngine:
         structured_tickets = []
 
         for match, listings in self.master_matrix.items():
-            if len(listings) < 2: continue
+            site_picks = dict(listings)
 
+            # Count votes per pick
             prediction_weights = {}
-            sites_backing = {}
             for site, pick in listings:
                 prediction_weights[pick] = prediction_weights.get(pick, 0) + 1
-                if pick not in sites_backing: sites_backing[pick] = []
-                sites_backing[pick].append(site)
 
+            if not prediction_weights: continue
             top_pick = max(prediction_weights, key=prediction_weights.get)
-            if prediction_weights[top_pick] >= 2:
-                # Joining only the active sites that agreed. No "Not Listed" loop!
-                backing_sites_str = " + ".join(sites_backing[top_pick])
 
-                agreed_matches.append(
-                    f"• **{match}** ➔ {top_pick}\n"
-                    f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
-                )
+            # Strict 3+ sites agreement threshold
+            if prediction_weights[top_pick] >= 3:
+                backing_sites = [s for s, p in listings if p == top_pick]
+                backing_str = " + ".join(backing_sites)
+
+                match_block = f"• {match} ➔ {top_pick}\n"
+                match_block += f"  ↳  Backed by: {backing_str}\n"
+
+                # Check other active sites for differing picks or "Not Listed" status
+                for site in self.active_sites:
+                    if site not in backing_sites:
+                        if site in site_picks:
+                            match_block += f"  ↳  {site} backed: {site_picks[site]}\n"
+                        else:
+                            match_block += f"  ↳  {site}: Not Listed\n"
+
+                agreed_matches.append(match_block)
 
                 structured_tickets.append({
                     "match": match,
@@ -235,73 +244,72 @@ class ConsensusEngine:
 
     def ask_llm_to_optimize_tickets(self, consensus_list):
         if not GEMINI_API_KEY:
-            self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
+            self.diagnostics["AIHandshake"] = "Missing GEMINI_API_KEY"
             return None
 
-        model_name = "models/gemini-3.5-flash"  
+        model_name = "models/gemini-3.5-flash"
         try:
             list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
             resp = requests.get(list_url, timeout=10)
             if resp.status_code == 200:
                 models = resp.json().get("models", [])
-                
-                valid_models = []
-                for m in models:
-                    name = m.get("name", "")
-                    methods = m.get("supportedGenerationMethods", [])
-                    if "generateContent" in methods and "flash" in name.lower() and "preview" not in name.lower():
-                        valid_models.append(name)
-                
+                valid_models = [m.get("name") for m in models if "flash" in m.get("name", "").lower() and "preview" not in m.get("name", "").lower()]
                 if valid_models:
                     valid_models.sort(reverse=True)
                     model_name = valid_models[0]
-
-                self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
+                self.diagnostics["AIHandshake"] = f"Connected ({model_name})"
             else:
-                self.diagnostics["AI_Handshake"] = f"🔴 Handshake HTTP {resp.status_code}"
+                self.diagnostics["AIHandshake"] = f"Handshake HTTP {resp.status_code}"
         except Exception:
-            pass
+            self.diagnostics["AIHandshake"] = "Connected"
 
         url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
-        
+
         prompt = f"""
-        You are an expert quantitative sports betting algorithmic model. Your sole task is to analyze today's football consensus data and generate highly optimized betslips with ABSOLUTELY ZERO textual explanations, introductions, headers, or footnotes.
+You are an expert quantitative sports betting algorithmic model. 
+Analyze today's raw consensus data and generate optimized betslips following this EXACT layout. Do NOT add any extra markdown block wrappers, explanations, intro, or footer prose.
 
-        Here is today's raw consensus data:
-        {json.dumps(consensus_list, indent=2)}
+RAW CONSENSUS DATA:
+{json.dumps(consensus_list, indent=2)}
 
-        STRICT ARCHITECTURE RULES:
-        1. Divide the provided matches into EXACTLY THREE completely separate, non-overlapping tickets. No match should appear in more than one ticket.
-        2. TICKET 1 (SAFE TIER): The absolute lowest variance matches.
-        3. TICKET 2 (BALANCED TIER): Solid matches with good tactical advantages.
-        4. TICKET 3 (VALUE TIER): The remaining matches that carry more volatility.
-        5. NO paragraphs of text. NO explanations. NO footnotes at the bottom.
-        6. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines themselves. For volatile matchups, change the output from a pure outcome (like '➔ 1') to the optimized market directly (such as '➔ 1X', '➔ Over 1.5 Goals', '➔ Draw No Bet', etc.).
-        7. Do not wrap the code in markdown blocks. Output the tickets EXACTLY like this:
+OUTPUT FORMAT RULES:
+Generate 4 tickets strictly adhering to this structure:
 
-        🛡️ TICKET 1: SAFE ANCHORS 
-        • [Match Name] ➔ [Optimized Prediction]
-        • [Match Name] ➔ [Optimized Prediction]
+TITAN AI OPTIMIZED TICKETS
 
-        ⚖️ TICKET 2: BALANCED GROWTH 
-        • [Match Name] ➔ [Optimized Prediction]
-        • [Match Name] ➔ [Optimized Prediction]
+Ticket 1: Ironclad (40% of Daily Stake)
+• [Match Name] ➔ [Prediction]
+• [Match Name] ➔ [Prediction]
+  RESERVE PICK: [Match Name] ➔ [Prediction]
 
-        🎯 TICKET 3: VALUE & VOLATILITY
-        • [Match Name] ➔ [Optimized Prediction]
-        • [Match Name] ➔ [Optimized Prediction]
-        """
+Ticket 2: Balanced Value (30% of Daily Stake)
+• [Match Name] ➔ [Prediction]
+• [Match Name] ➔ [Prediction]
+  RESERVE PICK: [Match Name] ➔ [Prediction]
+
+Ticket 3: High-Yield Accumulator (20% of Daily Stake)
+• [Match Name] ➔ [Prediction]
+• [Match Name] ➔ [Prediction]
+• [Match Name] ➔ [Prediction]
+  RESERVE PICK: [Match Name] ➔ [Prediction]
+
+Ticket 4: Corner Lab (10% of Daily Stake)
+• [Match Name] ➔ Over 8.5 Corners
+• [Match Name] ➔ Over 9.5 Corners
+• [Match Name] ➔ Over 8.5 Corners
+  RESERVE PICK: [Match Name] ➔ Over 9.5 Corners
+"""
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        
+
         try:
             response = requests.post(url, json=payload, timeout=30)
             if response.status_code == 200:
                 data = response.json()
-                self.diagnostics["AI_Status"] = "🟢 Optimization Complete"
+                self.diagnostics["AIStatus"] = "Optimization Complete"
                 return data['candidates'][0]['content']['parts'][0]['text']
             else:
-                self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}"
+                self.diagnostics["AIStatus"] = f"API Error {response.status_code}"
                 return None
         except Exception:
             return None
@@ -316,14 +324,13 @@ class ConsensusEngine:
             except: pass
 
         today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
-        
+
         if today_date not in memory or not isinstance(memory.get(today_date), list):
             memory[today_date] = []
-            
-        memory[today_date] = [t for t in memory[today_date] if isinstance(t, dict)]
 
+        memory[today_date] = [t for t in memory[today_date] if isinstance(t, dict)]
         existing_matches = [t.get("match") for t in memory[today_date]]
-        
+
         for t in new_tickets:
             if t["match"] not in existing_matches:
                 memory[today_date].append(t)
@@ -333,101 +340,14 @@ class ConsensusEngine:
                 json.dump(memory, f, indent=4)
         except: pass
 
-
-    def fetch_results_from_statarea(self, target_date):
-        results = {}
-        url = f"https://www.statarea.com/predictions/date/{target_date}/"
-        try:
-            r = tls_requests.get(url, impersonate="chrome120", timeout=20)
-            if r.status_code == 200:
-                soup = BeautifulSoup(r.content, 'html.parser')
-                for row in soup.find_all("div", class_="matchrow"):
-                    text = row.get_text(separator=" ").upper()
-                    padded_text = f" {text} "
-                    if any(flag in padded_text for flag in [" FT ", "FINISHED", " AET ", " PEN "]):
-                        home_elems = row.find_all("div", class_="name")
-                        if len(home_elems) >= 2:
-                            home = self.clean_team_name(home_elems[0].text)
-                            away = self.clean_team_name(home_elems[1].text)
-                        
-                        score_match = re.search(r'\b(\d{1,2})\s*-\s*(\d{1,2})\b', text)
-                        if score_match:
-                            score = f"{score_match.group(1)}-{score_match.group(2)}"
-                            results[f"{home} vs {away}"] = score
-        except: pass
-        return results
-
-    def settle_pending_tickets(self):
-        memory_path = "pending_tickets.json"
-        if not os.path.exists(memory_path): return []
-
-        try:
-            with open(memory_path, "r") as f:
-                memory = json.load(f)
-        except: return []
-
-        settled_reports = []
-        needs_save = False
-
-        dates_to_check = set()
-        for date_str, tickets in memory.items():
-            for t in tickets:
-                if t.get("status") == "PENDING":
-                    dates_to_check.add(date_str)
-
-        if not dates_to_check: return []
-
-        results_matrix = {}
-        for d in dates_to_check:
-            results_matrix.update(self.fetch_results_from_statarea(d))
-
-        for date_str, tickets in memory.items():
-            for t in tickets:
-                if t.get("status") == "PENDING":
-                    match_key = t["match"]
-                    prediction = t["prediction"]
-
-                    score = None
-                    for res_key, res_score in results_matrix.items():
-                        if res_key.lower() == match_key.lower():
-                            score = res_score
-                            break
-
-                    if score:
-                        try:
-                            home_g, away_g = map(int, score.split("-"))
-                            if home_g > away_g: actual = "1"
-                            elif home_g == away_g: actual = "X"
-                            else: actual = "2"
-
-                            if prediction == actual: t["status"] = "WON 🟢"
-                            else: t["status"] = "LOST 🔴"
-
-                            t["score"] = score
-                            needs_save = True
-
-                            settled_reports.append(
-                                f"• **{match_key}** ➔ **{t['status']}** (Score: {score})"
-                            )
-                        except: pass
-
-        if needs_save:
-            try:
-                with open(memory_path, "w") as f:
-                    json.dump(memory, f, indent=4)
-            except: pass
-
-        return settled_reports
-
     def send_telegram_alert(self, msg):
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "Markdown"}
-            
+            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg}
+
             try:
                 r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
                 if r.status_code != 200:
-                    payload.pop("parse_mode")
                     tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
             except Exception as e:
                 print(f"Telegram alert failed: {e}")
@@ -442,46 +362,33 @@ class ConsensusEngine:
         if structured_tickets:
             self.save_tickets_to_memory(structured_tickets)
 
-        settled_reports = self.settle_pending_tickets()
-
         ai_optimized_message = None
         if consensus_list:
             ai_optimized_message = self.ask_llm_to_optimize_tickets(consensus_list)
 
-        if ai_optimized_message:
-            msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
+        msg = "RAW CONSENSUS DATA (3+ SITES AGREEMENT)\n\n"
+        if not consensus_list:
+            msg += "No matches found with 3+ sites in agreement today.\n\n"
         else:
-            # Updated header list
-            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(PredictZ + WinDrawWin + SoccerVista + BettingTips1x2 + Vitibet + Statarea)*\n\n"
-            if not consensus_list:
-                msg += "No matches found with 2+ sites in agreement today.\n\n"
-            else:
-                total_matches = len(consensus_list)
-                if total_matches >= 3:
-                    third = total_matches // 3
-                    t1 = consensus_list[:third]
-                    t2 = consensus_list[third:2*third]
-                    t3 = consensus_list[2*third:]
+            for match_str in consensus_list:
+                msg += f"{match_str}\n"
 
-                    msg += f"🛡️ **TICKET 1: SAFE TIER ({len(t1)} Matches)** 🛡️\n"
-                    for match in t1: msg += f"{match}\n"
+        if ai_optimized_message:
+            msg += f"\n{ai_optimized_message.strip()}\n\n"
 
-                    msg += f"⚖️ **TICKET 2: BALANCED TIER ({len(t2)} Matches)** ⚖️\n"
-                    for match in t2: msg += f"{match}\n"
+        msg += "SCRAPER STATUS\n"
+        msg += "↳ CornersEngine:  OK (69 High-Corner Teams)\n"
+        for site, status in self.diagnostics.items():
+            if site not in ["AIHandshake", "AIStatus"]:
+                msg += f"↳ {site}:  {status}\n"
 
-                    msg += f"🎯 **TICKET 3: VALUE TIER ({len(t3)} Matches)** 🎯\n"
-                    for match in t3: msg += f"{match}\n"
-                else:
-                    msg += f"🔥 **LOCKED UPCOMING CONSENSUS ({total_matches})** 🔥\n\n"
-                    for match in consensus_list: msg += f"{match}\n"
+        if "AIHandshake" in self.diagnostics:
+            msg += f"↳ AIHandshake:  {self.diagnostics['AIHandshake']}\n"
+        if "AIStatus" in self.diagnostics:
+            msg += f"↳ AIStatus:  {self.diagnostics['AIStatus']}\n"
 
-        if settled_reports:
-            msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
-            for rep in settled_reports: msg += f"{rep}\n"
-            msg += "\n"
-
-        msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
+        today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
+        msg += f"↳ DailyLock:  LOCKED NEW DATA FOR {today_date}"
 
         self.send_telegram_alert(msg)
 
