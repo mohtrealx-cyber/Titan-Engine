@@ -23,6 +23,7 @@ def get_dynamic_configs():
     today_date = eat_time.strftime('%Y-%m-%d')
     cb = int(time.time())
 
+    # ONLY your 6 active sites are configured here.
     return {
         "Statarea": {
             "url": f"https://www.statarea.com/predictions/date/{today_date}/",
@@ -215,7 +216,7 @@ class ConsensusEngine:
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             if prediction_weights[top_pick] >= 2:
-                # This only outputs the sites that actually backed the pick
+                # Joining only the active sites that agreed. No "Not Listed" loop!
                 backing_sites_str = " + ".join(sites_backing[top_pick])
 
                 agreed_matches.append(
@@ -450,7 +451,8 @@ class ConsensusEngine:
         if ai_optimized_message:
             msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
         else:
-            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ + WinDrawWin + SoccerVista + BettingTips1x2)*\n\n"
+            # Updated header list
+            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(PredictZ + WinDrawWin + SoccerVista + BettingTips1x2 + Vitibet + Statarea)*\n\n"
             if not consensus_list:
                 msg += "No matches found with 2+ sites in agreement today.\n\n"
             else:
