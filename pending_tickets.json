@@ -1,16 +1,104 @@
 {
-    "2026-07-28": [
-        {
-            "match": "Nasaf Qarshi vs Qizilqum Zarafshon",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        },
-        {
-            "match": "Nasaf vs Qizilqum Zarafshon",
-            "prediction": "1",
-            "status": "PENDING",
-            "score": "-"
-        }
-    ]
+    "2026-07-28": {
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Nasaf vs Qizilqum Zarafshon** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + Statarea`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: X\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Neftchi vs Navbahor** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Apollon Limassol vs Dila Gori** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n"
+        ],
+        "niche_matches": [
+            "\u2022 **Kups vs Sabah Fk** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Lincoln Red Imps vs Mjallby** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Dynamo Zagreb vs Fc Thun** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Nk Celje vs Egnatia Rrogozhine** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Shamrock vs Ararat Armenia** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Riga vs Vardar** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Kf Drita vs Floriana** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Juventude Rs vs Avai** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Ponte Preta vs Athletic Club** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Rubio Nu vs Sportivo Ameliano** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Neftchi vs Navbahor \u2794 1X\n\u2022 Apollon Limassol vs Dila Gori \u2794 1\n\u2022 Nasaf vs Qizilqum Zarafshon \u2794 1X\n\ud83d\udd04 [RESERVE PICK]: B36 Torshavn vs Ab \u2794 Over 8.5 Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Dynamo Zagreb vs Fc Thun \u2794 1\n\u2022 Shamrock vs Ararat Armenia \u2794 1\n\u2022 Kf Drita vs Floriana \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Riga vs Vardar \u2794 1\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Lincoln Red Imps vs Mjallby \u2794 2\n\u2022 Nk Celje vs Egnatia Rrogozhine \u2794 1\n\u2022 Rubio Nu vs Sportivo Ameliano \u2794 2\n\ud83d\udd04 [RESERVE PICK]: Juventude Rs vs Avai \u2794 1\n\n\ud83e\uddea Ticket 4: Corner Lab (30% of Daily Stake)\n\u2022 Helsingborg vs United Nordic \u2794 Over 8.5 Corners\n\u2022 Landskrona Bois vs Ifk Norrkoping \u2794 Over 8.5 Corners\n\u2022 Oxford United vs Crawley Town \u2794 Over 8.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Dfk Dainava vs Fk Transinvest B \u2794 Over 8.5 Corners",
+        "req_threshold": 3,
+        "tickets": [
+            {
+                "match": "Nasaf vs Qizilqum Zarafshon",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Neftchi vs Navbahor",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Kups vs Sabah Fk",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Lincoln Red Imps vs Mjallby",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Dynamo Zagreb vs Fc Thun",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Nk Celje vs Egnatia Rrogozhine",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Shamrock vs Ararat Armenia",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Apollon Limassol vs Dila Gori",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Riga vs Vardar",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Kf Drita vs Floriana",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Juventude Rs vs Avai",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Ponte Preta vs Athletic Club",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Rubio Nu vs Sportivo Ameliano",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
+    }
 }
