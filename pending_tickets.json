@@ -5,6 +5,12 @@
             "prediction": "1",
             "status": "PENDING",
             "score": "-"
+        },
+        {
+            "match": "Nasaf vs Qizilqum Zarafshon",
+            "prediction": "1",
+            "status": "PENDING",
+            "score": "-"
         }
     ]
 }
