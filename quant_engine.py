@@ -47,6 +47,30 @@ def get_dynamic_configs():
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
             "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
             "use_scraperapi": True
+        },
+        "WinDrawWin": {
+            "url": "https://www.windrawwin.com/predictions/today/",
+            "row_selector": "div", "row_class": "wt", 
+            "home_selector": "div", "home_class": "hometeam", "home_index": 0,
+            "away_selector": "div", "away_class": "awayteam", "away_index": 0,
+            "pick_selector": "div", "pick_class": "prediction", "pick_index": 0,
+            "use_scraperapi": True
+        },
+        "SoccerVista": {
+            "url": f"https://www.soccervista.com/predictions-{today_date}.html",
+            "row_selector": "tr", "row_class": "predict", 
+            "home_selector": "td", "home_class": "home", "home_index": 0,
+            "away_selector": "td", "away_class": "away", "away_index": 0,
+            "pick_selector": "td", "pick_class": "pick", "pick_index": 0,
+            "use_scraperapi": True
+        },
+        "BettingTips1x2": {
+            "url": "https://www.bettingtips1x2.com/today-betting-tips",
+            "row_selector": "div", "row_class": "row-match", 
+            "home_selector": "span", "home_class": "team-home", "home_index": 0,
+            "away_selector": "span", "away_class": "team-away", "away_index": 0,
+            "pick_selector": "span", "pick_class": "tip", "pick_index": 0,
+            "use_scraperapi": False
         }
     }
 
@@ -121,7 +145,7 @@ class ConsensusEngine:
             rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
             if not rows:
-                self.diagnostics[site_name] = f"🟡 BLOCKED"
+                self.diagnostics[site_name] = f"🟡 BLOCKED OR HTML CHANGED"
                 return
 
             valid_count = 0
@@ -191,6 +215,7 @@ class ConsensusEngine:
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             if prediction_weights[top_pick] >= 2:
+                # This only outputs the sites that actually backed the pick
                 backing_sites_str = " + ".join(sites_backing[top_pick])
 
                 agreed_matches.append(
@@ -209,7 +234,7 @@ class ConsensusEngine:
 
     def ask_llm_to_optimize_tickets(self, consensus_list):
         if not GEMINI_API_KEY:
-            self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY in GitHub Secrets"
+            self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
         model_name = "models/gemini-3.5-flash"  
@@ -233,8 +258,8 @@ class ConsensusEngine:
                 self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
             else:
                 self.diagnostics["AI_Handshake"] = f"🔴 Handshake HTTP {resp.status_code}"
-        except Exception as e:
-            self.diagnostics["AI_Handshake"] = f"🔴 Handshake Exception: {str(e)[:40]}"
+        except Exception:
+            pass
 
         url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
@@ -275,10 +300,9 @@ class ConsensusEngine:
                 self.diagnostics["AI_Status"] = "🟢 Optimization Complete"
                 return data['candidates'][0]['content']['parts'][0]['text']
             else:
-                self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}: {response.text[:60]}"
+                self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}"
                 return None
-        except Exception as e:
-            self.diagnostics["AI_Status"] = f"🔴 Request Exception: {str(e)[:60]}"
+        except Exception:
             return None
 
     def save_tickets_to_memory(self, new_tickets):
@@ -292,14 +316,11 @@ class ConsensusEngine:
 
         today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
         
-        # DEFENSIVE CHECK 1: If today's memory isn't a list, wipe it clean
         if today_date not in memory or not isinstance(memory.get(today_date), list):
             memory[today_date] = []
             
-        # DEFENSIVE CHECK 2: Filter out any old data formats (like plain strings) from previous bot versions
         memory[today_date] = [t for t in memory[today_date] if isinstance(t, dict)]
 
-        # Now it is completely safe to check for existing matches
         existing_matches = [t.get("match") for t in memory[today_date]]
         
         for t in new_tickets:
@@ -405,11 +426,10 @@ class ConsensusEngine:
             try:
                 r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
                 if r.status_code != 200:
-                    print(f"Telegram rejected Markdown format. Retrying as plain text... Error: {r.text}")
                     payload.pop("parse_mode")
                     tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
             except Exception as e:
-                print(f"Telegram alert failed entirely: {e}")
+                print(f"Telegram alert failed: {e}")
 
     async def run_pipeline(self):
         loop = asyncio.get_running_loop()
@@ -430,7 +450,7 @@ class ConsensusEngine:
         if ai_optimized_message:
             msg = f"🤖 **TITAN AI QUANT INTEL** 🤖\n\n{ai_optimized_message}\n\n"
         else:
-            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ)*\n\n"
+            msg = "🤝 **QUANT CONSENSUS ENGINE** 🤝\n*(Statarea + Vitibet + PredictZ + WinDrawWin + SoccerVista + BettingTips1x2)*\n\n"
             if not consensus_list:
                 msg += "No matches found with 2+ sites in agreement today.\n\n"
             else:
