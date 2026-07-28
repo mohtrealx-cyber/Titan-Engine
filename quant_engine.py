@@ -291,10 +291,17 @@ class ConsensusEngine:
             except: pass
 
         today_date = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).strftime('%Y-%m-%d')
-        if today_date not in memory:
+        
+        # DEFENSIVE CHECK 1: If today's memory isn't a list, wipe it clean
+        if today_date not in memory or not isinstance(memory.get(today_date), list):
             memory[today_date] = []
+            
+        # DEFENSIVE CHECK 2: Filter out any old data formats (like plain strings) from previous bot versions
+        memory[today_date] = [t for t in memory[today_date] if isinstance(t, dict)]
 
-        existing_matches = [t["match"] for t in memory[today_date]]
+        # Now it is completely safe to check for existing matches
+        existing_matches = [t.get("match") for t in memory[today_date]]
+        
         for t in new_tickets:
             if t["match"] not in existing_matches:
                 memory[today_date].append(t)
@@ -303,6 +310,7 @@ class ConsensusEngine:
             with open(file_path, "w") as f:
                 json.dump(memory, f, indent=4)
         except: pass
+
 
     def fetch_results_from_statarea(self, target_date):
         results = {}
