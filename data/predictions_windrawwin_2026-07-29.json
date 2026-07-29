@@ -5,9 +5,9 @@
         "Prediction": "1",
         "Correct_Score": "2-1",
         "Stake": "Medium",
-        "Odds_1": 1.62,
-        "Odds_X": 4.0,
-        "Odds_2": 5.25
+        "Odds_1": "1.62",
+        "Odds_X": "4.00",
+        "Odds_2": "5.25"
     },
     {
         "Home": "Crvena Zvezda",
@@ -15,9 +15,9 @@
         "Prediction": "1",
         "Correct_Score": "4-0",
         "Stake": "Large",
-        "Odds_1": 1.06,
-        "Odds_X": 12.0,
-        "Odds_2": 29.0
+        "Odds_1": "1.06",
+        "Odds_X": "12.00",
+        "Odds_2": "29.00"
     },
     {
         "Home": "CS Universitatea Craiova",
@@ -25,9 +25,9 @@
         "Prediction": "X",
         "Correct_Score": "1-1",
         "Stake": "Large",
-        "Odds_1": 1.91,
-        "Odds_X": 3.4,
-        "Odds_2": 3.75
+        "Odds_1": "1.91",
+        "Odds_X": "3.40",
+        "Odds_2": "3.75"
     },
     {
         "Home": "Gornik Zabrze",
@@ -35,9 +35,9 @@
         "Prediction": "2",
         "Correct_Score": "1-2",
         "Stake": "Small",
-        "Odds_1": 6.0,
-        "Odds_X": 4.33,
-        "Odds_2": 1.48
+        "Odds_1": "6.00",
+        "Odds_X": "4.33",
+        "Odds_2": "1.48"
     },
     {
         "Home": "Hapoel Sheva",
@@ -45,9 +45,9 @@
         "Prediction": "1",
         "Correct_Score": "2-1",
         "Stake": "Large",
-        "Odds_1": 1.57,
-        "Odds_X": 4.1,
-        "Odds_2": 5.25
+        "Odds_1": "1.57",
+        "Odds_X": "4.10",
+        "Odds_2": "5.25"
     },
     {
         "Home": "Kairat",
@@ -55,9 +55,9 @@
         "Prediction": "X",
         "Correct_Score": "1-1",
         "Stake": "Medium",
-        "Odds_1": 2.15,
-        "Odds_X": 3.2,
-        "Odds_2": 3.4
+        "Odds_1": "2.15",
+        "Odds_X": "3.20",
+        "Odds_2": "3.40"
     },
     {
         "Home": "Kauno Zalgiris",
@@ -65,9 +65,9 @@
         "Prediction": "1",
         "Correct_Score": "2-1",
         "Stake": "Medium",
-        "Odds_1": 1.7,
-        "Odds_X": 3.4,
-        "Odds_2": 5.0
+        "Odds_1": "1.70",
+        "Odds_X": "3.40",
+        "Odds_2": "5.00"
     },
     {
         "Home": "Lech Poznan",
@@ -75,9 +75,9 @@
         "Prediction": "1",
         "Correct_Score": "2-0",
         "Stake": "Medium",
-        "Odds_1": 1.65,
-        "Odds_X": 3.9,
-        "Odds_2": 4.75
+        "Odds_1": "1.65",
+        "Odds_X": "3.90",
+        "Odds_2": "4.75"
     },
     {
         "Home": "Slovan Bratislava",
@@ -85,9 +85,9 @@
         "Prediction": "1",
         "Correct_Score": "2-0",
         "Stake": "Large",
-        "Odds_1": 1.33,
-        "Odds_X": 5.0,
-        "Odds_2": 8.0
+        "Odds_1": "1.33",
+        "Odds_X": "5.00",
+        "Odds_2": "8.00"
     },
     {
         "Home": "FC Copenhagen",
@@ -95,9 +95,9 @@
         "Prediction": "1",
         "Correct_Score": "3-1",
         "Stake": "Large",
-        "Odds_1": 1.57,
-        "Odds_X": 4.0,
-        "Odds_2": 4.75
+        "Odds_1": "1.57",
+        "Odds_X": "4.00",
+        "Odds_2": "4.75"
     },
     {
         "Home": "KF Dukagjini",
@@ -105,9 +105,9 @@
         "Prediction": "2",
         "Correct_Score": "0-1",
         "Stake": "Small",
-        "Odds_1": 5.25,
-        "Odds_X": 3.9,
-        "Odds_2": 1.55
+        "Odds_1": "5.25",
+        "Odds_X": "3.90",
+        "Odds_2": "1.55"
     },
     {
         "Home": "Rapid Vienna",
@@ -115,9 +115,9 @@
         "Prediction": "1",
         "Correct_Score": "3-1",
         "Stake": "Large",
-        "Odds_1": 1.13,
-        "Odds_X": 7.5,
-        "Odds_2": 17.0
+        "Odds_1": "1.13",
+        "Odds_X": "7.50",
+        "Odds_2": "17.00"
     },
     {
         "Home": "MP",
@@ -125,9 +125,9 @@
         "Prediction": "1",
         "Correct_Score": "2-0",
         "Stake": "Large",
-        "Odds_1": 2.1,
-        "Odds_X": 3.55,
-        "Odds_2": 3.2
+        "Odds_1": "2.10",
+        "Odds_X": "3.55",
+        "Odds_2": "3.20"
     },
     {
         "Home": "Internacional",
@@ -135,9 +135,9 @@
         "Prediction": "2",
         "Correct_Score": "0-1",
         "Stake": "Medium",
-        "Odds_1": 4.2,
-        "Odds_X": 3.5,
-        "Odds_2": 1.81
+        "Odds_1": "4.20",
+        "Odds_X": "3.50",
+        "Odds_2": "1.81"
     },
     {
         "Home": "Mirassol",
@@ -145,9 +145,9 @@
         "Prediction": "1",
         "Correct_Score": "2-0",
         "Stake": "Medium",
-        "Odds_1": 1.62,
-        "Odds_X": 3.7,
-        "Odds_2": 5.25
+        "Odds_1": "1.62",
+        "Odds_X": "3.70",
+        "Odds_2": "5.25"
     },
     {
         "Home": "Nacional Asuncion",
@@ -155,9 +155,9 @@
         "Prediction": "2",
         "Correct_Score": "0-2",
         "Stake": "Large",
-        "Odds_1": 2.8,
-        "Odds_X": 3.1,
-        "Odds_2": 2.3
+        "Odds_1": "2.80",
+        "Odds_X": "3.10",
+        "Odds_2": "2.30"
     },
     {
         "Home": "Sportivo Luqueno",
@@ -165,9 +165,9 @@
         "Prediction": "1",
         "Correct_Score": "2-0",
         "Stake": "Medium",
-        "Odds_1": 2.88,
-        "Odds_X": 3.2,
-        "Odds_2": 2.25
+        "Odds_1": "2.88",
+        "Odds_X": "3.20",
+        "Odds_2": "2.25"
     },
     {
         "Home": "Dinamo Samarqand",
@@ -175,8 +175,8 @@
         "Prediction": "1",
         "Correct_Score": "3-0",
         "Stake": "Large",
-        "Odds_1": 1.88,
-        "Odds_X": 3.2,
-        "Odds_2": 3.7
+        "Odds_1": "1.88",
+        "Odds_X": "3.20",
+        "Odds_2": "3.70"
     }
 ]

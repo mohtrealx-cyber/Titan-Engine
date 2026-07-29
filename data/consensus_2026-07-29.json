@@ -1,0 +1,308 @@
+[
+    {
+        "Match": "Vasco da Gama vs Medellin",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-1",
+                "Stake": "Medium",
+                "Odds_1": "1.62",
+                "Odds_X": "4.00",
+                "Odds_2": "5.25"
+            }
+        }
+    },
+    {
+        "Match": "Crvena Zvezda vs Larne",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "4-0",
+                "Stake": "Large",
+                "Odds_1": "1.06",
+                "Odds_X": "12.00",
+                "Odds_2": "29.00"
+            }
+        }
+    },
+    {
+        "Match": "CS Universitatea Craiova vs Levski Sofia",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Large",
+                "Odds_1": "1.91",
+                "Odds_X": "3.40",
+                "Odds_2": "3.75"
+            }
+        }
+    },
+    {
+        "Match": "Gornik Zabrze vs Fenerbahce",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "1-2",
+                "Stake": "Small",
+                "Odds_1": "6.00",
+                "Odds_X": "4.33",
+                "Odds_2": "1.48"
+            }
+        }
+    },
+    {
+        "Match": "Hapoel Sheva vs Vikingur Reykjavik",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-1",
+                "Stake": "Large",
+                "Odds_1": "1.57",
+                "Odds_X": "4.10",
+                "Odds_2": "5.25"
+            }
+        }
+    },
+    {
+        "Match": "Kairat vs Omonia Nicosia",
+        "Consensus_Pick": "X",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "X",
+                "Score": "1-1",
+                "Stake": "Medium",
+                "Odds_1": "2.15",
+                "Odds_X": "3.20",
+                "Odds_2": "3.40"
+            }
+        }
+    },
+    {
+        "Match": "Kauno Zalgiris vs KI Klaksvik",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-1",
+                "Stake": "Medium",
+                "Odds_1": "1.70",
+                "Odds_X": "3.40",
+                "Odds_2": "5.00"
+            }
+        }
+    },
+    {
+        "Match": "Lech Poznan vs AGF Aarhus",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-0",
+                "Stake": "Medium",
+                "Odds_1": "1.65",
+                "Odds_X": "3.90",
+                "Odds_2": "4.75"
+            }
+        }
+    },
+    {
+        "Match": "Slovan Bratislava vs Saburtalo Tbilisi",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-0",
+                "Stake": "Large",
+                "Odds_1": "1.33",
+                "Odds_X": "5.00",
+                "Odds_2": "8.00"
+            }
+        }
+    },
+    {
+        "Match": "FC Copenhagen vs Polissya Zhytomyr",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "3-1",
+                "Stake": "Large",
+                "Odds_1": "1.57",
+                "Odds_X": "4.00",
+                "Odds_2": "4.75"
+            }
+        }
+    },
+    {
+        "Match": "KF Dukagjini vs Lugano",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "0-1",
+                "Stake": "Small",
+                "Odds_1": "5.25",
+                "Odds_X": "3.90",
+                "Odds_2": "1.55"
+            }
+        }
+    },
+    {
+        "Match": "Rapid Vienna vs FC Santa Coloma",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "3-1",
+                "Stake": "Large",
+                "Odds_1": "1.13",
+                "Odds_X": "7.50",
+                "Odds_2": "17.00"
+            }
+        }
+    },
+    {
+        "Match": "MP vs KaPa",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-0",
+                "Stake": "Large",
+                "Odds_1": "2.10",
+                "Odds_X": "3.55",
+                "Odds_2": "3.20"
+            }
+        }
+    },
+    {
+        "Match": "Internacional vs Flamengo",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "0-1",
+                "Stake": "Medium",
+                "Odds_1": "4.20",
+                "Odds_X": "3.50",
+                "Odds_2": "1.81"
+            }
+        }
+    },
+    {
+        "Match": "Mirassol vs Remo",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-0",
+                "Stake": "Medium",
+                "Odds_1": "1.62",
+                "Odds_X": "3.70",
+                "Odds_2": "5.25"
+            }
+        }
+    },
+    {
+        "Match": "Nacional Asuncion vs Olimpia",
+        "Consensus_Pick": "2",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "2",
+                "Score": "0-2",
+                "Stake": "Large",
+                "Odds_1": "2.80",
+                "Odds_X": "3.10",
+                "Odds_2": "2.30"
+            }
+        }
+    },
+    {
+        "Match": "Sportivo Luqueno vs Sportivo Trinidense",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "2-0",
+                "Stake": "Medium",
+                "Odds_1": "2.88",
+                "Odds_X": "3.20",
+                "Odds_2": "2.25"
+            }
+        }
+    },
+    {
+        "Match": "Dinamo Samarqand vs Kokand 1912",
+        "Consensus_Pick": "1",
+        "Agreement_Rate": "100.0%",
+        "Sources_Agreed": "1/1",
+        "Average_Odds": null,
+        "Breakdown": {
+            "windrawwin": {
+                "Pick": "1",
+                "Score": "3-0",
+                "Stake": "Large",
+                "Odds_1": "1.88",
+                "Odds_X": "3.20",
+                "Odds_2": "3.70"
+            }
+        }
+    }
+]
