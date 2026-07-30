@@ -223,5 +223,13 @@
                 "score": "-"
             }
         ]
+    },
+    "2026-07-30": {
+        "locked": true,
+        "agreed_matches": [],
+        "niche_matches": [],
+        "ai_optimized_message": null,
+        "req_threshold": 2,
+        "tickets": []
     }
 }
