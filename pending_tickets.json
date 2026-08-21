@@ -385,7 +385,7 @@
         "tickets": []
     },
     "2026-08-21": {
-        "locked": true,
+        "locked": false,
         "agreed_matches": [],
         "niche_matches": [],
         "ai_optimized_message": null,
