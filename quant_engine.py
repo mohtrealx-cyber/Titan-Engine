@@ -420,28 +420,47 @@ class ConsensusEngine:
 
         STRICT ARCHITECTURE RULES:
         1. NEVER repeat the same match across multiple tickets or reserve slots. Every match used (whether main or reserve) must be completely unique across your entire output.
-        2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor. Mix and match to build the most secure tickets possible.
+        2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor.
         3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
             🛡️ Ticket 1: Ironclad (40% of Daily Stake)
             ⚖️ Ticket 2: Balanced (20% of Daily Stake)
             🎯 Ticket 3: Volatility (10% of Daily Stake)
-            🧪 Ticket 4: Corner Lab (30% of Daily Stake)
+            🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         4. TICKET BUILDING LOGIC:
             - TICKET 1: MUST contain EXACTLY THREE main matches sourced exclusively from the 'Core Consensus' tier with ZERO contradictions. If fewer than 3 pristine matches exist, fill remaining spots with safest Corner predictions.
             - TICKET 2: Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here.
             - TICKET 3: Use the remaining 'Niche Coverage' matches and higher-risk options.
-            - TICKET 4: Create a dedicated corner-only accumulator using strictly high-probability corner statistics (2 to 4 main matches).
+            - TICKET 4: Leave this ticket COMPLETELY BLANK under the header. Do not generate any matches for it.
         5. CRITICAL RESERVE/BACKUP RULE:
-            - At the end of EVERY ticket (Tickets 1, 2, 3, and 4), append EXACTLY ONE additional backup match tagged as follows:
+            - At the end of Tickets 1, 2, and 3 ONLY, append EXACTLY ONE additional backup match tagged as follows:
               `🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]`
-            - The reserve pick MUST fit the criteria/theme of that specific ticket (e.g., Ticket 4's reserve pick MUST be a Corner prediction).
-            - This pick acts strictly as a spare tire if a main match is missing or lacks markets on the bookmaker.
+            - Ticket 4 gets NO matches and NO reserve pick.
         6. IF there are only 1 or 2 matches available for the day: Output a single ticket using this exact header:
             🔥 Ticket 1: Premium Singles (100% of Daily Stake)
             • [Match Name] ➔ [Optimized Prediction]
             🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]
-        7. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines (e.g., change a risky '➔ 1' to '➔ 1X', or replace a risky Win with '➔ Over 8.5 Corners').
-        8. NO paragraphs of text. NO explanations. NO conversational filler. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
+        7. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines.
+        8. NO paragraphs of text. NO explanations. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
+
+        OUTPUT FORMAT TEMPLATE:
+        🛡️ Ticket 1: Ironclad (40% of Daily Stake)
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
+
+        ⚖️ Ticket 2: Balanced (20% of Daily Stake)
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
+
+        🎯 Ticket 3: Volatility (10% of Daily Stake)
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
+
+        🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
