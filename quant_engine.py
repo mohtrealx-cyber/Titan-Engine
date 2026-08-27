@@ -383,30 +383,12 @@ class ConsensusEngine:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        model_name = "models/gemini-1.5-flash"  
-        try:
-            list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
-            resp = requests.get(list_url, timeout=10)
-            if resp.status_code == 200:
-                models = resp.json().get("models", [])
-                
-                valid_models = []
-                for m in models:
-                    name = m.get("name", "")
-                    methods = m.get("supportedGenerationMethods", [])
-                    if "generateContent" in methods and "flash" in name.lower() and "preview" not in name.lower():
-                        valid_models.append(name)
-                
-                if valid_models:
-                    valid_models.sort(reverse=True)
-                    model_name = valid_models[0]
+        models_to_try = [
+            "models/gemini-1.5-flash",
+            "models/gemini-flash-lite-latest",
+            "models/gemini-1.5-pro"
+        ]
 
-                self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
-        except Exception as e:
-            self.diagnostics["AI_Handshake"] = f"🔴 Handshake Exception: {str(e)[:40]}"
-
-        url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
-        
         prompt = f"""
         You are Titan, an elite quantitative sports betting AI Portfolio Manager.
         Your objective is to analyze the following raw consensus data and corner statistics, 
@@ -465,18 +447,28 @@ class ConsensusEngine:
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
         
-        try:
-            response = requests.post(url, json=payload, timeout=30)
-            if response.status_code == 200:
-                data = response.json()
-                self.diagnostics["AI_Status"] = "🟢 Optimization Complete"
-                return data['candidates'][0]['content']['parts'][0]['text']
-            else:
-                self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}"
-                return None
-        except Exception as e:
-            self.diagnostics["AI_Status"] = f"🔴 Exception: {str(e)[:60]}"
-            return None
+        for model_name in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
+            for attempt in range(1, 4):
+                try:
+                    response = requests.post(url, json=payload, timeout=40)
+                    if response.status_code == 200:
+                        data = response.json()
+                        self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
+                        self.diagnostics["AI_Status"] = "🟢 Optimization Complete"
+                        return data['candidates'][0]['content']['parts'][0]['text']
+                    elif response.status_code in [500, 503, 429]:
+                        time.sleep(3 * attempt)
+                        continue
+                    else:
+                        self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}"
+                        break # Break inner loop, try next model
+                except Exception:
+                    time.sleep(2 * attempt)
+                    continue
+
+        self.diagnostics["AI_Status"] = "🔴 All AI Models/Retries Failed"
+        return None
 
     # ==========================================================================
     # IMMUTABLE DAILY LOCKING ARCHITECTURE
@@ -539,7 +531,7 @@ class ConsensusEngine:
             tickets = payload if isinstance(payload, list) else payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
-                    match_key = t["match"]
+                    match_key = t t["match"]
                     prediction = t["prediction"]
 
                     score = None
@@ -644,7 +636,8 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            should_lock = current_hour >= 6
+            # Smart Lock Check: Only lock if AI generated a message, or if there's genuinely no match data today
+            should_lock = (current_hour >= 6) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
                 "locked": should_lock,
@@ -659,7 +652,7 @@ class ConsensusEngine:
             if should_lock:
                 self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else:
-                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 06:00 EAT)"
+                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 06:00 EAT) / AI RETRY PENDING"
 
         settled_reports = self.settle_pending_tickets(memory)
 
