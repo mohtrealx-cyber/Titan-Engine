@@ -531,7 +531,7 @@ class ConsensusEngine:
             tickets = payload if isinstance(payload, list) else payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
-                    match_key = t t["match"]
+                    match_key = t["match"]
                     prediction = t["prediction"]
 
                     score = None
