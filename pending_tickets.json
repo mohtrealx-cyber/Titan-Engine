@@ -214,7 +214,7 @@
         "tickets": []
     },
     "2026-08-21": {
-        "locked": true,
+        "locked": false,
         "agreed_matches": [
             "\u2022 **Arsenal vs Coventry** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Marseille vs Strasbourg** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ + SoccerVista`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
@@ -610,7 +610,7 @@
         ]
     },
     "2026-08-22": {
-        "locked": true,
+        "locked": false,
         "agreed_matches": [
             "\u2022 **Espanyol vs Real Madrid** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Inter Milan vs Monza** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
@@ -964,7 +964,7 @@
         ]
     },
     "2026-08-23": {
-        "locked": true,
+        "locked": false,
         "agreed_matches": [
             "\u2022 **Manchester City Fc vs Bournemouth** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + Statarea + PredictZ`\n  \u21b3 \u26a0\ufe0f SoccerVista backed: 2\n",
             "\u2022 **Venezia vs Us Lecce** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + Statarea + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
@@ -1248,7 +1248,7 @@
         ]
     },
     "2026-08-24": {
-        "locked": true,
+        "locked": false,
         "agreed_matches": [
             "\u2022 **As Roma vs Acf Fiorentina** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Gil Vicente vs Casa Pia Ac** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista`\n  \u21b3 \u26aa PredictZ: Not Listed\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
@@ -1427,7 +1427,7 @@
         ]
     },
     "2026-08-25": {
-        "locked": true,
+        "locked": false,
         "agreed_matches": [
             "\u2022 **Bodo/Glimt vs Nec Nijmegen** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Al Taawon vs Al-Fayha** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + Statarea`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: X\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
@@ -1767,7 +1767,7 @@
         ]
     },
     "2026-08-26": {
-        "locked": true,
+        "locked": false,
         "agreed_matches": [
             "\u2022 **Aek Athens Fc vs Levski Sofia** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Lyon vs Fenerbah\u00e7e** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + PredictZ + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
@@ -1960,7 +1960,7 @@
         ]
     },
     "2026-08-27": {
-        "locked": true,
+        "locked": false,
         "agreed_matches": [
             "\u2022 **Ararat-Armenia vs Universitatea Craiova** \u2794 X\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Kauno \u017dalgiris vs Be\u015fikta\u015f** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
