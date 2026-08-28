@@ -404,10 +404,10 @@ class ConsensusEngine:
         1. NEVER repeat the same match across multiple tickets or reserve slots. Every match used (whether main or reserve) must be completely unique across your entire output.
         2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor.
         3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
-            🛡️ Ticket 1: Ironclad (30% of Daily Stake)
+            🛡️ Ticket 1: Ironclad (40% of Daily Stake)
             ⚖️ Ticket 2: Balanced (20% of Daily Stake)
             🎯 Ticket 3: Volatility (10% of Daily Stake)
-            🧪 Ticket 4: Custom Tickets (40% of Daily Stake)
+            🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         4. TICKET BUILDING LOGIC:
             - TICKET 1: MUST contain EXACTLY THREE main matches sourced exclusively from the 'Core Consensus' tier with ZERO contradictions. If fewer than 3 pristine matches exist, fill remaining spots with safest Corner predictions.
             - TICKET 2: Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here.
@@ -425,7 +425,7 @@ class ConsensusEngine:
         8. NO paragraphs of text. NO explanations. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
 
         OUTPUT FORMAT TEMPLATE:
-        🛡️ Ticket 1: Ironclad (30% of Daily Stake)
+        🛡️ Ticket 1: Ironclad (40% of Daily Stake)
         • [Match Name] ➔ [Prediction]
         • [Match Name] ➔ [Prediction]
         • [Match Name] ➔ [Prediction]
@@ -442,7 +442,7 @@ class ConsensusEngine:
         • [Match Name] ➔ [Prediction]
         🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
 
-        🧪 Ticket 4: Custom Tickets (40% of Daily Stake)
+        🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
