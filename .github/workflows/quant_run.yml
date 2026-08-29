@@ -2,7 +2,7 @@ name: Quant Engine Automation
 
 on:
   schedule:
-    - cron: '45 2 * * *'
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 # Prevents GitHub from trying to write the JSON file twice if you trigger it manually while it runs
