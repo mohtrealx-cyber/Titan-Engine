@@ -383,10 +383,11 @@ class ConsensusEngine:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        # UPDATED: Fixed endpoints
+        # UPDATED: Correct endpoints WITH the mandatory "models/" prefix
         models_to_try = [
-            "models/gemini-1.5-flash-latest",
-            "models/gemini-1.5-pro-latest"
+            "models/gemini-2.5-flash",
+            "models/gemini-3.5-flash",
+            "models/gemini-1.5-flash"
         ]
 
         prompt = f"""
@@ -596,7 +597,6 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # UPDATED: Changed from >= 6 to >= 5
         is_already_locked = False
         if isinstance(today_payload, dict):
             if today_payload.get("locked") and current_hour >= 5:
@@ -637,7 +637,6 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            # UPDATED: Changed from >= 6 to >= 5
             # Smart Lock Check: Only lock if AI generated a message, or if there's genuinely no match data today
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
@@ -654,7 +653,6 @@ class ConsensusEngine:
             if should_lock:
                 self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else:
-                # UPDATED: Changed preview text to 05:00 EAT
                 self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT) / AI RETRY PENDING"
 
         settled_reports = self.settle_pending_tickets(memory)
