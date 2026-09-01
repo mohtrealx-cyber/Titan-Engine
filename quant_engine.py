@@ -383,10 +383,10 @@ class ConsensusEngine:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
+        # UPDATED: Fixed endpoints
         models_to_try = [
-            "models/gemini-1.5-flash",
-            "models/gemini-flash-lite-latest",
-            "models/gemini-1.5-pro"
+            "models/gemini-1.5-flash-latest",
+            "models/gemini-1.5-pro-latest"
         ]
 
         prompt = f"""
@@ -596,12 +596,13 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
+        # UPDATED: Changed from >= 6 to >= 5
         is_already_locked = False
         if isinstance(today_payload, dict):
-            if today_payload.get("locked") and current_hour >= 6:
+            if today_payload.get("locked") and current_hour >= 5:
                 is_already_locked = True
-            elif today_payload.get("locked") and current_hour < 6:
-                print("⚠️ Found a premature lock. Forcing unlock since it is before 6:00 AM EAT.")
+            elif today_payload.get("locked") and current_hour < 5:
+                print("⚠️ Found a premature lock. Forcing unlock since it is before 5:00 AM EAT.")
                 is_already_locked = False
 
         if is_already_locked:
@@ -636,8 +637,9 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
+            # UPDATED: Changed from >= 6 to >= 5
             # Smart Lock Check: Only lock if AI generated a message, or if there's genuinely no match data today
-            should_lock = (current_hour >= 6) and (ai_optimized_message is not None or not ai_input_data)
+            should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
                 "locked": should_lock,
@@ -652,7 +654,8 @@ class ConsensusEngine:
             if should_lock:
                 self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else:
-                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 06:00 EAT) / AI RETRY PENDING"
+                # UPDATED: Changed preview text to 05:00 EAT
+                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT) / AI RETRY PENDING"
 
         settled_reports = self.settle_pending_tickets(memory)
 
