@@ -29,7 +29,6 @@ def get_dynamic_configs():
     return {
         "Statarea": {
             "url": f"https://www.statarea.com/predictions/date/{today_date}/",
-            "fallback_url": None,
             "row_selector": "div", "row_class": "matchrow",
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
@@ -38,7 +37,6 @@ def get_dynamic_configs():
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
-            "fallback_url": None,
             "row_selector": "a", "row_class": "livescore-match-row",
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
             "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
@@ -47,7 +45,6 @@ def get_dynamic_configs():
         },
         "PredictZ": {
             "url": "https://www.predictz.com/predictions/today/",
-            "fallback_url": "https://www.predictz.com/predictions/",
             "row_selector": "div", "row_class": "pttr",
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
@@ -56,7 +53,6 @@ def get_dynamic_configs():
         },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
-            "fallback_url": "https://www.windrawwin.com/predictions/",
             "row_selector": "div", "row_class": "wtrow",
             "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
@@ -65,7 +61,6 @@ def get_dynamic_configs():
         },
         "SoccerVista": {
             "url": "https://www.soccervista.com/predictions/",
-            "fallback_url": "https://www.soccervista.com/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
@@ -132,11 +127,11 @@ class ConsensusEngine:
         url = "https://www.totalcorner.com/match/today"
         for attempt in range(1, 4):
             try:
-                if SCRAPER_API_KEY and attempt == 1:
+                if SCRAPER_API_KEY and attempt < 3:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = requests.get(proxy_url, timeout=40)
+                    r = tls_requests.get(proxy_url, timeout=40)
                 else:
-                    r = tls_requests.get(url, impersonate="chrome124", timeout=20)
+                    r = tls_requests.get(url, impersonate="chrome120", timeout=20)
                 
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -178,58 +173,35 @@ class ConsensusEngine:
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 3
         last_status = None
-        target_url = cfg["url"]
 
         for attempt in range(1, max_attempts + 1):
             try:
-                active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
-
-                # Attempt 1: Direct TLS Native Connect (Bypasses proxy blocking)
-                # Attempt 2: ScraperAPI Standard
-                # Attempt 3: ScraperAPI Premium Residential (Hard bypasses Cloudflare)
-                if attempt == 1:
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
-                elif attempt == 2 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    r = requests.get(proxy_url, timeout=40)
-                elif attempt == 3 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}&premium=true"
-                    r = requests.get(proxy_url, timeout=45)
+                if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
+                    render_flag = "&render=true" if site_name == "SoccerVista" else ""
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}{render_flag}"
+                    r = tls_requests.get(proxy_url, timeout=45)
                 else:
-                    r = tls_requests.get(active_url, impersonate="safari17_0", timeout=30)
+                    if cfg.get("use_scraperapi") and not SCRAPER_API_KEY and attempt == 1:
+                        self.diagnostics[site_name] = "🔴 MISSING SCRAPER_API_KEY"
+                        return
+                    r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=25)
 
                 last_status = r.status_code
 
                 if r.status_code == 200:
-                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "security check"]
-                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 25000:
-                        if attempt < max_attempts:
-                            time.sleep(2 * attempt)
-                            continue
-                        self.diagnostics[site_name] = "🟡 BLOCKED (Cloudflare Challenge)"
-                        return
-
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
-                        prefix = "pt" if site_name == "PredictZ" else "wt"
-                        rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)"))
-                        if not rows:
-                            h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh|{prefix}team|{prefix}tm"))
-                            rows = [h.parent for h in h_elements if h.parent]
+                        row_target = re.compile(r"(pt|wt)(tr|row)")
+                        rows = soup.find_all("div", class_=row_target)
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
-                        if not rows:
-                            rows = soup.find_all("div", class_=re.compile("predict|match|row"))
                     else:
                         row_target = cfg["row_class"]
                         rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
                     if not rows:
-                        if attempt < max_attempts:
-                            time.sleep(2 * attempt)
-                            continue
-                        self.diagnostics[site_name] = "🟡 BLOCKED (No Match Rows Found)"
+                        self.diagnostics[site_name] = "🟡 BLOCKED"
                         return
 
                     valid_count = 0
@@ -246,57 +218,56 @@ class ConsensusEngine:
                             if site_name in ["PredictZ", "WinDrawWin"]:
                                 prefix = "pt" if site_name == "PredictZ" else "wt"
                                 
-                                # Flexible Multi-Class Matching
-                                teams = row.find_all("div", class_=re.compile(f"{prefix}tmobh|{prefix}tmoba|{prefix}team|{prefix}tm"))
-                                links = row.find_all("a")
-                                
-                                if len(teams) >= 2:
-                                    home = teams[0].text
-                                    away = teams[1].text
-                                elif len(links) >= 2:
-                                    home = links[0].text
-                                    away = links[1].text
-                                
-                                p_div = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred|{prefix}prd|{prefix}pred"))
-                                if p_div:
-                                    pick = p_div.text
+                                h_elem = row.find(class_=f"{prefix}tmobh")
+                                a_elem = row.find(class_=f"{prefix}tmoba")
+                                p_elem = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred"))
+
+                                if h_elem and a_elem and p_elem:
+                                    home = h_elem.text
+                                    away = a_elem.text
+                                    pick = p_elem.text
                                 else:
-                                    # Fallback: scan cell contents
-                                    for td in row.find_all("div", class_=re.compile(f"{prefix}td|td")):
-                                        norm = self.normalize_prediction(td.text)
-                                        if norm:
-                                            pick = norm
-                                            break
+                                    links = row.find_all("a")
+                                    if len(links) >= 2:
+                                        home = links[0].text
+                                        away = links[1].text
+                                        p_div = row.find(class_=re.compile(f"{prefix}prd|{prefix}pred"))
+                                        if p_div: pick = p_div.text
+                                    else:
+                                        for td in row.find_all("div", class_=f"{prefix}td"):
+                                            norm = self.normalize_prediction(td.text)
+                                            if norm:
+                                                pick = norm
+                                                break
                                                 
                             elif site_name == "SoccerVista":
-                                tds = row.find_all(["td", "div"])
-                                if len(tds) >= 3:
-                                    texts = [t.text.strip() for t in tds if t.text.strip()]
+                                tds = row.find_all("td")
+                                if len(tds) >= 4:
+                                    raw_home = tds[1].text
+                                    raw_away = tds[3].text if len(tds) > 3 else (tds[2].text if len(tds) > 2 else "")
                                     
-                                    for i in range(len(texts)):
-                                        if "10 ON " in texts[i].upper():
-                                            target = texts[i].upper().replace("10 ON ", "").strip()
+                                    home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
+                                    away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
+                                    
+                                    for td in tds:
+                                        txt = td.text.strip().upper()
+                                        if "10 ON " in txt:
+                                            target = txt.replace("10 ON ", "").strip()
                                             if target in ["DRAW", "X"]: pick = "X"
-                                            elif home and target in home.upper(): pick = "1"
-                                            elif away and target in away.upper(): pick = "2"
+                                            elif target and (target in home.upper() or home.upper().startswith(target)): pick = "1"
+                                            elif target and (target in away.upper() or away.upper().startswith(target)): pick = "2"
+                                            elif len(target) >= 3 and target[:3] in home.upper(): pick = "1"
+                                            elif len(target) >= 3 and target[:3] in away.upper(): pick = "2"
                                             else: pick = "1"
-                                        elif texts[i] in ["1", "X", "2", "1X", "X2", "12"]:
-                                            pick = texts[i]
-                                            
-                                    if not pick and len(texts) >= 4:
-                                        raw_home = texts[1]
-                                        raw_away = texts[3] if ":" in texts[2] or "v" in texts[2].lower() else texts[2]
-                                        home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
-                                        away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
+                                            break
+                                        elif txt in ["1", "X", "2", "1X", "X2", "12"]:
+                                            pick = txt
+                                            break
+
                             else:
-                                home_elems = row.find_all(cfg["home_selector"], class_=cfg["home_class"])
-                                away_elems = row.find_all(cfg["away_selector"], class_=cfg["away_class"])
-                                pick_elems = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])
-                                
-                                if home_elems and away_elems and pick_elems:
-                                    home = home_elems[cfg["home_index"]].text
-                                    away = away_elems[cfg["away_index"]].text
-                                    pick = pick_elems[cfg["pick_index"]].text
+                                home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
+                                away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
+                                pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
 
                             home_str = self.clean_team_name(home) if home else ""
                             away_str = self.clean_team_name(away) if away else ""
@@ -330,16 +301,15 @@ class ConsensusEngine:
                         except Exception:
                             continue
 
-                    if valid_count > 0 or skipped_count > 0:
-                        self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
-                        return
+                    self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
+                    return
 
-                if r.status_code in [403, 500, 502, 503, 504, 429]:
+                elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     time.sleep(2 * attempt)
                     continue
                 else:
-                    time.sleep(2 * attempt)
-                    continue
+                    self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
+                    return
 
             except Exception:
                 time.sleep(2 * attempt)
@@ -349,13 +319,13 @@ class ConsensusEngine:
 
     def process_consensus_signals(self):
         agreed_matches = []
+        niche_matches = []
         structured_tickets = []
         ai_input_data = []
 
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin", "SoccerVista"]
-        
-        # STRICT RULE: 3+ Consensus Only
-        required_consensus = 3 
+        active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status and "Teams" not in status)
+        required_consensus = 3 if active_scrapers_count >= 4 else 2
 
         for match, listings in self.master_matrix.items():
             prediction_weights = {}
@@ -370,7 +340,6 @@ class ConsensusEngine:
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             
-            # Match must reach 3+ site consensus
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
@@ -406,7 +375,31 @@ class ConsensusEngine:
                     "tier": "Core Consensus"
                 })
 
-        return agreed_matches, structured_tickets, ai_input_data, required_consensus
+            elif required_consensus == 3 and len(listings) == 2 and prediction_weights[top_pick] == 2:
+                backing_sites_list = sites_backing[top_pick]
+                backing_sites_str = " + ".join(backing_sites_list)
+                
+                match_text = (
+                    f"• **{match}** ➔ {top_pick}\n"
+                    f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
+                )
+                
+                left_out_sites = [s for s in all_scrapers if s not in backing_sites_list]
+                for left_out in left_out_sites:
+                    match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
+                    
+                niche_matches.append(match_text)
+                structured_tickets.append({"match": match, "prediction": top_pick, "status": "PENDING", "score": "-"})
+                
+                ai_input_data.append({
+                    "match": match, 
+                    "consensus_pick": top_pick, 
+                    "backed_by": backing_sites_str, 
+                    "contradictions": [], 
+                    "tier": "Niche Coverage"
+                })
+
+        return agreed_matches, niche_matches, structured_tickets, ai_input_data, required_consensus
 
     def get_available_gemini_models(self, api_key):
         list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
@@ -461,8 +454,8 @@ class ConsensusEngine:
             🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         4. TICKET BUILDING LOGIC:
             - TICKET 1: MUST contain EXACTLY THREE main matches sourced exclusively from the 'Core Consensus' tier with ZERO contradictions. If fewer than 3 pristine matches exist, fill remaining spots with safest Corner predictions.
-            - TICKET 2: Mix any remaining 'Core Consensus' matches with Corners. Matches with contradictions can be placed here.
-            - TICKET 3: Use the remaining matches and higher-risk options.
+            - TICKET 2: Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here.
+            - TICKET 3: Use the remaining 'Niche Coverage' matches and higher-risk options.
             - TICKET 4: Leave this ticket COMPLETELY BLANK under the header. Do not generate any matches for it.
         5. CRITICAL RESERVE/BACKUP RULE:
             - At the end of Tickets 1, 2, and 3 ONLY, append EXACTLY ONE additional backup match tagged as follows:
@@ -547,7 +540,7 @@ class ConsensusEngine:
         results = {}
         url = f"https://www.statarea.com/predictions/date/{target_date}/"
         try:
-            r = tls_requests.get(url, impersonate="chrome124", timeout=20)
+            r = tls_requests.get(url, impersonate="chrome120", timeout=20)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 for row in soup.find_all("div", class_="matchrow"):
@@ -631,10 +624,10 @@ class ConsensusEngine:
         for chunk in msg_chunks:
             payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
             try:
-                r = requests.post(url, json=payload, timeout=15)
+                r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
                 if r.status_code != 200:
                     payload.pop("parse_mode", None)
-                    r2 = requests.post(url, json=payload, timeout=15)
+                    r2 = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
                     if r2.status_code != 200:
                         print(f"Telegram alert error: {r2.text}")
             except Exception as e:
@@ -649,7 +642,6 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # 5:00 AM LOCK VERIFICATION
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
             if today_payload.get("locked") and current_hour >= 5:
@@ -664,6 +656,7 @@ class ConsensusEngine:
             print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
             daily_data = memory[today_date]
             agreed_matches = daily_data.get("agreed_matches", [])
+            niche_matches = daily_data.get("niche_matches", [])
             ai_optimized_message = daily_data.get("ai_optimized_message")
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["Daily_Lock"] = f"🔒 LOCKED ON {today_date}"
@@ -675,7 +668,7 @@ class ConsensusEngine:
                 tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
                 await asyncio.gather(*tasks)
 
-            agreed_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
+            agreed_matches, niche_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
 
             active_corner_teams = []
             for match in self.master_matrix.keys():
@@ -691,12 +684,12 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            # Strict 5:00 AM EAT Lock Gate
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
                 "locked": should_lock,
                 "agreed_matches": agreed_matches,
+                "niche_matches": niche_matches,
                 "ai_optimized_message": ai_optimized_message,
                 "req_threshold": req_threshold,
                 "tickets": structured_tickets
@@ -710,30 +703,33 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        msg = f"🤝 **RAW CONSENSUS DATA (3+ SITES AGREEMENT)** 🤝\n\n"
+        msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
-            msg += f"No matches found with 3+ sites in agreement today.\n\n"
+            msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
         else:
-            for match in agreed_matches:
-                msg += f"{match}\n"
+            for match in agreed_matches: msg += f"{match}\n"
                 
+        if niche_matches and len(agreed_matches) <= 9:
+            msg += "🕵️ **NICHE CONSENSUS (Top 5 Displayed)** 🕵️\n\n"
+            for match in niche_matches[:5]: 
+                msg += f"{match}\n"
+            
+            if len(niche_matches) > 5:
+                hidden_count = len(niche_matches) - 5
+                msg += f"  ↳ *...and {hidden_count} more passed to AI in background.*\n\n"
+                
+        if ai_optimized_message:
+            msg += f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}\n\n"
+
         if settled_reports:
             msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
-            for rep in settled_reports:
-                msg += f"{rep}\n"
+            for rep in settled_reports: msg += f"{rep}\n"
             msg += "\n"
 
         msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-        for site, status in self.diagnostics.items():
-            msg += f"↳ {site}: {status}\n"
+        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
 
         self.send_telegram_alert(msg)
-
-        # Telegram Dispatch 2: Execution Tickets (Sent if AI generation succeeded)
-        if ai_optimized_message:
-            time.sleep(1.5)
-            ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
-            self.send_telegram_alert(ticket_msg)
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
