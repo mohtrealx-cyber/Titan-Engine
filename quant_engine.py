@@ -15,8 +15,8 @@ from curl_cffi import requests as tls_requests
 # ==============================================================================
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
-SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
+GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 FORCE_RUN = os.environ.get("FORCE_RUN", "").strip().lower() in ["true", "1", "yes"]
 
 MEMORY_FILE = "pending_tickets.json"
@@ -158,7 +158,7 @@ class ConsensusEngine:
                                         
                     self.diagnostics["Corners_Engine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
                     return
-                elif r.status_code in [500, 502, 503, 504, 429]:
+                elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     time.sleep(2 * attempt)
                     continue
                 else:
@@ -176,15 +176,15 @@ class ConsensusEngine:
 
         for attempt in range(1, max_attempts + 1):
             try:
-                # Use ScraperAPI on initial attempts if configured.
-                # If ScraperAPI returns a 500 error, the final attempt drops the proxy
-                # and hits the site directly via TLS spoofing to bypass proxy server crashes.
-                if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt < 3:
+                # Attempt 1 uses ScraperAPI if configured.
+                # If ScraperAPI returns 403 (quota/blocked) or 500/502/503,
+                # attempts 2 and 3 drop the proxy and scrape directly via TLS spoofing.
+                if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
                     render_flag = "&render=true" if site_name == "SoccerVista" else ""
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}{render_flag}"
                     r = tls_requests.get(proxy_url, timeout=45)
                 else:
-                    if cfg.get("use_scraperapi") and not SCRAPER_API_KEY:
+                    if cfg.get("use_scraperapi") and not SCRAPER_API_KEY and attempt == 1:
                         self.diagnostics[site_name] = "🔴 MISSING SCRAPER_API_KEY"
                         return
                     r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=25)
@@ -307,7 +307,7 @@ class ConsensusEngine:
                     self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
                     return
 
-                elif r.status_code in [500, 502, 503, 504, 429]:
+                elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     time.sleep(2 * attempt)
                     continue
                 else:
@@ -409,9 +409,10 @@ class ConsensusEngine:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
+        # Standard supported production models
         models_to_try = [
-            "models/gemini-2.5-flash",
-            "models/gemini-1.5-flash"
+            "gemini-2.0-flash",
+            "gemini-1.5-flash"
         ]
 
         prompt = f"""
@@ -472,8 +473,9 @@ class ConsensusEngine:
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
         
+        last_error = "Unknown"
         for model_name in models_to_try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={GEMINI_API_KEY}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
             for attempt in range(1, 4):
                 try:
                     response = requests.post(url, json=payload, timeout=40)
@@ -482,17 +484,24 @@ class ConsensusEngine:
                         self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
                         self.diagnostics["AI_Status"] = "🟢 Optimization Complete"
                         return data['candidates'][0]['content']['parts'][0]['text']
-                    elif response.status_code in [500, 503, 429]:
+                    
+                    try:
+                        err_detail = response.json().get("error", {}).get("message", response.text[:100])
+                    except Exception:
+                        err_detail = response.text[:100]
+                    last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
+
+                    if response.status_code in [500, 503, 429]:
                         time.sleep(3 * attempt)
                         continue
                     else:
-                        self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}"
-                        break
-                except Exception:
+                        break  # Stop retrying invalid requests (e.g., 400 Bad Request, 403 Forbidden), move to next model
+                except Exception as e:
+                    last_error = f"Network Exception: {e}"
                     time.sleep(2 * attempt)
                     continue
 
-        self.diagnostics["AI_Status"] = "🔴 All AI Models/Retries Failed"
+        self.diagnostics["AI_Status"] = f"🔴 {last_error}"
         return None
 
     def load_memory(self):
