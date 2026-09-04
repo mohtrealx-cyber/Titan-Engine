@@ -85,7 +85,7 @@ def get_dynamic_configs():
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
             "pick_selector": "td", "pick_class": "", "pick_index": 4,
-            "use_scraperapi": False  # Direct TLS request prevents burning 5x credits on JS rendering
+            "use_scraperapi": False
         }
     }
 
@@ -193,14 +193,10 @@ class ConsensusEngine:
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 3
         last_status = None
-
         target_url = cfg["url"]
 
         for attempt in range(1, max_attempts + 1):
             try:
-                # Attempt 1: Try ScraperAPI if enabled and key exists
-                # Attempt 2: Try Direct with browser headers on primary URL
-                # Attempt 3: Try Direct with fallback mirror URL if primary hit an issue
                 if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={target_url}"
                     r = tls_requests.get(proxy_url, headers=DEFAULT_BROWSER_HEADERS, timeout=40)
@@ -210,13 +206,7 @@ class ConsensusEngine:
 
                 last_status = r.status_code
 
-                # Check if ScraperAPI returned 403 because account credits are exhausted
-                if r.status_code == 403 and attempt == 1 and cfg.get("use_scraperapi"):
-                    if "run out" in r.text.lower() or "credits" in r.text.lower():
-                        print(f"⚠️ ScraperAPI credits exhausted on {site_name}. Switching to direct TLS connections.")
-
                 if r.status_code == 200:
-                    # Cloudflare challenge protection detector
                     if any(phrase in r.text.lower() for phrase in ["just a moment...", "cf-browser-verification", "checking your browser"]):
                         if attempt < max_attempts:
                             time.sleep(2 * attempt)
@@ -378,6 +368,7 @@ class ConsensusEngine:
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             
+            # Captures EVERY match that reaches the required 3+ consensus without truncation
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
@@ -680,12 +671,13 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
+        # LOCK POLICY: Locks strictly starting from 5:00 AM EAT (current_hour >= 5)
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
-            if today_payload.get("locked") and current_hour >= 6:
+            if today_payload.get("locked") and current_hour >= 5:
                 is_already_locked = True
-            elif today_payload.get("locked") and current_hour < 6:
-                print("⚠️ Premature lock detected. Unlocking because it is before 6:00 AM EAT.")
+            elif today_payload.get("locked") and current_hour < 5:
+                print("⚠️ Premature lock detected. Unlocking because it is before 5:00 AM EAT.")
                 is_already_locked = False
         elif FORCE_RUN:
             print(f"⚡ FORCE_RUN active: Bypassing memory lock for {today_date}.")
@@ -722,7 +714,8 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            should_lock = (current_hour >= 6) and (ai_optimized_message is not None or not ai_input_data)
+            # Smart Lock Check: Locks strictly starting from 5:00 AM EAT
+            should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
                 "locked": should_lock,
@@ -737,11 +730,13 @@ class ConsensusEngine:
             if should_lock:
                 self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else:
-                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 06:00 EAT) / AI RETRY PENDING"
+                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT) / AI RETRY PENDING"
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        # Dispatch 1: Raw Intelligence & Diagnostic Health
+        # ======================================================================
+        # TELEGRAM DISPATCH 1: RAW INTEL & CONSENSUS BOARD
+        # ======================================================================
         intel_msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
             intel_msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
@@ -768,11 +763,14 @@ class ConsensusEngine:
         for site, status in self.diagnostics.items():
             intel_msg += f"↳ {site}: {status}\n"
 
+        # Send Message 1 (Raw Consensus & Diagnostic Health)
         self.send_telegram_alert(intel_msg)
 
-        # Dispatch 2: Dedicated Execution Tickets
+        # ======================================================================
+        # TELEGRAM DISPATCH 2: DEDICATED EXECUTION TICKETS (SEPARATE MESSAGE)
+        # ======================================================================
         if ai_optimized_message:
-            time.sleep(1.5)
+            time.sleep(1.5)  # Pause briefly so Message 1 lands first in Telegram
             ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
             self.send_telegram_alert(ticket_msg)
 
