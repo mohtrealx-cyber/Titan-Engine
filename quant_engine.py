@@ -21,21 +21,6 @@ FORCE_RUN = os.environ.get("FORCE_RUN", "").strip().lower() in ["true", "1", "ye
 
 MEMORY_FILE = "pending_tickets.json"
 
-DEFAULT_BROWSER_HEADERS = {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "cross-site",
-    "Sec-Fetch-User": "?1",
-    "Upgrade-Insecure-Requests": "1",
-    "Referer": "https://www.google.com/",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-}
-
 def get_dynamic_configs():
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
     today_date = eat_time.strftime('%Y-%m-%d')
@@ -149,9 +134,9 @@ class ConsensusEngine:
             try:
                 if SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = tls_requests.get(proxy_url, headers=DEFAULT_BROWSER_HEADERS, timeout=40)
+                    r = requests.get(proxy_url, timeout=40)
                 else:
-                    r = tls_requests.get(url, headers=DEFAULT_BROWSER_HEADERS, impersonate="chrome124", timeout=20)
+                    r = tls_requests.get(url, impersonate="chrome124", timeout=20)
                 
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -202,18 +187,19 @@ class ConsensusEngine:
                 if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
                     # Attempt 1: ScraperAPI proxy
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    r = tls_requests.get(proxy_url, headers=DEFAULT_BROWSER_HEADERS, timeout=45)
+                    r = requests.get(proxy_url, timeout=45)
                 else:
                     # Attempt 2 & 3: Direct TLS spoofing to bypass proxy block (WinDrawWin/PredictZ 403s)
+                    # NO CUSTOM HEADERS - Let curl_cffi organically generate the exact Chrome/Safari signature
                     profile = "chrome124" if attempt == 2 else "safari17_0"
-                    r = tls_requests.get(active_url, headers=DEFAULT_BROWSER_HEADERS, impersonate=profile, timeout=30)
+                    r = tls_requests.get(active_url, impersonate=profile, timeout=30)
 
                 last_status = r.status_code
 
                 if r.status_code == 200:
                     # Catch Cloudflare Challenge screens hiding behind a 200 OK
-                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id"]
-                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 15000:
+                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "verify you are human"]
+                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 20000:
                         if attempt < max_attempts:
                             time.sleep(2 * attempt)
                             continue
@@ -561,7 +547,7 @@ class ConsensusEngine:
         results = {}
         url = f"https://www.statarea.com/predictions/date/{target_date}/"
         try:
-            r = tls_requests.get(url, headers=DEFAULT_BROWSER_HEADERS, impersonate="chrome120", timeout=20)
+            r = tls_requests.get(url, impersonate="chrome124", timeout=20)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 for row in soup.find_all("div", class_="matchrow"):
@@ -645,10 +631,10 @@ class ConsensusEngine:
         for chunk in msg_chunks:
             payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
             try:
-                r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+                r = requests.post(url, json=payload, timeout=15)
                 if r.status_code != 200:
                     payload.pop("parse_mode", None)
-                    r2 = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+                    r2 = requests.post(url, json=payload, timeout=15)
                     if r2.status_code != 200:
                         print(f"Telegram alert error: {r2.text}")
             except Exception as e:
@@ -663,7 +649,7 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # STRICT LOCKING: Only locks at 5:00 AM EAT or later
+        # 5:00 AM LOCK VERIFICATION
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
             if today_payload.get("locked") and current_hour >= 5:
@@ -705,7 +691,7 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            # Strict Lock Verification
+            # Strict 5:00 AM EAT Lock Gate
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
@@ -728,18 +714,15 @@ class ConsensusEngine:
         if not agreed_matches:
             msg += f"No matches found with 3+ sites in agreement today.\n\n"
         else:
-            for match in agreed_matches:
-                msg += f"{match}\n"
+            for match in agreed_matches: msg += f"{match}\n"
                 
         if settled_reports:
             msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
-            for rep in settled_reports:
-                msg += f"{rep}\n"
+            for rep in settled_reports: msg += f"{rep}\n"
             msg += "\n"
 
         msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-        for site, status in self.diagnostics.items():
-            msg += f"↳ {site}: {status}\n"
+        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
 
         self.send_telegram_alert(msg)
 
