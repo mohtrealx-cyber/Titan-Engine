@@ -22,7 +22,7 @@ FORCE_RUN = os.environ.get("FORCE_RUN", "").strip().lower() in ["true", "1", "ye
 MEMORY_FILE = "pending_tickets.json"
 
 DEFAULT_BROWSER_HEADERS = {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
     "Sec-Ch-Ua": '"Not A(Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
     "Sec-Ch-Ua-Mobile": "?0",
@@ -61,8 +61,8 @@ def get_dynamic_configs():
             "use_scraperapi": False
         },
         "PredictZ": {
-            "url": "https://www.predictz.com/predictions/",
-            "fallback_url": "https://www.predictz.com/predictions/today/",
+            "url": "https://www.predictz.com/predictions/today/",
+            "fallback_url": "https://www.predictz.com/predictions/",
             "row_selector": "div", "row_class": "pttr",
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
@@ -79,8 +79,8 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "SoccerVista": {
-            "url": "https://www.soccervista.com/",
-            "fallback_url": "https://www.soccervista.com/predictions/",
+            "url": "https://www.soccervista.com/predictions/",
+            "fallback_url": "https://www.soccervista.com/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
@@ -197,9 +197,9 @@ class ConsensusEngine:
 
         for attempt in range(1, max_attempts + 1):
             try:
-                # Attempt 1: ScraperAPI (without &render=true to save credits and avoid bot detection)
-                # Attempt 2: Direct connection to target URL with Chrome 120 TLS spoofing
-                # Attempt 3: Direct connection to fallback mirror URL
+                # Attempt 1: ScraperAPI if key is available
+                # Attempt 2: Direct connection with TLS impersonation (bypasses exhausted/broken proxy)
+                # Attempt 3: Direct connection to fallback endpoint
                 if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={target_url}"
                     r = tls_requests.get(proxy_url, headers=DEFAULT_BROWSER_HEADERS, timeout=40)
@@ -209,20 +209,29 @@ class ConsensusEngine:
 
                 last_status = r.status_code
 
+                # ScraperAPI quota check
+                if attempt == 1 and cfg.get("use_scraperapi"):
+                    if r.status_code == 403 or any(w in r.text.lower() for w in ["run out of api credits", "request limit reached", "exceeded your plan"]):
+                        print(f"⚠️ ScraperAPI credit limit hit on {site_name}. Switching to direct TLS.")
+                        continue
+
                 if r.status_code == 200:
-                    # Detect Cloudflare challenge pages that return HTTP 200
+                    # Cloudflare challenge interception detection
                     if any(phrase in r.text.lower() for phrase in ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile"]):
-                        if attempt < max_attempts:
-                            time.sleep(2 * attempt)
-                            continue
-                        self.diagnostics[site_name] = "🟡 BLOCKED (Cloudflare Challenge)"
-                        return
+                        print(f"⚠️ [{site_name}] Hit Cloudflare verification challenge on attempt {attempt}.")
+                        time.sleep(2 * attempt)
+                        continue
 
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
                         row_target = re.compile(r"(pt|wt)(tr|row)")
                         rows = soup.find_all("div", class_=row_target)
+                        if not rows:
+                            # Class prefix fallback if structure is slightly nested
+                            prefix = "pt" if site_name == "PredictZ" else "wt"
+                            h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh"))
+                            rows = [h.parent for h in h_elements if h.parent]
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
                     else:
@@ -230,11 +239,9 @@ class ConsensusEngine:
                         rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
                     if not rows:
-                        if attempt < max_attempts:
-                            time.sleep(2 * attempt)
-                            continue
-                        self.diagnostics[site_name] = "🟡 BLOCKED (No Rows Found)"
-                        return
+                        print(f"DEBUG [{site_name} Attempt {attempt}] No rows located. HTML preview: {r.text[:200]}")
+                        time.sleep(2 * attempt)
+                        continue
 
                     valid_count = 0
                     skipped_count = 0
@@ -275,10 +282,7 @@ class ConsensusEngine:
                             elif site_name == "SoccerVista":
                                 tds = row.find_all("td")
                                 if len(tds) >= 3:
-                                    # Handle both 4-column predictions page and 6-column main page
                                     raw_home = tds[1].text.strip()
-                                    
-                                    # If column 2 is a score or separator, column 3 is away; otherwise column 2 is away
                                     if len(tds) >= 4 and (re.search(r'\d+:\d+', tds[2].text) or tds[2].text.strip() in ["-", "vs", "v", ""]):
                                         raw_away = tds[3].text.strip()
                                     else:
@@ -339,17 +343,19 @@ class ConsensusEngine:
                         except Exception:
                             continue
 
-                    self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
-                    return
+                    if valid_count > 0 or skipped_count > 0:
+                        self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
+                        return
 
                 elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     time.sleep(2 * attempt)
                     continue
                 else:
-                    self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
-                    return
+                    time.sleep(2 * attempt)
+                    continue
 
-            except Exception:
+            except Exception as e:
+                print(f"⚠️ [{site_name}] Connection error on attempt {attempt}: {e}")
                 time.sleep(2 * attempt)
                 continue
 
@@ -680,7 +686,7 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # LOCK POLICY: Locks strictly starting from 5:00 AM EAT (current_hour >= 5)
+        # 5:00 AM EAT STRICT LOCK GATE
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
             if today_payload.get("locked") and current_hour >= 5:
