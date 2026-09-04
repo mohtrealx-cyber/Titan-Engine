@@ -340,6 +340,7 @@ class ConsensusEngine:
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             
+            # Captures EVERY match that reaches 3+ site consensus without any ceiling
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
@@ -642,12 +643,13 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
+        # LOCK POLICY: Locked ONLY after 6:00 AM EAT, unless FORCE_RUN is enabled
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
-            if today_payload.get("locked") and current_hour >= 5:
+            if today_payload.get("locked") and current_hour >= 6:
                 is_already_locked = True
-            elif today_payload.get("locked") and current_hour < 5:
-                print("⚠️ Premature lock detected. Unlocking because it is before 5:00 AM EAT.")
+            elif today_payload.get("locked") and current_hour < 6:
+                print("⚠️ Premature lock detected. Unlocking because it is before 6:00 AM EAT.")
                 is_already_locked = False
         elif FORCE_RUN:
             print(f"⚡ FORCE_RUN active: Bypassing memory lock for {today_date}.")
@@ -684,7 +686,8 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
+            # Smart Lock Check: Locks strictly after 06:00 AM EAT
+            should_lock = (current_hour >= 6) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
                 "locked": should_lock,
@@ -699,37 +702,49 @@ class ConsensusEngine:
             if should_lock:
                 self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else:
-                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT) / AI RETRY PENDING"
+                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 06:00 EAT) / AI RETRY PENDING"
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
+        # ======================================================================
+        # TELEGRAM DISPATCH 1: RAW INTEL & CONSENSUS BOARD
+        # ======================================================================
+        intel_msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
-            msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
+            intel_msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
         else:
-            for match in agreed_matches: msg += f"{match}\n"
+            for match in agreed_matches:
+                intel_msg += f"{match}\n"
                 
         if niche_matches and len(agreed_matches) <= 9:
-            msg += "🕵️ **NICHE CONSENSUS (Top 5 Displayed)** 🕵️\n\n"
+            intel_msg += "🕵️ **NICHE CONSENSUS (Top 5 Displayed)** 🕵️\n\n"
             for match in niche_matches[:5]: 
-                msg += f"{match}\n"
+                intel_msg += f"{match}\n"
             
             if len(niche_matches) > 5:
                 hidden_count = len(niche_matches) - 5
-                msg += f"  ↳ *...and {hidden_count} more passed to AI in background.*\n\n"
-                
-        if ai_optimized_message:
-            msg += f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}\n\n"
+                intel_msg += f"  ↳ *...and {hidden_count} more passed to AI in background.*\n\n"
 
         if settled_reports:
-            msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
-            for rep in settled_reports: msg += f"{rep}\n"
-            msg += "\n"
+            intel_msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
+            for rep in settled_reports:
+                intel_msg += f"{rep}\n"
+            intel_msg += "\n"
 
-        msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
+        intel_msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
+        for site, status in self.diagnostics.items():
+            intel_msg += f"↳ {site}: {status}\n"
 
-        self.send_telegram_alert(msg)
+        # Send Message 1 (Raw Consensus & Diagnostic Health)
+        self.send_telegram_alert(intel_msg)
+
+        # ======================================================================
+        # TELEGRAM DISPATCH 2: DEDICATED EXECUTION TICKETS (SEPARATE MESSAGE)
+        # ======================================================================
+        if ai_optimized_message:
+            time.sleep(1.5)  # Pause briefly so Message 1 arrives first in Telegram
+            ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
+            self.send_telegram_alert(ticket_msg)
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
