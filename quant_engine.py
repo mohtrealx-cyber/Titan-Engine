@@ -17,6 +17,7 @@ TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACK
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+FORCE_RUN = os.environ.get("FORCE_RUN", "").strip().lower() in ["true", "1", "yes"]
 
 MEMORY_FILE = "pending_tickets.json"
 
@@ -124,175 +125,200 @@ class ConsensusEngine:
 
     def fetch_corners_sync(self):
         url = "https://www.totalcorner.com/match/today"
-        try:
-            if SCRAPER_API_KEY:
-                proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                r = tls_requests.get(proxy_url, timeout=60)
-            else:
-                r = tls_requests.get(url, impersonate="chrome120", timeout=20)
-            
-            if r.status_code == 200:
-                soup = BeautifulSoup(r.content, 'html.parser')
-                rows = soup.find_all("tr")
+        for attempt in range(1, 4):
+            try:
+                if SCRAPER_API_KEY and attempt < 3:
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
+                    r = tls_requests.get(proxy_url, timeout=40)
+                else:
+                    r = tls_requests.get(url, impersonate="chrome120", timeout=20)
                 
-                valid_corners = 0
-                for row in rows:
-                    cols = [c.text.strip() for c in row.find_all(["td", "th"]) if c.text.strip()]
-                    if len(cols) >= 5:
-                        team_links = row.find_all("a", href=re.compile(r"/team/"))
-                        if len(team_links) >= 2:
-                            home_team = self.clean_team_name(team_links[0].text)
-                            away_team = self.clean_team_name(team_links[1].text)
-                            
-                            row_text = row.get_text(separator=" ")
-                            averages = re.findall(r'\b([7-9]\.\d|1[0-5]\.\d)\b', row_text)
-                            
-                            if averages:
-                                highest_avg = max([float(x) for x in averages])
-                                if highest_avg >= 8.5:
-                                    self.corner_stats[home_team] = highest_avg
-                                    self.corner_stats[away_team] = highest_avg
-                                    valid_corners += 1
-                                    
-                self.diagnostics["Corners_Engine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
-            else:
-                self.diagnostics["Corners_Engine"] = f"🔴 FAILED (HTTP {r.status_code})"
-        except Exception as e:
-            self.diagnostics["Corners_Engine"] = "🔴 TIMEOUT/ERROR"
+                if r.status_code == 200:
+                    soup = BeautifulSoup(r.content, 'html.parser')
+                    rows = soup.find_all("tr")
+                    
+                    valid_corners = 0
+                    for row in rows:
+                        cols = [c.text.strip() for c in row.find_all(["td", "th"]) if c.text.strip()]
+                        if len(cols) >= 5:
+                            team_links = row.find_all("a", href=re.compile(r"/team/"))
+                            if len(team_links) >= 2:
+                                home_team = self.clean_team_name(team_links[0].text)
+                                away_team = self.clean_team_name(team_links[1].text)
+                                
+                                row_text = row.get_text(separator=" ")
+                                averages = re.findall(r'\b([7-9]\.\d|1[0-5]\.\d)\b', row_text)
+                                
+                                if averages:
+                                    highest_avg = max([float(x) for x in averages])
+                                    if highest_avg >= 8.5:
+                                        self.corner_stats[home_team] = highest_avg
+                                        self.corner_stats[away_team] = highest_avg
+                                        valid_corners += 1
+                                        
+                    self.diagnostics["Corners_Engine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
+                    return
+                elif r.status_code in [500, 502, 503, 504, 429]:
+                    time.sleep(2 * attempt)
+                    continue
+                else:
+                    self.diagnostics["Corners_Engine"] = f"🔴 FAILED (HTTP {r.status_code})"
+                    return
+            except Exception:
+                time.sleep(2 * attempt)
+                continue
+
+        self.diagnostics["Corners_Engine"] = "🔴 TIMEOUT/ERROR"
 
     def fetch_and_scrape_sync(self, site_name, cfg):
-        try:
-            if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                render_flag = "&render=true" if site_name == "SoccerVista" else ""
-                proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}{render_flag}"
-                r = tls_requests.get(proxy_url, timeout=60)
-            else:
-                if cfg.get("use_scraperapi") and not SCRAPER_API_KEY:
-                    self.diagnostics[site_name] = "🔴 MISSING SCRAPER_API_KEY"
-                    return
-                r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=20)
+        max_attempts = 3
+        last_status = None
 
-            if r.status_code != 200:
-                self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
-                return
+        for attempt in range(1, max_attempts + 1):
+            try:
+                # Use ScraperAPI on initial attempts if configured.
+                # If ScraperAPI returns a 500 error, the final attempt drops the proxy
+                # and hits the site directly via TLS spoofing to bypass proxy server crashes.
+                if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt < 3:
+                    render_flag = "&render=true" if site_name == "SoccerVista" else ""
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}{render_flag}"
+                    r = tls_requests.get(proxy_url, timeout=45)
+                else:
+                    if cfg.get("use_scraperapi") and not SCRAPER_API_KEY:
+                        self.diagnostics[site_name] = "🔴 MISSING SCRAPER_API_KEY"
+                        return
+                    r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=25)
 
-            soup = BeautifulSoup(r.content, 'html.parser')
-            
-            if site_name in ["PredictZ", "WinDrawWin"]:
-                row_target = re.compile(r"(pt|wt)(tr|row)")
-                rows = soup.find_all("div", class_=row_target)
-            elif site_name == "SoccerVista":
-                rows = soup.find_all("tr")
-            else:
-                row_target = cfg["row_class"]
-                rows = soup.find_all(cfg["row_selector"], class_=row_target)
+                last_status = r.status_code
 
-            if not rows:
-                self.diagnostics[site_name] = f"🟡 BLOCKED"
-                return
-
-            valid_count = 0
-            skipped_count = 0
-
-            for row in rows:
-                try:
-                    if self.is_match_active_or_played(row):
-                        skipped_count += 1
-                        continue
-
-                    home, away, pick = None, None, None
-
+                if r.status_code == 200:
+                    soup = BeautifulSoup(r.content, 'html.parser')
+                    
                     if site_name in ["PredictZ", "WinDrawWin"]:
-                        prefix = "pt" if site_name == "PredictZ" else "wt"
-                        
-                        h_elem = row.find(class_=f"{prefix}tmobh")
-                        a_elem = row.find(class_=f"{prefix}tmoba")
-                        p_elem = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred"))
-
-                        if h_elem and a_elem and p_elem:
-                            home = h_elem.text
-                            away = a_elem.text
-                            pick = p_elem.text
-                        else:
-                            links = row.find_all("a")
-                            if len(links) >= 2:
-                                home = links[0].text
-                                away = links[1].text
-                                p_div = row.find(class_=re.compile(f"{prefix}prd|{prefix}pred"))
-                                if p_div: pick = p_div.text
-                            else:
-                                for td in row.find_all("div", class_=f"{prefix}td"):
-                                    norm = self.normalize_prediction(td.text)
-                                    if norm:
-                                        pick = norm
-                                        break
-                                        
+                        row_target = re.compile(r"(pt|wt)(tr|row)")
+                        rows = soup.find_all("div", class_=row_target)
                     elif site_name == "SoccerVista":
-                        tds = row.find_all("td")
-                        if len(tds) >= 4:
-                            raw_home = tds[1].text
-                            raw_away = tds[3].text if len(tds) > 3 else (tds[2].text if len(tds) > 2 else "")
-                            
-                            home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
-                            away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
-                            
-                            for td in tds:
-                                txt = td.text.strip().upper()
-                                if "10 ON " in txt:
-                                    target = txt.replace("10 ON ", "").strip()
-                                    if target in ["DRAW", "X"]: pick = "X"
-                                    elif target and (target in home.upper() or home.upper().startswith(target)): pick = "1"
-                                    elif target and (target in away.upper() or away.upper().startswith(target)): pick = "2"
-                                    elif len(target) >= 3 and target[:3] in home.upper(): pick = "1"
-                                    elif len(target) >= 3 and target[:3] in away.upper(): pick = "2"
-                                    else: pick = "1"
-                                    break
-                                elif txt in ["1", "X", "2", "1X", "X2", "12"]:
-                                    pick = txt
-                                    break
-
+                        rows = soup.find_all("tr")
                     else:
-                        home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
-                        away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
-                        pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
+                        row_target = cfg["row_class"]
+                        rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
-                    home_str = self.clean_team_name(home) if home else ""
-                    away_str = self.clean_team_name(away) if away else ""
+                    if not rows:
+                        self.diagnostics[site_name] = "🟡 BLOCKED"
+                        return
 
-                    if not home_str and away_str:
-                        if re.search(r'(?i)\s+vs?\s+', away_str):
-                            parts = re.split(r'(?i)\s+vs?\s+', away_str, maxsplit=1)
-                            home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+                    valid_count = 0
+                    skipped_count = 0
 
-                    if not away_str and home_str:
-                        if re.search(r'(?i)\s+vs?\s+', home_str):
-                            parts = re.split(r'(?i)\s+vs?\s+', home_str, maxsplit=1)
-                            home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+                    for row in rows:
+                        try:
+                            if self.is_match_active_or_played(row):
+                                skipped_count += 1
+                                continue
 
-                    if re.search(r'(?i)\s+vs?\s+', away_str) and len(home_str) < 4:
-                        parts = re.split(r'(?i)\s+vs?\s+', away_str, maxsplit=1)
-                        if len(parts) == 2:
-                            home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+                            home, away, pick = None, None, None
 
-                    if re.search(r'(?i)\s+vs?\s+', home_str) and len(away_str) < 4:
-                        parts = re.split(r'(?i)\s+vs?\s+', home_str, maxsplit=1)
-                        if len(parts) == 2:
-                            home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+                            if site_name in ["PredictZ", "WinDrawWin"]:
+                                prefix = "pt" if site_name == "PredictZ" else "wt"
+                                
+                                h_elem = row.find(class_=f"{prefix}tmobh")
+                                a_elem = row.find(class_=f"{prefix}tmoba")
+                                p_elem = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred"))
 
-                    home, away = home_str, away_str
+                                if h_elem and a_elem and p_elem:
+                                    home = h_elem.text
+                                    away = a_elem.text
+                                    pick = p_elem.text
+                                else:
+                                    links = row.find_all("a")
+                                    if len(links) >= 2:
+                                        home = links[0].text
+                                        away = links[1].text
+                                        p_div = row.find(class_=re.compile(f"{prefix}prd|{prefix}pred"))
+                                        if p_div: pick = p_div.text
+                                    else:
+                                        for td in row.find_all("div", class_=f"{prefix}td"):
+                                            norm = self.normalize_prediction(td.text)
+                                            if norm:
+                                                pick = norm
+                                                break
+                                                
+                            elif site_name == "SoccerVista":
+                                tds = row.find_all("td")
+                                if len(tds) >= 4:
+                                    raw_home = tds[1].text
+                                    raw_away = tds[3].text if len(tds) > 3 else (tds[2].text if len(tds) > 2 else "")
+                                    
+                                    home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
+                                    away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
+                                    
+                                    for td in tds:
+                                        txt = td.text.strip().upper()
+                                        if "10 ON " in txt:
+                                            target = txt.replace("10 ON ", "").strip()
+                                            if target in ["DRAW", "X"]: pick = "X"
+                                            elif target and (target in home.upper() or home.upper().startswith(target)): pick = "1"
+                                            elif target and (target in away.upper() or away.upper().startswith(target)): pick = "2"
+                                            elif len(target) >= 3 and target[:3] in home.upper(): pick = "1"
+                                            elif len(target) >= 3 and target[:3] in away.upper(): pick = "2"
+                                            else: pick = "1"
+                                            break
+                                        elif txt in ["1", "X", "2", "1X", "X2", "12"]:
+                                            pick = txt
+                                            break
 
-                    if home and away and pick:
-                        self.log_prediction_qa(site_name, home, away, pick)
-                        valid_count += 1
+                            else:
+                                home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
+                                away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
+                                pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
 
-                except Exception:
+                            home_str = self.clean_team_name(home) if home else ""
+                            away_str = self.clean_team_name(away) if away else ""
+
+                            if not home_str and away_str:
+                                if re.search(r'(?i)\s+vs?\s+', away_str):
+                                    parts = re.split(r'(?i)\s+vs?\s+', away_str, maxsplit=1)
+                                    home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+
+                            if not away_str and home_str:
+                                if re.search(r'(?i)\s+vs?\s+', home_str):
+                                    parts = re.split(r'(?i)\s+vs?\s+', home_str, maxsplit=1)
+                                    home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+
+                            if re.search(r'(?i)\s+vs?\s+', away_str) and len(home_str) < 4:
+                                parts = re.split(r'(?i)\s+vs?\s+', away_str, maxsplit=1)
+                                if len(parts) == 2:
+                                    home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+
+                            if re.search(r'(?i)\s+vs?\s+', home_str) and len(away_str) < 4:
+                                parts = re.split(r'(?i)\s+vs?\s+', home_str, maxsplit=1)
+                                if len(parts) == 2:
+                                    home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
+
+                            home, away = home_str, away_str
+
+                            if home and away and pick:
+                                self.log_prediction_qa(site_name, home, away, pick)
+                                valid_count += 1
+
+                        except Exception:
+                            continue
+
+                    self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
+                    return
+
+                elif r.status_code in [500, 502, 503, 504, 429]:
+                    time.sleep(2 * attempt)
                     continue
+                else:
+                    self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
+                    return
 
-            self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
+            except Exception:
+                time.sleep(2 * attempt)
+                continue
 
-        except Exception:
-            self.diagnostics[site_name] = "🔴 TIMEOUT/ERROR"
-            return
+        self.diagnostics[site_name] = f"🔴 FAILED (HTTP {last_status if last_status else 'TIMEOUT'})"
 
     def process_consensus_signals(self):
         agreed_matches = []
@@ -383,10 +409,8 @@ class ConsensusEngine:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        # UPDATED: Correct endpoints WITH the mandatory "models/" prefix
         models_to_try = [
             "models/gemini-2.5-flash",
-            "models/gemini-3.5-flash",
             "models/gemini-1.5-flash"
         ]
 
@@ -463,7 +487,7 @@ class ConsensusEngine:
                         continue
                     else:
                         self.diagnostics["AI_Status"] = f"🔴 API Error {response.status_code}"
-                        break # Break inner loop, try next model
+                        break
                 except Exception:
                     time.sleep(2 * attempt)
                     continue
@@ -471,9 +495,6 @@ class ConsensusEngine:
         self.diagnostics["AI_Status"] = "🔴 All AI Models/Retries Failed"
         return None
 
-    # ==========================================================================
-    # IMMUTABLE DAILY LOCKING ARCHITECTURE
-    # ==========================================================================
     def load_memory(self):
         if os.path.exists(MEMORY_FILE):
             try:
@@ -570,8 +591,6 @@ class ConsensusEngine:
             return
 
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        
-        # Telegram max length is 4096. Chunking the message to prevent silent drops
         chunk_size = 4000
         msg_chunks = [msg[i:i+chunk_size] for i in range(0, len(msg), chunk_size)]
         
@@ -580,14 +599,13 @@ class ConsensusEngine:
             try:
                 r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
                 if r.status_code != 200:
-                    print(f"Telegram Markdown error: {r.text} - Retrying without formatting...")
-                    payload.pop("parse_mode")
+                    payload.pop("parse_mode", None)
                     r2 = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
                     if r2.status_code != 200:
-                        print(f"Telegram fallback failed: {r2.text}")
+                        print(f"Telegram alert error: {r2.text}")
             except Exception as e:
                 print(f"Telegram alert exception: {e}")
-            time.sleep(1) # Sleep briefly between chunks
+            time.sleep(1)
 
     async def run_pipeline(self):
         eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
@@ -598,12 +616,14 @@ class ConsensusEngine:
         today_payload = memory.get(today_date)
 
         is_already_locked = False
-        if isinstance(today_payload, dict):
+        if isinstance(today_payload, dict) and not FORCE_RUN:
             if today_payload.get("locked") and current_hour >= 5:
                 is_already_locked = True
             elif today_payload.get("locked") and current_hour < 5:
-                print("⚠️ Found a premature lock. Forcing unlock since it is before 5:00 AM EAT.")
+                print("⚠️ Premature lock detected. Unlocking because it is before 5:00 AM EAT.")
                 is_already_locked = False
+        elif FORCE_RUN:
+            print(f"⚡ FORCE_RUN active: Bypassing memory lock for {today_date}.")
 
         if is_already_locked:
             print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
@@ -614,7 +634,7 @@ class ConsensusEngine:
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["Daily_Lock"] = f"🔒 LOCKED ON {today_date}"
         else:
-            print(f"🔓 Scraping and generating tickets for {today_date}...")
+            print(f"🔓 Scraping and generating fresh tickets for {today_date}...")
             loop = asyncio.get_running_loop()
             with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
                 tasks = [loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()]
@@ -637,7 +657,6 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            # Smart Lock Check: Only lock if AI generated a message, or if there's genuinely no match data today
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
