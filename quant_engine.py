@@ -65,7 +65,7 @@ def get_dynamic_configs():
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
             "pick_selector": "td", "pick_class": "", "pick_index": 4,
-            "use_scraperapi": True
+            "use_scraperapi": False  # Turned off proxy to bypass Cloudflare Captcha natively
         }
     }
 
@@ -131,7 +131,8 @@ class ConsensusEngine:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
                     r = tls_requests.get(proxy_url, timeout=40)
                 else:
-                    r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+                    # Upgraded to Chrome 124
+                    r = tls_requests.get(url, impersonate="chrome124", timeout=20)
                 
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -184,7 +185,8 @@ class ConsensusEngine:
                     if cfg.get("use_scraperapi") and not SCRAPER_API_KEY and attempt == 1:
                         self.diagnostics[site_name] = "🔴 MISSING SCRAPER_API_KEY"
                         return
-                    r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=25)
+                    # Upgraded to Chrome 124 to bypass new Cloudflare block
+                    r = tls_requests.get(cfg["url"], impersonate="chrome124", timeout=25)
 
                 last_status = r.status_code
 
@@ -319,13 +321,13 @@ class ConsensusEngine:
 
     def process_consensus_signals(self):
         agreed_matches = []
-        niche_matches = []
         structured_tickets = []
         ai_input_data = []
 
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin", "SoccerVista"]
-        active_scrapers_count = sum(1 for status in self.diagnostics.values() if "🟢 OK" in status and "Teams" not in status)
-        required_consensus = 3 if active_scrapers_count >= 4 else 2
+        
+        # Enforcing STRICT 3+ site consensus
+        required_consensus = 3 
 
         for match, listings in self.master_matrix.items():
             prediction_weights = {}
@@ -375,31 +377,7 @@ class ConsensusEngine:
                     "tier": "Core Consensus"
                 })
 
-            elif required_consensus == 3 and len(listings) == 2 and prediction_weights[top_pick] == 2:
-                backing_sites_list = sites_backing[top_pick]
-                backing_sites_str = " + ".join(backing_sites_list)
-                
-                match_text = (
-                    f"• **{match}** ➔ {top_pick}\n"
-                    f"  ↳ ✅ Backed by: `{backing_sites_str}`\n"
-                )
-                
-                left_out_sites = [s for s in all_scrapers if s not in backing_sites_list]
-                for left_out in left_out_sites:
-                    match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
-                    
-                niche_matches.append(match_text)
-                structured_tickets.append({"match": match, "prediction": top_pick, "status": "PENDING", "score": "-"})
-                
-                ai_input_data.append({
-                    "match": match, 
-                    "consensus_pick": top_pick, 
-                    "backed_by": backing_sites_str, 
-                    "contradictions": [], 
-                    "tier": "Niche Coverage"
-                })
-
-        return agreed_matches, niche_matches, structured_tickets, ai_input_data, required_consensus
+        return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
     def get_available_gemini_models(self, api_key):
         list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
@@ -454,8 +432,8 @@ class ConsensusEngine:
             🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         4. TICKET BUILDING LOGIC:
             - TICKET 1: MUST contain EXACTLY THREE main matches sourced exclusively from the 'Core Consensus' tier with ZERO contradictions. If fewer than 3 pristine matches exist, fill remaining spots with safest Corner predictions.
-            - TICKET 2: Mix any remaining 'Core Consensus' matches with 'Niche Coverage' and Corners. Matches with contradictions can be placed here.
-            - TICKET 3: Use the remaining 'Niche Coverage' matches and higher-risk options.
+            - TICKET 2: Mix any remaining 'Core Consensus' matches with Corners. Matches with contradictions can be placed here.
+            - TICKET 3: Use the remaining matches and higher-risk options.
             - TICKET 4: Leave this ticket COMPLETELY BLANK under the header. Do not generate any matches for it.
         5. CRITICAL RESERVE/BACKUP RULE:
             - At the end of Tickets 1, 2, and 3 ONLY, append EXACTLY ONE additional backup match tagged as follows:
@@ -540,7 +518,7 @@ class ConsensusEngine:
         results = {}
         url = f"https://www.statarea.com/predictions/date/{target_date}/"
         try:
-            r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+            r = tls_requests.get(url, impersonate="chrome124", timeout=20)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 for row in soup.find_all("div", class_="matchrow"):
@@ -624,10 +602,11 @@ class ConsensusEngine:
         for chunk in msg_chunks:
             payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
             try:
-                r = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+                # Upgraded to Chrome 124 for Telegram API just in case
+                r = tls_requests.post(url, json=payload, impersonate="chrome124", timeout=15)
                 if r.status_code != 200:
                     payload.pop("parse_mode", None)
-                    r2 = tls_requests.post(url, json=payload, impersonate="chrome120", timeout=15)
+                    r2 = tls_requests.post(url, json=payload, impersonate="chrome124", timeout=15)
                     if r2.status_code != 200:
                         print(f"Telegram alert error: {r2.text}")
             except Exception as e:
@@ -642,6 +621,7 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
+        # STRICT LOCK AT 5:00 AM EAT
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
             if today_payload.get("locked") and current_hour >= 5:
@@ -656,7 +636,6 @@ class ConsensusEngine:
             print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
             daily_data = memory[today_date]
             agreed_matches = daily_data.get("agreed_matches", [])
-            niche_matches = daily_data.get("niche_matches", [])
             ai_optimized_message = daily_data.get("ai_optimized_message")
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["Daily_Lock"] = f"🔒 LOCKED ON {today_date}"
@@ -668,7 +647,7 @@ class ConsensusEngine:
                 tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
                 await asyncio.gather(*tasks)
 
-            agreed_matches, niche_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
+            agreed_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
 
             active_corner_teams = []
             for match in self.master_matrix.keys():
@@ -684,12 +663,12 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
+            # Strict Lock Enforced here
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
                 "locked": should_lock,
                 "agreed_matches": agreed_matches,
-                "niche_matches": niche_matches,
                 "ai_optimized_message": ai_optimized_message,
                 "req_threshold": req_threshold,
                 "tickets": structured_tickets
@@ -703,24 +682,13 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets(memory)
 
+        # Output 1: The Intel Board
         msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
             msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
         else:
             for match in agreed_matches: msg += f"{match}\n"
                 
-        if niche_matches and len(agreed_matches) <= 9:
-            msg += "🕵️ **NICHE CONSENSUS (Top 5 Displayed)** 🕵️\n\n"
-            for match in niche_matches[:5]: 
-                msg += f"{match}\n"
-            
-            if len(niche_matches) > 5:
-                hidden_count = len(niche_matches) - 5
-                msg += f"  ↳ *...and {hidden_count} more passed to AI in background.*\n\n"
-                
-        if ai_optimized_message:
-            msg += f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}\n\n"
-
         if settled_reports:
             msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
             for rep in settled_reports: msg += f"{rep}\n"
@@ -730,6 +698,12 @@ class ConsensusEngine:
         for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
 
         self.send_telegram_alert(msg)
+
+        # Output 2: The Ticket Delivery
+        if ai_optimized_message:
+            time.sleep(1.5)
+            ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
+            self.send_telegram_alert(ticket_msg)
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
