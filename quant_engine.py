@@ -21,6 +21,21 @@ FORCE_RUN = os.environ.get("FORCE_RUN", "").strip().lower() in ["true", "1", "ye
 
 MEMORY_FILE = "pending_tickets.json"
 
+DEFAULT_BROWSER_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Sec-Ch-Ua": '"Not A(Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "cross-site",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+    "Referer": "https://www.google.com/",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
+
 def get_dynamic_configs():
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
     today_date = eat_time.strftime('%Y-%m-%d')
@@ -29,6 +44,7 @@ def get_dynamic_configs():
     return {
         "Statarea": {
             "url": f"https://www.statarea.com/predictions/date/{today_date}/",
+            "fallback_url": None,
             "row_selector": "div", "row_class": "matchrow",
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
@@ -37,6 +53,7 @@ def get_dynamic_configs():
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
+            "fallback_url": None,
             "row_selector": "a", "row_class": "livescore-match-row",
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
             "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
@@ -44,7 +61,8 @@ def get_dynamic_configs():
             "use_scraperapi": False
         },
         "PredictZ": {
-            "url": "https://www.predictz.com/predictions/today/",
+            "url": "https://www.predictz.com/predictions/",
+            "fallback_url": "https://www.predictz.com/predictions/today/",
             "row_selector": "div", "row_class": "pttr",
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
@@ -53,6 +71,7 @@ def get_dynamic_configs():
         },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
+            "fallback_url": "https://www.windrawwin.com/predictions/",
             "row_selector": "div", "row_class": "wtrow",
             "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
@@ -60,7 +79,8 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "SoccerVista": {
-            "url": "https://www.soccervista.com/predictions/",
+            "url": "https://www.soccervista.com/",
+            "fallback_url": "https://www.soccervista.com/predictions/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
@@ -127,11 +147,11 @@ class ConsensusEngine:
         url = "https://www.totalcorner.com/match/today"
         for attempt in range(1, 4):
             try:
-                if SCRAPER_API_KEY and attempt < 3:
+                if SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = tls_requests.get(proxy_url, timeout=40)
+                    r = tls_requests.get(proxy_url, headers=DEFAULT_BROWSER_HEADERS, timeout=40)
                 else:
-                    r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+                    r = tls_requests.get(url, headers=DEFAULT_BROWSER_HEADERS, impersonate="chrome120", timeout=20)
                 
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -173,22 +193,31 @@ class ConsensusEngine:
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 3
         last_status = None
+        target_url = cfg["url"]
 
         for attempt in range(1, max_attempts + 1):
             try:
+                # Attempt 1: ScraperAPI (without &render=true to save credits and avoid bot detection)
+                # Attempt 2: Direct connection to target URL with Chrome 120 TLS spoofing
+                # Attempt 3: Direct connection to fallback mirror URL
                 if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
-                    render_flag = "&render=true" if site_name == "SoccerVista" else ""
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}{render_flag}"
-                    r = tls_requests.get(proxy_url, timeout=45)
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={target_url}"
+                    r = tls_requests.get(proxy_url, headers=DEFAULT_BROWSER_HEADERS, timeout=40)
                 else:
-                    if cfg.get("use_scraperapi") and not SCRAPER_API_KEY and attempt == 1:
-                        self.diagnostics[site_name] = "🔴 MISSING SCRAPER_API_KEY"
-                        return
-                    r = tls_requests.get(cfg["url"], impersonate="chrome120", timeout=25)
+                    active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
+                    r = tls_requests.get(active_url, headers=DEFAULT_BROWSER_HEADERS, impersonate="chrome120", timeout=25)
 
                 last_status = r.status_code
 
                 if r.status_code == 200:
+                    # Detect Cloudflare challenge pages that return HTTP 200
+                    if any(phrase in r.text.lower() for phrase in ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile"]):
+                        if attempt < max_attempts:
+                            time.sleep(2 * attempt)
+                            continue
+                        self.diagnostics[site_name] = "🟡 BLOCKED (Cloudflare Challenge)"
+                        return
+
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
@@ -201,7 +230,10 @@ class ConsensusEngine:
                         rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
                     if not rows:
-                        self.diagnostics[site_name] = "🟡 BLOCKED"
+                        if attempt < max_attempts:
+                            time.sleep(2 * attempt)
+                            continue
+                        self.diagnostics[site_name] = "🟡 BLOCKED (No Rows Found)"
                         return
 
                     valid_count = 0
@@ -242,10 +274,16 @@ class ConsensusEngine:
                                                 
                             elif site_name == "SoccerVista":
                                 tds = row.find_all("td")
-                                if len(tds) >= 4:
-                                    raw_home = tds[1].text
-                                    raw_away = tds[3].text if len(tds) > 3 else (tds[2].text if len(tds) > 2 else "")
+                                if len(tds) >= 3:
+                                    # Handle both 4-column predictions page and 6-column main page
+                                    raw_home = tds[1].text.strip()
                                     
+                                    # If column 2 is a score or separator, column 3 is away; otherwise column 2 is away
+                                    if len(tds) >= 4 and (re.search(r'\d+:\d+', tds[2].text) or tds[2].text.strip() in ["-", "vs", "v", ""]):
+                                        raw_away = tds[3].text.strip()
+                                    else:
+                                        raw_away = tds[2].text.strip()
+
                                     home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
                                     away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
                                     
@@ -540,7 +578,7 @@ class ConsensusEngine:
         results = {}
         url = f"https://www.statarea.com/predictions/date/{target_date}/"
         try:
-            r = tls_requests.get(url, impersonate="chrome120", timeout=20)
+            r = tls_requests.get(url, headers=DEFAULT_BROWSER_HEADERS, impersonate="chrome120", timeout=20)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 for row in soup.find_all("div", class_="matchrow"):
@@ -642,7 +680,7 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # 5:00 AM LOCK VERIFICATION
+        # LOCK POLICY: Locks strictly starting from 5:00 AM EAT (current_hour >= 5)
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
             if today_payload.get("locked") and current_hour >= 5:
@@ -685,7 +723,7 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            # Strict 5:00 AM EAT Lock Gate
+            # Smart Lock Check: Locks strictly starting from 5:00 AM EAT
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
@@ -705,33 +743,40 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
+        # Telegram Dispatch 1: Raw Intelligence & Consensus Board
+        intel_msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
-            msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
+            intel_msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
         else:
-            for match in agreed_matches: msg += f"{match}\n"
+            for match in agreed_matches:
+                intel_msg += f"{match}\n"
                 
         if niche_matches and len(agreed_matches) <= 9:
-            msg += "🕵️ **NICHE CONSENSUS (Top 5 Displayed)** 🕵️\n\n"
+            intel_msg += "🕵️ **NICHE CONSENSUS (Top 5 Displayed)** 🕵️\n\n"
             for match in niche_matches[:5]: 
-                msg += f"{match}\n"
+                intel_msg += f"{match}\n"
             
             if len(niche_matches) > 5:
                 hidden_count = len(niche_matches) - 5
-                msg += f"  ↳ *...and {hidden_count} more passed to AI in background.*\n\n"
-                
-        if ai_optimized_message:
-            msg += f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}\n\n"
+                intel_msg += f"  ↳ *...and {hidden_count} more passed to AI in background.*\n\n"
 
         if settled_reports:
-            msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
-            for rep in settled_reports: msg += f"{rep}\n"
-            msg += "\n"
+            intel_msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
+            for rep in settled_reports:
+                intel_msg += f"{rep}\n"
+            intel_msg += "\n"
 
-        msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
+        intel_msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
+        for site, status in self.diagnostics.items():
+            intel_msg += f"↳ {site}: {status}\n"
 
-        self.send_telegram_alert(msg)
+        self.send_telegram_alert(intel_msg)
+
+        # Telegram Dispatch 2: Dedicated Execution Tickets
+        if ai_optimized_message:
+            time.sleep(1.5)
+            ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
+            self.send_telegram_alert(ticket_msg)
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
