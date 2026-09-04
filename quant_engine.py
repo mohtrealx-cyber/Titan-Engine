@@ -176,9 +176,6 @@ class ConsensusEngine:
 
         for attempt in range(1, max_attempts + 1):
             try:
-                # Attempt 1 uses ScraperAPI if configured.
-                # If ScraperAPI returns 403 (quota/blocked) or 500/502/503,
-                # attempts 2 and 3 drop the proxy and scrape directly via TLS spoofing.
                 if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
                     render_flag = "&render=true" if site_name == "SoccerVista" else ""
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}{render_flag}"
@@ -404,16 +401,37 @@ class ConsensusEngine:
 
         return agreed_matches, niche_matches, structured_tickets, ai_input_data, required_consensus
 
+    def get_available_gemini_models(self, api_key):
+        list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+        try:
+            res = requests.get(list_url, timeout=15)
+            if res.status_code == 200:
+                data = res.json()
+                available = []
+                for m in data.get("models", []):
+                    if "generateContent" in m.get("supportedGenerationMethods", []):
+                        name = m.get("name", "").replace("models/", "")
+                        if name:
+                            available.append(name)
+                
+                preferred = [m for m in available if "flash" in m.lower() and not any(x in m.lower() for x in ["preview", "thinking", "lite"])]
+                fallback_flash = [m for m in available if "flash" in m.lower() and m not in preferred]
+                others = [m for m in available if m not in preferred and m not in fallback_flash]
+                
+                ordered = preferred + fallback_flash + others
+                if ordered:
+                    return ordered
+        except Exception:
+            pass
+        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
+
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
-        if not GEMINI_API_KEY:
+        api_key = (GEMINI_API_KEY or "").strip()
+        if not api_key:
             self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        # Standard supported production models
-        models_to_try = [
-            "gemini-2.0-flash",
-            "gemini-1.5-flash"
-        ]
+        models_to_try = self.get_available_gemini_models(api_key)
 
         prompt = f"""
         You are Titan, an elite quantitative sports betting AI Portfolio Manager.
@@ -475,8 +493,8 @@ class ConsensusEngine:
         
         last_error = "Unknown"
         for model_name in models_to_try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
-            for attempt in range(1, 4):
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+            for attempt in range(1, 3):
                 try:
                     response = requests.post(url, json=payload, timeout=40)
                     if response.status_code == 200:
@@ -492,10 +510,10 @@ class ConsensusEngine:
                     last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
 
                     if response.status_code in [500, 503, 429]:
-                        time.sleep(3 * attempt)
+                        time.sleep(2 * attempt)
                         continue
                     else:
-                        break  # Stop retrying invalid requests (e.g., 400 Bad Request, 403 Forbidden), move to next model
+                        break
                 except Exception as e:
                     last_error = f"Network Exception: {e}"
                     time.sleep(2 * attempt)
