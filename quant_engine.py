@@ -21,21 +21,6 @@ FORCE_RUN = os.environ.get("FORCE_RUN", "").strip().lower() in ["true", "1", "ye
 
 MEMORY_FILE = "pending_tickets.json"
 
-DEFAULT_BROWSER_HEADERS = {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Sec-Ch-Ua": '"Not A(Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "cross-site",
-    "Sec-Fetch-User": "?1",
-    "Upgrade-Insecure-Requests": "1",
-    "Referer": "https://www.google.com/",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-}
-
 def get_dynamic_configs():
     eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
     today_date = eat_time.strftime('%Y-%m-%d')
@@ -149,9 +134,9 @@ class ConsensusEngine:
             try:
                 if SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = tls_requests.get(proxy_url, headers=DEFAULT_BROWSER_HEADERS, timeout=40)
+                    r = tls_requests.get(proxy_url, timeout=40)
                 else:
-                    r = tls_requests.get(url, headers=DEFAULT_BROWSER_HEADERS, impersonate="chrome120", timeout=20)
+                    r = tls_requests.get(url, impersonate="chrome124", timeout=20)
                 
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -197,30 +182,35 @@ class ConsensusEngine:
 
         for attempt in range(1, max_attempts + 1):
             try:
-                # Attempt 1: ScraperAPI if key is available
-                # Attempt 2: Direct connection with TLS impersonation (bypasses exhausted/broken proxy)
-                # Attempt 3: Direct connection to fallback endpoint
-                if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={target_url}"
-                    r = tls_requests.get(proxy_url, headers=DEFAULT_BROWSER_HEADERS, timeout=40)
+                active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
+
+                if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
+                    if attempt == 1:
+                        # Standard proxy
+                        proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
+                        r = tls_requests.get(proxy_url, timeout=40)
+                    elif attempt == 2:
+                        # Direct TLS connection
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
+                    else:
+                        # Escalate to Premium proxy if 403s persist
+                        proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}&premium=true"
+                        r = tls_requests.get(proxy_url, timeout=45)
                 else:
-                    active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
-                    r = tls_requests.get(active_url, headers=DEFAULT_BROWSER_HEADERS, impersonate="chrome120", timeout=25)
+                    profile = "chrome124" if attempt < 3 else "safari17_0"
+                    r = tls_requests.get(active_url, impersonate=profile, timeout=30)
 
                 last_status = r.status_code
 
-                # ScraperAPI quota check
-                if attempt == 1 and cfg.get("use_scraperapi"):
-                    if r.status_code == 403 or any(w in r.text.lower() for w in ["run out of api credits", "request limit reached", "exceeded your plan"]):
-                        print(f"⚠️ ScraperAPI credit limit hit on {site_name}. Switching to direct TLS.")
-                        continue
-
                 if r.status_code == 200:
-                    # Cloudflare challenge interception detection
-                    if any(phrase in r.text.lower() for phrase in ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile"]):
-                        print(f"⚠️ [{site_name}] Hit Cloudflare verification challenge on attempt {attempt}.")
-                        time.sleep(2 * attempt)
-                        continue
+                    # Catch Cloudflare's new silent 200 OK challenge responses
+                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "security check"]
+                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 10000:
+                        if attempt < max_attempts:
+                            time.sleep(2 * attempt)
+                            continue
+                        self.diagnostics[site_name] = "🟡 BLOCKED (Cloudflare Challenge)"
+                        return
 
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
@@ -228,20 +218,23 @@ class ConsensusEngine:
                         row_target = re.compile(r"(pt|wt)(tr|row)")
                         rows = soup.find_all("div", class_=row_target)
                         if not rows:
-                            # Class prefix fallback if structure is slightly nested
                             prefix = "pt" if site_name == "PredictZ" else "wt"
                             h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh"))
                             rows = [h.parent for h in h_elements if h.parent]
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
+                        if not rows:
+                            rows = soup.find_all("div", class_=re.compile("predict|match"))
                     else:
                         row_target = cfg["row_class"]
                         rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
                     if not rows:
-                        print(f"DEBUG [{site_name} Attempt {attempt}] No rows located. HTML preview: {r.text[:200]}")
-                        time.sleep(2 * attempt)
-                        continue
+                        if attempt < max_attempts:
+                            time.sleep(2 * attempt)
+                            continue
+                        self.diagnostics[site_name] = "🟡 BLOCKED (No Rows Found)"
+                        return
 
                     valid_count = 0
                     skipped_count = 0
@@ -347,7 +340,7 @@ class ConsensusEngine:
                         self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
                         return
 
-                elif r.status_code in [403, 500, 502, 503, 504, 429]:
+                if r.status_code in [403, 500, 502, 503, 504, 429]:
                     time.sleep(2 * attempt)
                     continue
                 else:
@@ -355,7 +348,6 @@ class ConsensusEngine:
                     continue
 
             except Exception as e:
-                print(f"⚠️ [{site_name}] Connection error on attempt {attempt}: {e}")
                 time.sleep(2 * attempt)
                 continue
 
@@ -584,7 +576,7 @@ class ConsensusEngine:
         results = {}
         url = f"https://www.statarea.com/predictions/date/{target_date}/"
         try:
-            r = tls_requests.get(url, headers=DEFAULT_BROWSER_HEADERS, impersonate="chrome120", timeout=20)
+            r = tls_requests.get(url, impersonate="chrome120", timeout=20)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 for row in soup.find_all("div", class_="matchrow"):
@@ -686,7 +678,6 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # 5:00 AM EAT STRICT LOCK GATE
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
             if today_payload.get("locked") and current_hour >= 5:
@@ -729,7 +720,6 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            # Smart Lock Check: Locks strictly starting from 5:00 AM EAT
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
@@ -749,7 +739,6 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        # Telegram Dispatch 1: Raw Intelligence & Consensus Board
         intel_msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
             intel_msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
@@ -778,7 +767,6 @@ class ConsensusEngine:
 
         self.send_telegram_alert(intel_msg)
 
-        # Telegram Dispatch 2: Dedicated Execution Tickets
         if ai_optimized_message:
             time.sleep(1.5)
             ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
