@@ -64,8 +64,8 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "SoccerVista": {
-            "url": "https://www.soccervista.com/predictions/",
-            "fallback_url": "https://www.soccervista.com/",
+            "url": "https://www.soccervista.com/",
+            "fallback_url": "https://www.soccervista.com/predictions/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
@@ -134,7 +134,7 @@ class ConsensusEngine:
             try:
                 if SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = requests.get(proxy_url, timeout=40)
+                    r = tls_requests.get(proxy_url, timeout=40)
                 else:
                     r = tls_requests.get(url, impersonate="chrome124", timeout=20)
                 
@@ -184,22 +184,20 @@ class ConsensusEngine:
             try:
                 active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
 
+                # Attempt 1: ScraperAPI Proxy (no render=true to avoid bot shields)
+                # Attempt 2 & 3: Direct TLS spoofing via curl_cffi with clean native handshake
                 if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
-                    # Attempt 1: ScraperAPI proxy
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    r = requests.get(proxy_url, timeout=45)
+                    r = tls_requests.get(proxy_url, timeout=40)
                 else:
-                    # Attempt 2 & 3: Direct TLS spoofing to bypass proxy block (WinDrawWin/PredictZ 403s)
-                    # NO CUSTOM HEADERS - Let curl_cffi organically generate the exact Chrome/Safari signature
                     profile = "chrome124" if attempt == 2 else "safari17_0"
                     r = tls_requests.get(active_url, impersonate=profile, timeout=30)
 
                 last_status = r.status_code
 
                 if r.status_code == 200:
-                    # Catch Cloudflare Challenge screens hiding behind a 200 OK
-                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "verify you are human"]
-                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 20000:
+                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id"]
+                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 15000:
                         if attempt < max_attempts:
                             time.sleep(2 * attempt)
                             continue
@@ -212,7 +210,6 @@ class ConsensusEngine:
                         row_target = re.compile(r"(pt|wt)(tr|row)")
                         rows = soup.find_all("div", class_=row_target)
                         if not rows:
-                            # Fallback selector if page structure changes slightly
                             prefix = "pt" if site_name == "PredictZ" else "wt"
                             h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh"))
                             rows = [h.parent for h in h_elements if h.parent]
@@ -268,7 +265,6 @@ class ConsensusEngine:
                             elif site_name == "SoccerVista":
                                 tds = row.find_all("td")
                                 if len(tds) >= 3:
-                                    # Robust extraction for 4-column and 6-column SV tables
                                     raw_home = tds[1].text.strip()
                                     if len(tds) >= 4 and (re.search(r'\d+:\d+', tds[2].text) or tds[2].text.strip() in ["-", "vs", "v", ""]):
                                         raw_away = tds[3].text.strip()
@@ -370,7 +366,7 @@ class ConsensusEngine:
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             
-            # Show ONLY matches agreed by 3+ sites
+            # Match must reach 3+ site consensus
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
@@ -714,15 +710,18 @@ class ConsensusEngine:
         if not agreed_matches:
             msg += f"No matches found with 3+ sites in agreement today.\n\n"
         else:
-            for match in agreed_matches: msg += f"{match}\n"
+            for match in agreed_matches:
+                msg += f"{match}\n"
                 
         if settled_reports:
             msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
-            for rep in settled_reports: msg += f"{rep}\n"
+            for rep in settled_reports:
+                msg += f"{rep}\n"
             msg += "\n"
 
         msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
+        for site, status in self.diagnostics.items():
+            msg += f"↳ {site}: {status}\n"
 
         self.send_telegram_alert(msg)
 
