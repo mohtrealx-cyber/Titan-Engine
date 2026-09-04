@@ -64,8 +64,8 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "SoccerVista": {
-            "url": "https://www.soccervista.com/",
-            "fallback_url": "https://www.soccervista.com/predictions/",
+            "url": "https://www.soccervista.com/predictions/",
+            "fallback_url": "https://www.soccervista.com/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
@@ -134,7 +134,7 @@ class ConsensusEngine:
             try:
                 if SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = tls_requests.get(proxy_url, timeout=40)
+                    r = requests.get(proxy_url, timeout=40)
                 else:
                     r = tls_requests.get(url, impersonate="chrome124", timeout=20)
                 
@@ -184,20 +184,25 @@ class ConsensusEngine:
             try:
                 active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
 
-                # Attempt 1: ScraperAPI Proxy (no render=true to avoid bot shields)
-                # Attempt 2 & 3: Direct TLS spoofing via curl_cffi with clean native handshake
-                if cfg.get("use_scraperapi") and SCRAPER_API_KEY and attempt == 1:
+                # Attempt 1: Direct TLS Native Connect (Bypasses proxy blocking)
+                # Attempt 2: ScraperAPI Standard
+                # Attempt 3: ScraperAPI Premium Residential (Hard bypasses Cloudflare)
+                if attempt == 1:
+                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
+                elif attempt == 2 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    r = tls_requests.get(proxy_url, timeout=40)
+                    r = requests.get(proxy_url, timeout=40)
+                elif attempt == 3 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}&premium=true"
+                    r = requests.get(proxy_url, timeout=45)
                 else:
-                    profile = "chrome124" if attempt == 2 else "safari17_0"
-                    r = tls_requests.get(active_url, impersonate=profile, timeout=30)
+                    r = tls_requests.get(active_url, impersonate="safari17_0", timeout=30)
 
                 last_status = r.status_code
 
                 if r.status_code == 200:
-                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id"]
-                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 15000:
+                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "security check"]
+                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 25000:
                         if attempt < max_attempts:
                             time.sleep(2 * attempt)
                             continue
@@ -207,14 +212,15 @@ class ConsensusEngine:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
-                        row_target = re.compile(r"(pt|wt)(tr|row)")
-                        rows = soup.find_all("div", class_=row_target)
+                        prefix = "pt" if site_name == "PredictZ" else "wt"
+                        rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)"))
                         if not rows:
-                            prefix = "pt" if site_name == "PredictZ" else "wt"
-                            h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh"))
+                            h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh|{prefix}team|{prefix}tm"))
                             rows = [h.parent for h in h_elements if h.parent]
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
+                        if not rows:
+                            rows = soup.find_all("div", class_=re.compile("predict|match|row"))
                     else:
                         row_target = cfg["row_class"]
                         rows = soup.find_all(cfg["row_selector"], class_=row_target)
@@ -240,59 +246,57 @@ class ConsensusEngine:
                             if site_name in ["PredictZ", "WinDrawWin"]:
                                 prefix = "pt" if site_name == "PredictZ" else "wt"
                                 
-                                h_elem = row.find(class_=f"{prefix}tmobh")
-                                a_elem = row.find(class_=f"{prefix}tmoba")
-                                p_elem = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred"))
-
-                                if h_elem and a_elem and p_elem:
-                                    home = h_elem.text
-                                    away = a_elem.text
-                                    pick = p_elem.text
+                                # Flexible Multi-Class Matching
+                                teams = row.find_all("div", class_=re.compile(f"{prefix}tmobh|{prefix}tmoba|{prefix}team|{prefix}tm"))
+                                links = row.find_all("a")
+                                
+                                if len(teams) >= 2:
+                                    home = teams[0].text
+                                    away = teams[1].text
+                                elif len(links) >= 2:
+                                    home = links[0].text
+                                    away = links[1].text
+                                
+                                p_div = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred|{prefix}prd|{prefix}pred"))
+                                if p_div:
+                                    pick = p_div.text
                                 else:
-                                    links = row.find_all("a")
-                                    if len(links) >= 2:
-                                        home = links[0].text
-                                        away = links[1].text
-                                        p_div = row.find(class_=re.compile(f"{prefix}prd|{prefix}pred"))
-                                        if p_div: pick = p_div.text
-                                    else:
-                                        for td in row.find_all("div", class_=f"{prefix}td"):
-                                            norm = self.normalize_prediction(td.text)
-                                            if norm:
-                                                pick = norm
-                                                break
+                                    # Fallback: scan cell contents
+                                    for td in row.find_all("div", class_=re.compile(f"{prefix}td|td")):
+                                        norm = self.normalize_prediction(td.text)
+                                        if norm:
+                                            pick = norm
+                                            break
                                                 
                             elif site_name == "SoccerVista":
-                                tds = row.find_all("td")
+                                tds = row.find_all(["td", "div"])
                                 if len(tds) >= 3:
-                                    raw_home = tds[1].text.strip()
-                                    if len(tds) >= 4 and (re.search(r'\d+:\d+', tds[2].text) or tds[2].text.strip() in ["-", "vs", "v", ""]):
-                                        raw_away = tds[3].text.strip()
-                                    else:
-                                        raw_away = tds[2].text.strip()
+                                    texts = [t.text.strip() for t in tds if t.text.strip()]
                                     
-                                    home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
-                                    away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
-                                    
-                                    for td in tds:
-                                        txt = td.text.strip().upper()
-                                        if "10 ON " in txt:
-                                            target = txt.replace("10 ON ", "").strip()
+                                    for i in range(len(texts)):
+                                        if "10 ON " in texts[i].upper():
+                                            target = texts[i].upper().replace("10 ON ", "").strip()
                                             if target in ["DRAW", "X"]: pick = "X"
-                                            elif target and (target in home.upper() or home.upper().startswith(target)): pick = "1"
-                                            elif target and (target in away.upper() or away.upper().startswith(target)): pick = "2"
-                                            elif len(target) >= 3 and target[:3] in home.upper(): pick = "1"
-                                            elif len(target) >= 3 and target[:3] in away.upper(): pick = "2"
+                                            elif home and target in home.upper(): pick = "1"
+                                            elif away and target in away.upper(): pick = "2"
                                             else: pick = "1"
-                                            break
-                                        elif txt in ["1", "X", "2", "1X", "X2", "12"]:
-                                            pick = txt
-                                            break
-
+                                        elif texts[i] in ["1", "X", "2", "1X", "X2", "12"]:
+                                            pick = texts[i]
+                                            
+                                    if not pick and len(texts) >= 4:
+                                        raw_home = texts[1]
+                                        raw_away = texts[3] if ":" in texts[2] or "v" in texts[2].lower() else texts[2]
+                                        home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
+                                        away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
                             else:
-                                home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
-                                away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
-                                pick = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])[cfg["pick_index"]].text
+                                home_elems = row.find_all(cfg["home_selector"], class_=cfg["home_class"])
+                                away_elems = row.find_all(cfg["away_selector"], class_=cfg["away_class"])
+                                pick_elems = row.find_all(cfg["pick_selector"], class_=cfg["pick_class"])
+                                
+                                if home_elems and away_elems and pick_elems:
+                                    home = home_elems[cfg["home_index"]].text
+                                    away = away_elems[cfg["away_index"]].text
+                                    pick = pick_elems[cfg["pick_index"]].text
 
                             home_str = self.clean_team_name(home) if home else ""
                             away_str = self.clean_team_name(away) if away else ""
