@@ -29,7 +29,6 @@ def get_dynamic_configs():
     return {
         "Statarea": {
             "url": f"https://www.statarea.com/predictions/date/{today_date}/",
-            "fallback_url": None,
             "row_selector": "div", "row_class": "matchrow",
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
@@ -38,7 +37,6 @@ def get_dynamic_configs():
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
-            "fallback_url": None,
             "row_selector": "a", "row_class": "livescore-match-row",
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
             "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
@@ -47,7 +45,6 @@ def get_dynamic_configs():
         },
         "PredictZ": {
             "url": "https://www.predictz.com/predictions/today/",
-            "fallback_url": "https://www.predictz.com/predictions/",
             "row_selector": "div", "row_class": "pttr",
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
@@ -56,7 +53,6 @@ def get_dynamic_configs():
         },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
-            "fallback_url": "https://www.windrawwin.com/predictions/",
             "row_selector": "div", "row_class": "wtrow",
             "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
@@ -64,8 +60,7 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "SoccerVista": {
-            "url": "https://www.soccervista.com/",
-            "fallback_url": "https://www.soccervista.com/predictions/",
+            "url": "https://www.soccervista.com/predictions/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "away_class": "", "away_index": 1,
@@ -132,7 +127,7 @@ class ConsensusEngine:
         url = "https://www.totalcorner.com/match/today"
         for attempt in range(1, 4):
             try:
-                if SCRAPER_API_KEY and attempt == 1:
+                if SCRAPER_API_KEY and attempt < 3:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
                     r = requests.get(proxy_url, timeout=40)
                 else:
@@ -178,60 +173,37 @@ class ConsensusEngine:
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 3
         last_status = None
-        target_url = cfg["url"]
 
         for attempt in range(1, max_attempts + 1):
             try:
-                active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
-
-                # 3-Tier Execution Arsenal to crush Cloudflare Action Blocks
-                if attempt == 1 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    if site_name == "SoccerVista": proxy_url += "&render=true"
-                    r = requests.get(proxy_url, timeout=45)
-                elif attempt == 2:
-                    profile = "chrome124" if attempt == 2 else "safari17_0"
-                    r = tls_requests.get(active_url, impersonate=profile, timeout=30)
+                # Force ScraperAPI with Javascript Rendering (&render=true) on Cloudflare sites to bypass 403 blocks
+                if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={cfg['url']}&render=true"
+                    if attempt == 3:
+                        proxy_url += "&premium=true" # Escalate to residential proxy on final try
+                    r = requests.get(proxy_url, timeout=50)
                 else:
-                    if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                        proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}&premium=true"
-                        r = requests.get(proxy_url, timeout=45)
-                    else:
-                        r = tls_requests.get(active_url, impersonate="chrome120", timeout=30)
+                    if cfg.get("use_scraperapi") and not SCRAPER_API_KEY and attempt == 1:
+                        self.diagnostics[site_name] = "🔴 MISSING SCRAPER_API_KEY"
+                        return
+                    r = tls_requests.get(cfg["url"], impersonate="chrome124", timeout=25)
 
                 last_status = r.status_code
 
                 if r.status_code == 200:
-                    # Sniffing for Cloudflare Turnstile Interstitial pages
-                    html_check = r.text.lower()
-                    if any(phrase in html_check for phrase in ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id"]):
-                        if attempt < max_attempts:
-                            time.sleep(2 * attempt)
-                            continue
-                        self.diagnostics[site_name] = "🟡 BLOCKED (Cloudflare Challenge)"
-                        return
-
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
-                        prefix = "pt" if site_name == "PredictZ" else "wt"
-                        rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)"))
-                        if not rows:
-                            h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh|{prefix}team|{prefix}tm"))
-                            rows = [h.parent for h in h_elements if h.parent]
+                        row_target = re.compile(r"(pt|wt)(tr|row)")
+                        rows = soup.find_all("div", class_=row_target)
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
-                        if not rows:
-                            rows = soup.find_all("div", class_=re.compile("predict|match"))
                     else:
                         row_target = cfg["row_class"]
                         rows = soup.find_all(cfg["row_selector"], class_=row_target)
 
                     if not rows:
-                        if attempt < max_attempts:
-                            time.sleep(2 * attempt)
-                            continue
-                        self.diagnostics[site_name] = "🟡 BLOCKED (No Match Rows Found)"
+                        self.diagnostics[site_name] = "🟡 BLOCKED"
                         return
 
                     valid_count = 0
@@ -272,13 +244,10 @@ class ConsensusEngine:
                                                 
                             elif site_name == "SoccerVista":
                                 tds = row.find_all("td")
-                                if len(tds) >= 3:
-                                    raw_home = tds[1].text.strip()
-                                    if len(tds) >= 4 and (re.search(r'\d+:\d+', tds[2].text) or tds[2].text.strip() in ["-", "vs", "v", ""]):
-                                        raw_away = tds[3].text.strip()
-                                    else:
-                                        raw_away = tds[2].text.strip()
-                                        
+                                if len(tds) >= 4:
+                                    raw_home = tds[1].text
+                                    raw_away = tds[3].text if len(tds) > 3 else (tds[2].text if len(tds) > 2 else "")
+                                    
                                     home = re.sub(r'^([WDL]\s+)+', '', raw_home).strip()
                                     away = re.sub(r'(\s+[WDL])+$', '', raw_away).strip()
                                     
@@ -334,16 +303,15 @@ class ConsensusEngine:
                         except Exception:
                             continue
 
-                    if valid_count > 0 or skipped_count > 0:
-                        self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
-                        return
+                    self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
+                    return
 
-                if r.status_code in [403, 500, 502, 503, 504, 429]:
+                elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     time.sleep(2 * attempt)
                     continue
                 else:
-                    time.sleep(2 * attempt)
-                    continue
+                    self.diagnostics[site_name] = f"🔴 FAILED (HTTP {r.status_code})"
+                    return
 
             except Exception:
                 time.sleep(2 * attempt)
@@ -358,7 +326,7 @@ class ConsensusEngine:
 
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin", "SoccerVista"]
         
-        # STRICT RULE: 3+ Consensus Only
+        # STRICT 3+ Consensus Rule
         required_consensus = 3 
 
         for match, listings in self.master_matrix.items():
@@ -374,7 +342,6 @@ class ConsensusEngine:
 
             top_pick = max(prediction_weights, key=prediction_weights.get)
             
-            # Match MUST reach 3+ site consensus
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
@@ -714,10 +681,9 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        # Output 1: The Intel Board
         msg = f"🤝 **RAW CONSENSUS DATA (3+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
-            msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
+            msg += f"No matches found with 3+ sites in agreement today.\n\n"
         else:
             for match in agreed_matches: msg += f"{match}\n"
                 
@@ -731,7 +697,7 @@ class ConsensusEngine:
 
         self.send_telegram_alert(msg)
 
-        # Output 2: The Ticket Delivery
+        # Telegram Dispatch 2: Execution Tickets (Sent if AI generation succeeded)
         if ai_optimized_message:
             time.sleep(1.5)
             ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
