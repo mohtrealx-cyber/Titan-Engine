@@ -710,7 +710,7 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        msg = f"🤝 **RAW CONSENSUS DATA (3+ SITES AGREEMENT)** 🤝\n\n"
+        msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
         if not agreed_matches:
             msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
         else:
