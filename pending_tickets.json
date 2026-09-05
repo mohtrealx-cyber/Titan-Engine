@@ -4635,51 +4635,38 @@
         ]
     },
     "2026-09-05": {
-        "locked": false,
+        "locked": true,
         "agreed_matches": [
             "\u2022 **Brentford vs Sunderland** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista`\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
-            "\u2022 **Brighton vs Leeds** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + SoccerVista`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
-            "\u2022 **Fulham vs Crystal Palace** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n",
-            "\u2022 **Man City vs Coventry** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Burnley vs Bristol City** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f Vitibet backed: 1\n",
-            "\u2022 **Millwall vs Bolton** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
-            "\u2022 **Portsmouth vs Cardiff** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f Vitibet backed: X\n",
-            "\u2022 **West Brom vs Watford** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n",
-            "\u2022 **West Ham vs Derby** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + SoccerVista`\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n",
-            "\u2022 **Swansea vs Wrexham** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista`\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
-            "\u2022 **Peterborough vs Sheffield Wednesday** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f PredictZ backed: 1\n",
-            "\u2022 **Bradford vs Mansfield** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Leicester vs Oxford Utd** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: X\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
-            "\u2022 **Luton vs Leyton Orient** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26a0\ufe0f SoccerVista backed: 2\n",
-            "\u2022 **Reading vs Blackpool** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + SoccerVista`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
-            "\u2022 **Wycombe vs Milton Keynes Dons** \u2794 X\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + SoccerVista`\n  \u21b3 \u26a0\ufe0f Statarea backed: 1\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
-            "\u2022 **Fleetwood Town vs Shrewsbury** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Salford City vs Port Vale** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Bristol Rovers vs Rotherham** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Rochdale vs Gillingham** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Afc Fylde vs Worthing** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Hartlepool vs Woking** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Boreham Wood vs Carlisle** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Bedford Town vs Radcliffe Borough** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Oxford City vs Chorley** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Chelmsford City vs Salisbury** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Aberdeen vs Kilmarnock** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Rangers vs Motherwell** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **St Mirren vs Celtic** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Bayer Leverkusen vs Union Berlin** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + SoccerVista`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
-            "\u2022 **Borussia Monchengladbach vs Elversberg** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + SoccerVista`\n  \u21b3 \u26a0\ufe0f Vitibet backed: X\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n",
-            "\u2022 **Werder Bremen vs Rb Leipzig** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n",
-            "\u2022 **Schalke 04 vs Bayern Munich** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n",
-            "\u2022 **Inter Milan vs Napoli** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Roma vs Atalanta** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Lens vs Lorient** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + Statarea + SoccerVista`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
-            "\u2022 **Le Havre vs Brestois** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Nice vs Le Mans** \u2794 2\n  \u21b3 \u2705 Backed by: `PredictZ + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f Vitibet backed: 1\n",
-            "\u2022 **Alverca vs Braga** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n",
-            "\u2022 **Maritimo vs Benfica** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n",
-            "\u2022 **Sporting Lisbon vs Nacional** \u2794 1\n  \u21b3 \u2705 Backed by: `PredictZ + Vitibet + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+            "\u2022 **Brighton vs Leeds** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
+            "\u2022 **Fulham vs Crystal Palace Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n",
+            "\u2022 **Manchester City Fc vs Coventry** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista + WinDrawWin + PredictZ`\n",
+            "\u2022 **Bayer Leverkusen vs Union Berlin** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
+            "\u2022 **Werder Bremen vs Rb Leipzig** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n",
+            "\u2022 **Inter Milan vs Ssc Napoli** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **As Roma vs Atalanta Bc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Lens vs Lorient** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
+            "\u2022 **Le Havre vs Stade Brestois 29** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Maritimo vs Benfica** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + WinDrawWin`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n",
+            "\u2022 **Sporting Cp vs Nacional** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista + WinDrawWin + PredictZ`\n",
+            "\u2022 **Aberdeen vs Kilmarnock** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Rangers vs Motherwell** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **St Mirren vs Celtic** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Millwall vs Bolton** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **West Brom vs Watford** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **West Ham vs Derby** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin`\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Bradford vs Mansfield Town Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Luton vs Leyton Orient Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Reading vs Blackpool** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Fleetwood Town vs Shrewsbury** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Salford City vs Port Vale** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Bristol Rovers Fc vs Rotherham** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Rochdale vs Gillingham** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Afc Fylde vs Worthing** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Hartlepool vs Woking** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Boreham Wood vs Carlisle** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
         ],
-        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Sporting Lisbon vs Nacional \u2794 Sporting Lisbon to Win\n\u2022 Rangers vs Motherwell \u2794 Rangers to Win\n\u2022 Man City vs Coventry \u2794 Man City to Win\n\ud83d\udd04 [RESERVE PICK]: Puebla vs Toluca \u2794 Over 8.5 Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Bayer Leverkusen vs Union Berlin \u2794 Bayer Leverkusen Draw No Bet\n\u2022 South Hobart vs Devonport City \u2794 Over 8.5 Corners\n\ud83d\udd04 [RESERVE PICK]: West Brom vs Watford \u2794 West Brom to Win or Draw (1X)\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Schalke 04 vs Bayern Munich \u2794 Bayern Munich to Win\n\u2022 Brighton vs Leeds \u2794 Brighton to Win\n\u2022 Avondale vs Preston Lions \u2794 Over 9.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Fulham vs Crystal Palace \u2794 Fulham to Win or Draw (1X)\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
+        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Manchester City Fc vs Coventry \u2794 Manchester City Fc to Win\n\u2022 Sporting Cp vs Nacional \u2794 Sporting Cp to Win\n\u2022 Rangers vs Motherwell \u2794 Rangers to Win\n\ud83d\udd04 [RESERVE PICK]: St Mirren vs Celtic \u2794 Celtic to Win\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Bayer Leverkusen vs Union Berlin \u2794 Bayer Leverkusen Win or Draw (1X)\n\u2022 Stabaek vs Moss \u2794 Over 9.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Kongsvinger vs Raufoss \u2794 Over 9.5 Corners\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Brighton vs Leeds \u2794 Brighton Win or Draw (1X)\n\u2022 Werder Bremen vs Rb Leipzig \u2794 Rb Leipzig Draw No Bet\n\u2022 Keflavik vs Valur Reykjavik \u2794 Over 10.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Maritimo vs Benfica \u2794 Benfica to Win\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
         "req_threshold": 3,
         "tickets": [
             {
@@ -4695,19 +4682,79 @@
                 "score": "-"
             },
             {
-                "match": "Fulham vs Crystal Palace",
+                "match": "Fulham vs Crystal Palace Fc",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Man City vs Coventry",
+                "match": "Manchester City Fc vs Coventry",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Burnley vs Bristol City",
+                "match": "Bayer Leverkusen vs Union Berlin",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Werder Bremen vs Rb Leipzig",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Inter Milan vs Ssc Napoli",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "As Roma vs Atalanta Bc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Lens vs Lorient",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Le Havre vs Stade Brestois 29",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Maritimo vs Benfica",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Sporting Cp vs Nacional",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Aberdeen vs Kilmarnock",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Rangers vs Motherwell",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "St Mirren vs Celtic",
                 "prediction": "2",
                 "status": "PENDING",
                 "score": "-"
@@ -4715,12 +4762,6 @@
             {
                 "match": "Millwall vs Bolton",
                 "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Portsmouth vs Cardiff",
-                "prediction": "2",
                 "status": "PENDING",
                 "score": "-"
             },
@@ -4737,31 +4778,13 @@
                 "score": "-"
             },
             {
-                "match": "Swansea vs Wrexham",
+                "match": "Bradford vs Mansfield Town Fc",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Peterborough vs Sheffield Wednesday",
-                "prediction": "2",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Bradford vs Mansfield",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Leicester vs Oxford Utd",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Luton vs Leyton Orient",
+                "match": "Luton vs Leyton Orient Fc",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -4769,12 +4792,6 @@
             {
                 "match": "Reading vs Blackpool",
                 "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Wycombe vs Milton Keynes Dons",
-                "prediction": "X",
                 "status": "PENDING",
                 "score": "-"
             },
@@ -4791,7 +4808,7 @@
                 "score": "-"
             },
             {
-                "match": "Bristol Rovers vs Rotherham",
+                "match": "Bristol Rovers Fc vs Rotherham",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -4816,114 +4833,6 @@
             },
             {
                 "match": "Boreham Wood vs Carlisle",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Bedford Town vs Radcliffe Borough",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Oxford City vs Chorley",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Chelmsford City vs Salisbury",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Aberdeen vs Kilmarnock",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Rangers vs Motherwell",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "St Mirren vs Celtic",
-                "prediction": "2",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Bayer Leverkusen vs Union Berlin",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Borussia Monchengladbach vs Elversberg",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Werder Bremen vs Rb Leipzig",
-                "prediction": "2",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Schalke 04 vs Bayern Munich",
-                "prediction": "2",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Inter Milan vs Napoli",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Roma vs Atalanta",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Lens vs Lorient",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Le Havre vs Brestois",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Nice vs Le Mans",
-                "prediction": "2",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Alverca vs Braga",
-                "prediction": "2",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Maritimo vs Benfica",
-                "prediction": "2",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Sporting Lisbon vs Nacional",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
