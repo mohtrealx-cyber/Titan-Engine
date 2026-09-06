@@ -4838,5 +4838,105 @@
                 "score": "-"
             }
         ]
+    },
+    "2026-09-06": {
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Arsenal vs Chelsea** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
+            "\u2022 **Deportivo Alaves vs Osasuna** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + WinDrawWin`\n  \u21b3 \u26a0\ufe0f PredictZ backed: X\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Juventus vs Ac Milan** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
+            "\u2022 **Eintracht Frankfurt vs Fc Augsburg** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
+            "\u2022 **Marseille vs Paris Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
+            "\u2022 **Guimaraes vs Casa Pia** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Santa Clara vs Rio Ave** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + WinDrawWin + SoccerVista + PredictZ`\n",
+            "\u2022 **Gil Vicente vs Academico Viseu** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 2\n",
+            "\u2022 **Valencia vs Barcelona** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + SoccerVista + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n",
+            "\u2022 **Telstar vs Cambuur** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Hearts vs Dundee** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Coritiba vs Mirassol** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Botafogo Fr vs Palmeiras** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Santa Clara vs Rio Ave \u2794 Santa Clara Win or Draw (1X)\n\u2022 Valencia vs Barcelona \u2794 Barcelona to Win (2)\n\u2022 Guimaraes vs Casa Pia \u2794 Guimaraes to Win (1)\n\ud83d\udd04 [RESERVE PICK]: Ia Akranes vs Kr Reykjavik \u2794 Over 9.5 Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Arsenal vs Chelsea \u2794 Arsenal Win or Draw (1X)\n\u2022 Marseille vs Paris Fc \u2794 Marseille to Win (1)\n\u2022 Thor Akureyri vs Fh Hafnarfjordur \u2794 Over 9.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Juventus vs Ac Milan \u2794 Juventus Win or Draw (1X)\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Eintracht Frankfurt vs Fc Augsburg \u2794 Eintracht Frankfurt to Win (1)\n\u2022 Botafogo Fr vs Palmeiras \u2794 Palmeiras to Win (2)\n\u2022 Telstar vs Cambuur \u2794 Telstar to Win & Over 1.5 Goals\n\ud83d\udd04 [RESERVE PICK]: Ka Akureyri vs Breidablik \u2794 Over 10.5 Corners\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
+        "req_threshold": 3,
+        "tickets": [
+            {
+                "match": "Arsenal vs Chelsea",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Deportivo Alaves vs Osasuna",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Juventus vs Ac Milan",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Eintracht Frankfurt vs Fc Augsburg",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Marseille vs Paris Fc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Guimaraes vs Casa Pia",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Santa Clara vs Rio Ave",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Gil Vicente vs Academico Viseu",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Valencia vs Barcelona",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Telstar vs Cambuur",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Hearts vs Dundee",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Coritiba vs Mirassol",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Botafogo Fr vs Palmeiras",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
