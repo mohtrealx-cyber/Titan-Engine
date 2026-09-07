@@ -180,22 +180,37 @@ class ConsensusEngine:
         last_status = None
         target_url = cfg["url"]
 
+        strict_headers = {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1"
+        }
+
         for attempt in range(1, max_attempts + 1):
             try:
                 active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
 
                 if attempt == 1 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    if site_name == "SoccerVista": proxy_url += "&render=true"
+                    if site_name == "SoccerVista": 
+                        proxy_url += "&render=true"
+                    if site_name == "PredictZ": 
+                        proxy_url += "&premium=true&render=true" 
                     r = requests.get(proxy_url, timeout=60)
+                
                 elif attempt == 2:
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
+                    r = tls_requests.get(active_url, impersonate="chrome124", headers=strict_headers, timeout=30)
+                
                 else:
                     if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                        proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}&premium=true"
+                        proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}&premium=true&country_code=us"
                         r = requests.get(proxy_url, timeout=60)
                     else:
-                        r = tls_requests.get(active_url, impersonate="safari17_0", timeout=30)
+                        r = tls_requests.get(active_url, impersonate="safari17_0", headers=strict_headers, timeout=30)
 
                 last_status = r.status_code
 
@@ -355,7 +370,6 @@ class ConsensusEngine:
 
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin", "SoccerVista"]
         
-        # STRICT RULE: 3+ Consensus Only
         required_consensus = 3 
 
         for match, listings in self.master_matrix.items():
@@ -649,24 +663,19 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # STRICT LOCK AT 5:00 AM EAT
+        # STRICT LOCK LOGIC - SAVES API TOKENS
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
-            if today_payload.get("locked") and current_hour >= 5:
+            if today_payload.get("locked"):
                 is_already_locked = True
-            elif today_payload.get("locked") and current_hour < 5:
-                print("⚠️ Premature lock detected. Unlocking because it is before 5:00 AM EAT.")
-                is_already_locked = False
-        elif FORCE_RUN:
-            print(f"⚡ FORCE_RUN active: Bypassing memory lock for {today_date}.")
 
         if is_already_locked:
-            print(f"🔒 Today's predictions ({today_date}) are already locked. Reusing existing picks.")
+            print(f"🔒 Data for {today_date} is already securely locked. Bypassing scrapers to conserve ScraperAPI tokens.")
             daily_data = memory[today_date]
             agreed_matches = daily_data.get("agreed_matches", [])
             ai_optimized_message = daily_data.get("ai_optimized_message")
             req_threshold = daily_data.get("req_threshold", 3)
-            self.diagnostics["Daily_Lock"] = f"🔒 LOCKED ON {today_date}"
+            self.diagnostics["Daily_Lock"] = f"🟢 CACHED (Tokens Saved for {today_date})"
         else:
             print(f"🔓 Scraping and generating fresh tickets for {today_date}...")
             loop = asyncio.get_running_loop()
@@ -710,27 +719,29 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
-        if not agreed_matches:
-            msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
-        else:
-            for match in agreed_matches: msg += f"{match}\n"
-                
-        if settled_reports:
-            msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
-            for rep in settled_reports: msg += f"{rep}\n"
-            msg += "\n"
+        # Only send the Telegram alert if we actually scraped fresh data OR if we settled a ticket.
+        # This prevents spamming your phone with exact duplicate tickets in the afternoon.
+        if not is_already_locked or settled_reports:
+            msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
+            if not agreed_matches:
+                msg += f"No matches found with {req_threshold}+ sites in agreement today.\n\n"
+            else:
+                for match in agreed_matches: msg += f"{match}\n"
+                    
+            if settled_reports:
+                msg += "📊 **SETTLED RESULTS (Newly Finalized)** 📊\n\n"
+                for rep in settled_reports: msg += f"{rep}\n"
+                msg += "\n"
 
-        msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-        for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
+            msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
+            for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
 
-        self.send_telegram_alert(msg)
+            self.send_telegram_alert(msg)
 
-        # Telegram Dispatch 2: Execution Tickets (Sent if AI generation succeeded)
-        if ai_optimized_message:
-            time.sleep(1.5)
-            ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
-            self.send_telegram_alert(ticket_msg)
+            if ai_optimized_message and not is_already_locked:
+                time.sleep(1.5)
+                ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
+                self.send_telegram_alert(ticket_msg)
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
