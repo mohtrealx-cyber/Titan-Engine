@@ -5038,5 +5038,12 @@
                 "score": "-"
             }
         ]
+    },
+    "2026-09-08": {
+        "locked": false,
+        "agreed_matches": [],
+        "ai_optimized_message": "\ud83d\udd25 Ticket 1: Premium Singles (100% of Daily Stake)\n\u2022 Paysandu vs Brusque \u2794 Over 8.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Paysandu vs Brusque \u2794 Over 9.5 Corners",
+        "req_threshold": 3,
+        "tickets": []
     }
 }
