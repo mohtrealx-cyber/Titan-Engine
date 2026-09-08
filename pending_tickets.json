@@ -5040,10 +5040,138 @@
         ]
     },
     "2026-09-08": {
-        "locked": false,
-        "agreed_matches": [],
-        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Paysandu vs Brusque \u2794 Over 9.5 Corners\n\u2022 Deportes Limache vs Cobresal \u2794 Over 8.5 Corners\n\u2022 Cerro Porteno vs Nacional Asuncion \u2794 Over 8.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Leon (W) vs Puebla (W) \u2794 Over 8.5 Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Vitoria vs Gremio \u2794 Over 7.5 Corners\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Aek Athens Fc vs Lask Linz** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Club Brugge Kv vs Aston Villa** \u2794 X\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26a0\ufe0f Statarea backed: 1\n  \u21b3 \u26a0\ufe0f SoccerVista backed: 1\n",
+            "\u2022 **Borussia Dortmund vs Villarreal** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Lille vs Real Betis** \u2794 X\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Al-Ettifaq vs Al-Faisaly Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Larne vs Bangor** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Wrexham vs Burnley** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: X\n",
+            "\u2022 **Bolton vs West Ham** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + SoccerVista + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n",
+            "\u2022 **Trans Narva vs Flora Tallinn** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Zamalek Sc vs Abu Qair Semad** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + SoccerVista + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n",
+            "\u2022 **Fsv Frankfurt vs Hessen Kassel** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Hampton & Richmond vs Farnborough** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Maidenhead vs Torquay** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Salisbury vs Slough Town** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Afc Telford United vs Oxford City** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Chester vs Merthyr Town** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Macclesfield vs Scarborough Athletic** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Radcliffe vs Hebburn Town** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Aek Athens Fc vs Lask Linz \u2794 1X Double Chance\n\u2022 Al-Ettifaq vs Al-Faisaly Fc \u2794 1 Draw No Bet\n\u2022 Larne vs Bangor \u2794 1X Double Chance\n\ud83d\udd04 [RESERVE PICK]: Real Madrid vs Inter Milan \u2794 Over 8.5 Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Wrexham vs Burnley \u2794 1X Double Chance\n\u2022 Cardiff vs Stoke City Fc \u2794 Over 8.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Club Brugge Kv vs Aston Villa \u2794 X2 Double Chance\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Lille vs Real Betis \u2794 Over 8.5 Corners\n\u2022 Borussia Dortmund vs Villarreal \u2794 1X Double Chance\n\u2022 Bolton vs West Ham \u2794 2 Draw No Bet\n\ud83d\udd04 [RESERVE PICK]: Turku Ps vs Sjk \u2794 Over 9.5 Corners\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
         "req_threshold": 3,
-        "tickets": []
+        "tickets": [
+            {
+                "match": "Aek Athens Fc vs Lask Linz",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Club Brugge Kv vs Aston Villa",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Borussia Dortmund vs Villarreal",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Lille vs Real Betis",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Al-Ettifaq vs Al-Faisaly Fc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Larne vs Bangor",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Wrexham vs Burnley",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Bolton vs West Ham",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Trans Narva vs Flora Tallinn",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Zamalek Sc vs Abu Qair Semad",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Fsv Frankfurt vs Hessen Kassel",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Hampton & Richmond vs Farnborough",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Maidenhead vs Torquay",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Salisbury vs Slough Town",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Afc Telford United vs Oxford City",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Chester vs Merthyr Town",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Macclesfield vs Scarborough Athletic",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Radcliffe vs Hebburn Town",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
