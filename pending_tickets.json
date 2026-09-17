@@ -6963,9 +6963,123 @@
     },
     "2026-09-17": {
         "locked": true,
-        "agreed_matches": [],
-        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Afc Wimbledon vs Milton Keynes Dons \u2794 Over 8.5 Match Corners\n\u2022 Celtic vs Ferencvarosi Tc \u2794 Over 8.5 Match Corners\n\u2022 Real Sociedad vs Bournemouth \u2794 Over 8.5 Match Corners\n\ud83d\udd04 [RESERVE PICK]: Lillestrom vs Torreense \u2794 Over 8.5 Match Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Fc Levadia Tallinn vs Tammeka \u2794 Over 8.5 Match Corners\n\u2022 Real Betis vs Getafe \u2794 Over 8.5 Match Corners\n\ud83d\udd04 [RESERVE PICK]: Malaga vs Villarreal \u2794 Over 8.5 Match Corners\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Albinoleffe vs Arzignano Valchiampo \u2794 Over 9.5 Match Corners\n\u2022 Lumezzane vs Novara \u2794 Over 9.5 Match Corners\n\u2022 Be\u015fikta\u015f vs Marseille \u2794 Over 9.5 Match Corners\n\ud83d\udd04 [RESERVE PICK]: Crystal Palace Fc vs Lech Poznan \u2794 Over 9.5 Match Corners\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
+        "agreed_matches": [
+            "\u2022 **Real Betis vs Getafe** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Levski Sofia vs Red Bull Salzburg** \u2794 X\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Be\u015fikta\u015f vs Marseille** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Celtic vs Ferencvarosi Tc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: X\n  \u21b3 \u26a0\ufe0f SoccerVista backed: 2\n",
+            "\u2022 **Crystal Palace Fc vs Lech Poznan** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
+            "\u2022 **Lillestrom vs Torreense** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + PredictZ + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f Vitibet backed: X\n",
+            "\u2022 **Orlando Pirates Fc vs Durban City Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Fc Levadia Tallinn vs Tammeka** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Enppi vs Pyramids Fc** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Union Brescia vs Treviso** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Bastia vs Cannes** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n",
+            "\u2022 **Tekstilshchik vs Rotor Volgograd** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Torpedo Moscow vs Veles** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ`\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: X\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Enugu Rangers vs Nasarawa United Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Navbahor vs Dinamo Samarqand** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Manchester City vs Norwich** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + PredictZ + SoccerVista`\n  \u21b3 \u26aa Vitibet: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Orlando Pirates Fc vs Durban City Fc \u2794 1X\n\u2022 Manchester City vs Norwich \u2794 1\n\u2022 Fc Levadia Tallinn vs Tammeka \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Real Betis vs Getafe \u2794 Over 8.5 Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Celtic vs Ferencvarosi Tc \u2794 Over 8.5 Corners\n\u2022 Malaga vs Villarreal \u2794 Over 8.5 Corners\n\u2022 Crystal Palace Fc vs Lech Poznan \u2794 1X\n\ud83d\udd04 [RESERVE PICK]: Afc Wimbledon vs Milton Keynes Dons \u2794 Over 9.5 Corners\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Be\u015fikta\u015f vs Marseille \u2794 1X\n\u2022 Levski Sofia vs Red Bull Salzburg \u2794 X2\n\u2022 Lillestrom vs Torreense \u2794 Over 9.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Enppi vs Pyramids Fc \u2794 2 (Draw No Bet)\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
         "req_threshold": 3,
-        "tickets": []
+        "tickets": [
+            {
+                "match": "Real Betis vs Getafe",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Levski Sofia vs Red Bull Salzburg",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Be\u015fikta\u015f vs Marseille",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Celtic vs Ferencvarosi Tc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Crystal Palace Fc vs Lech Poznan",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Lillestrom vs Torreense",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Orlando Pirates Fc vs Durban City Fc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Fc Levadia Tallinn vs Tammeka",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Enppi vs Pyramids Fc",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Union Brescia vs Treviso",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Bastia vs Cannes",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Tekstilshchik vs Rotor Volgograd",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Torpedo Moscow vs Veles",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Enugu Rangers vs Nasarawa United Fc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Navbahor vs Dinamo Samarqand",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Manchester City vs Norwich",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
