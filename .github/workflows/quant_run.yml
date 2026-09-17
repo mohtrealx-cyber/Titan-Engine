@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '0 2 * * *' # 2:00 AM UTC = 5:00 AM EAT
   workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force Run (Bypass 5:00 AM EAT lock & Rescrape)'
+        required: false
+        type: boolean
+        default: false
 
 # Prevents GitHub from trying to write the JSON file twice if you trigger it manually while it runs
 concurrency: 
@@ -41,6 +47,7 @@ jobs:
           QUANT_TELEGRAM_CHAT_ID: ${{ secrets.QUANT_TELEGRAM_CHAT_ID }}
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FORCE_RUN: ${{ inputs.force_run }}
         run: python quant_engine.py
 
       - name: Commit Memory File Back to GitHub
