@@ -6960,5 +6960,12 @@
                 "score": "-"
             }
         ]
+    },
+    "2026-09-17": {
+        "locked": true,
+        "agreed_matches": [],
+        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Afc Wimbledon vs Milton Keynes Dons \u2794 Over 8.5 Match Corners\n\u2022 Celtic vs Ferencvarosi Tc \u2794 Over 8.5 Match Corners\n\u2022 Real Sociedad vs Bournemouth \u2794 Over 8.5 Match Corners\n\ud83d\udd04 [RESERVE PICK]: Lillestrom vs Torreense \u2794 Over 8.5 Match Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Fc Levadia Tallinn vs Tammeka \u2794 Over 8.5 Match Corners\n\u2022 Real Betis vs Getafe \u2794 Over 8.5 Match Corners\n\ud83d\udd04 [RESERVE PICK]: Malaga vs Villarreal \u2794 Over 8.5 Match Corners\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Albinoleffe vs Arzignano Valchiampo \u2794 Over 9.5 Match Corners\n\u2022 Lumezzane vs Novara \u2794 Over 9.5 Match Corners\n\u2022 Be\u015fikta\u015f vs Marseille \u2794 Over 9.5 Match Corners\n\ud83d\udd04 [RESERVE PICK]: Crystal Palace Fc vs Lech Poznan \u2794 Over 9.5 Match Corners\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
+        "req_threshold": 3,
+        "tickets": []
     }
 }
