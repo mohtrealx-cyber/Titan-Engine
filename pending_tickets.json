@@ -7889,5 +7889,112 @@
                 "score": "-"
             }
         ]
+    },
+    "2026-09-24": {
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Andorra vs Malta** \u2794 X\n  \u21b3 \u2705 Backed by: `SoccerVista + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f Vitibet backed: 1\n",
+            "\u2022 **Netherlands vs Germany** \u2794 X\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: 1\n",
+            "\u2022 **Portugal vs Wales** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista + WinDrawWin + PredictZ`\n",
+            "\u2022 **Norway vs Denmark** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista + WinDrawWin + PredictZ`\n",
+            "\u2022 **Austria vs Israel** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + WinDrawWin + PredictZ`\n  \u21b3 \u26a0\ufe0f SoccerVista backed: 2\n",
+            "\u2022 **Liechtenstein vs Lithuania** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n",
+            "\u2022 **Dr Congo vs Equatorial Guinea** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
+            "\u2022 **Libya vs Botswana** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
+            "\u2022 **Mauritania vs Central African Republic** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n",
+            "\u2022 **Cameroon vs Comoros** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n",
+            "\u2022 **Ivory Coast vs Ghana** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n",
+            "\u2022 **Sierra Leone vs Zimbabwe** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
+            "\u2022 **Tunisia vs Uganda** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + WinDrawWin + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: 2\n",
+            "\u2022 **Rivers United Fc vs Kun Khalifat Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + SoccerVista + WinDrawWin + PredictZ`\n"
+        ],
+        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Portugal vs Wales \u2794 1 (Home Win)\n\u2022 Norway vs Denmark \u2794 1 (Home Win)\n\u2022 Liechtenstein vs Lithuania \u2794 2 (Away Win)\n\ud83d\udd04 [RESERVE PICK]: Mauritania vs Central African Republic \u2794 1 (Home Win)\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Cameroon vs Comoros \u2794 1 (Home Win)\n\u2022 Ivory Coast vs Ghana \u2794 1 (Home Win)\n\ud83d\udd04 [RESERVE PICK]: Libya vs Botswana \u2794 1 (Home Win)\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Austria vs Israel \u2794 1 (Home Win)\n\u2022 Tunisia vs Uganda \u2794 1 (Home Win)\n\u2022 Rivers United Fc vs Kun Khalifat Fc \u2794 1 (Home Win)\n\ud83d\udd04 [RESERVE PICK]: Dr Congo vs Equatorial Guinea \u2794 1 (Home Win)\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
+        "req_threshold": 3,
+        "tickets": [
+            {
+                "match": "Andorra vs Malta",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Netherlands vs Germany",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Portugal vs Wales",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Norway vs Denmark",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Austria vs Israel",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Liechtenstein vs Lithuania",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Dr Congo vs Equatorial Guinea",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Libya vs Botswana",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Mauritania vs Central African Republic",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Cameroon vs Comoros",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Ivory Coast vs Ghana",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Sierra Leone vs Zimbabwe",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Tunisia vs Uganda",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Rivers United Fc vs Kun Khalifat Fc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
