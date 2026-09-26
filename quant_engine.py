@@ -46,8 +46,8 @@ def get_dynamic_configs():
             "use_scraperapi": False
         },
         "PredictZ": {
-            "url": "https://www.predictz.com/predictions/today/",
-            "fallback_url": "https://www.predictz.com/predictions/",
+            "url": "https://www.predictz.com/predictions/",
+            "fallback_url": "https://www.predictz.com/",
             "row_selector": "div", "row_class": "pttr",
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
@@ -256,13 +256,11 @@ class ConsensusEngine:
                         rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)", re.I))
                         
                         if not rows:
-                            # They might have switched to tables
                             rows = soup.find_all("tr")
                             
                         if not rows:
-                            # Final fallback: any div containing "row" that also contains at least 2 links
                             raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
-                            rows = [r for r in raw_rows if len(r.find_all('a')) >= 2 and len(r.text) < 800] # Prevent grabbing whole page
+                            rows = [r for r in raw_rows if len(r.find_all('a')) >= 2 and len(r.text) < 800]
 
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
@@ -291,7 +289,6 @@ class ConsensusEngine:
                             home, away, pick = None, None, None
 
                             if site_name in ["PredictZ", "WinDrawWin"]:
-                                # Extractor 1: Try CSS Classes
                                 h_elem = row.find(class_=re.compile(r'(tmobh|h$|home|team1)', re.I))
                                 a_elem = row.find(class_=re.compile(r'(tmoba|a$|away|team2)', re.I))
                                 p_elem = row.find(class_=re.compile(r'(oddsdesc|mobpred|prd|pred|pick|tip)', re.I))
@@ -301,19 +298,15 @@ class ConsensusEngine:
                                     away = a_elem.text
                                     pick = p_elem.text
                                 else:
-                                    # Extractor 2: HEURISTIC LINK & TEXT SCANNER
                                     links = row.find_all("a")
                                     if len(links) >= 2:
-                                        # Assuming first two links in the row are the teams
                                         home = links[0].text.strip()
                                         away = links[1].text.strip()
                                         
-                                        # Check if pick is cleanly in a div
                                         p_div = row.find(class_=re.compile(r'(prd|pred|odds)', re.I))
                                         if p_div and self.normalize_prediction(p_div.text):
                                             pick = p_div.text
                                         else:
-                                            # Ultimate Fallback: Just hunt the raw text for "Home", "Away", "Draw", "1", "X", "2"
                                             valid_picks = ["HOME", "DRAW", "AWAY", "1", "X", "2", "HOME WIN", "AWAY WIN"]
                                             for text_chunk in row.stripped_strings:
                                                 if text_chunk.strip().upper() in valid_picks:
