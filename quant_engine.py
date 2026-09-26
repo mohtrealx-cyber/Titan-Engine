@@ -197,11 +197,10 @@ class ConsensusEngine:
                 if attempt == 1 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
                     if site_name in ["PredictZ", "WinDrawWin"]: 
-                        # MAXIMUM ARMOR: ultra_premium residential IPs + JS Render
-                        proxy_url += "&ultra_premium=true&render=true" 
+                        # Downgraded from Ultra Premium to avoid 403, added UK routing
+                        proxy_url += "&premium=true&render=true&country_code=uk" 
                     elif site_name == "SoccerVista":
                         proxy_url += "&premium=true&render=true"
-                    # Timeout expanded to 75s so ScraperAPI has time to run its internal 70s retry loop
                     r = requests.get(proxy_url, timeout=75) 
                 
                 elif attempt == 2:
@@ -211,7 +210,7 @@ class ConsensusEngine:
                     if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                         proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
                         if site_name in ["PredictZ", "WinDrawWin"]: 
-                            proxy_url += "&ultra_premium=true&render=true&country_code=us"
+                            proxy_url += "&premium=true&render=true&country_code=us"
                         elif site_name == "SoccerVista":
                             proxy_url += "&premium=true&render=true&country_code=us"
                         else:
