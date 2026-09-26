@@ -91,14 +91,14 @@ class ConsensusEngine:
                 limit = data.get("requestLimit", 1)
                 used = data.get("requestCount", 0)
                 remaining = limit - used
-                self.diagnostics["ScraperAPI_Credits"] = f"🟢 OK ({remaining:,} remaining)"
+                self.diagnostics["ScraperAPICredits"] = f"🟢 OK ({remaining:,} remaining)"
                 
                 if remaining < 1000:
                     self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
             else:
-                self.diagnostics["ScraperAPI_Credits"] = "🔴 FAILED (Check API Dashboard)"
+                self.diagnostics["ScraperAPICredits"] = "🔴 FAILED (Check API Dashboard)"
         except Exception:
-            self.diagnostics["ScraperAPI_Credits"] = "🔴 OFFLINE"
+            self.diagnostics["ScraperAPICredits"] = "🔴 OFFLINE"
 
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
@@ -251,11 +251,19 @@ class ConsensusEngine:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
-                        # Ultimate CSS-Agnostic Parser: Seaches DOM structure, not exact Cloudflare class names
-                        rows = soup.find_all("div", class_=re.compile(r'(tr|row|match|fixture|event|pt|wt)', re.I))
+                        # HEURISTIC UPGRADE: Look for specific classes, then tables, then divs with links
+                        prefix = "pt" if site_name == "PredictZ" else "wt"
+                        rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)", re.I))
+                        
                         if not rows:
-                            h_elements = soup.find_all("div", class_=re.compile(r'(team|tmob|name|home|away|club|h$|a$)', re.I))
-                            rows = [h.parent for h in h_elements if h.parent]
+                            # They might have switched to tables
+                            rows = soup.find_all("tr")
+                            
+                        if not rows:
+                            # Final fallback: any div containing "row" that also contains at least 2 links
+                            raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
+                            rows = [r for r in raw_rows if len(r.find_all('a')) >= 2 and len(r.text) < 800] # Prevent grabbing whole page
+
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
                         if not rows:
@@ -283,7 +291,7 @@ class ConsensusEngine:
                             home, away, pick = None, None, None
 
                             if site_name in ["PredictZ", "WinDrawWin"]:
-                                # CSS-Agnostic Extraction
+                                # Extractor 1: Try CSS Classes
                                 h_elem = row.find(class_=re.compile(r'(tmobh|h$|home|team1)', re.I))
                                 a_elem = row.find(class_=re.compile(r'(tmoba|a$|away|team2)', re.I))
                                 p_elem = row.find(class_=re.compile(r'(oddsdesc|mobpred|prd|pred|pick|tip)', re.I))
@@ -293,18 +301,24 @@ class ConsensusEngine:
                                     away = a_elem.text
                                     pick = p_elem.text
                                 else:
+                                    # Extractor 2: HEURISTIC LINK & TEXT SCANNER
                                     links = row.find_all("a")
                                     if len(links) >= 2:
-                                        home = links[0].text
-                                        away = links[1].text
+                                        # Assuming first two links in the row are the teams
+                                        home = links[0].text.strip()
+                                        away = links[1].text.strip()
+                                        
+                                        # Check if pick is cleanly in a div
                                         p_div = row.find(class_=re.compile(r'(prd|pred|odds)', re.I))
-                                        if p_div: pick = p_div.text
-                                    else:
-                                        for td in row.find_all("div", class_=re.compile(r'(td|prd|pred|odds)', re.I)):
-                                            norm = self.normalize_prediction(td.text)
-                                            if norm:
-                                                pick = norm
-                                                break
+                                        if p_div and self.normalize_prediction(p_div.text):
+                                            pick = p_div.text
+                                        else:
+                                            # Ultimate Fallback: Just hunt the raw text for "Home", "Away", "Draw", "1", "X", "2"
+                                            valid_picks = ["HOME", "DRAW", "AWAY", "1", "X", "2", "HOME WIN", "AWAY WIN"]
+                                            for text_chunk in row.stripped_strings:
+                                                if text_chunk.strip().upper() in valid_picks:
+                                                    pick = text_chunk.strip()
+                                                    break
                                                 
                             elif site_name == "SoccerVista":
                                 tds = row.find_all("td")
@@ -473,7 +487,7 @@ class ConsensusEngine:
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
         if not api_key:
-            self.diagnostics["AI_Status"] = "🔴 Missing GEMINI_API_KEY"
+            self.diagnostics["AIStatus"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
         models_to_try = self.get_available_gemini_models(api_key)
@@ -544,8 +558,8 @@ class ConsensusEngine:
                     response = requests.post(url, json=payload, timeout=40)
                     if response.status_code == 200:
                         data = response.json()
-                        self.diagnostics["AI_Handshake"] = f"🟢 Connected ({model_name})"
-                        self.diagnostics["AI_Status"] = "🟢 Optimization Complete"
+                        self.diagnostics["AIHandshake"] = f"🟢 Connected ({model_name})"
+                        self.diagnostics["AIStatus"] = "🟢 Optimization Complete"
                         return data['candidates'][0]['content']['parts'][0]['text']
                     
                     try:
@@ -564,7 +578,7 @@ class ConsensusEngine:
                     time.sleep(2 * attempt)
                     continue
 
-        self.diagnostics["AI_Status"] = f"🔴 {last_error}"
+        self.diagnostics["AIStatus"] = f"🔴 {last_error}"
         return None
 
     def load_memory(self):
@@ -698,7 +712,7 @@ class ConsensusEngine:
             agreed_matches = daily_data.get("agreed_matches", [])
             ai_optimized_message = daily_data.get("ai_optimized_message")
             req_threshold = daily_data.get("req_threshold", 3)
-            self.diagnostics["Daily_Lock"] = f"🟢 CACHED (Tokens Saved for {today_date})"
+            self.diagnostics["DailyLock"] = f"🟢 CACHED (Tokens Saved for {today_date})"
         else:
             print(f"🔓 Scraping and generating fresh tickets for {today_date}...")
             self.check_scraperapi_balance()
@@ -736,9 +750,9 @@ class ConsensusEngine:
             self.save_memory(memory)
             
             if should_lock:
-                self.diagnostics["Daily_Lock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
+                self.diagnostics["DailyLock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else:
-                self.diagnostics["Daily_Lock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT) / AI RETRY PENDING"
+                self.diagnostics["DailyLock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT) / AI RETRY PENDING"
 
         settled_reports = self.settle_pending_tickets(memory)
 
