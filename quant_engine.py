@@ -196,21 +196,27 @@ class ConsensusEngine:
 
                 if attempt == 1 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    # UPGRADED ARMOR: Force Premium Residential & JS Render for all 3 tough targets
-                    if site_name in ["PredictZ", "WinDrawWin", "SoccerVista"]: 
-                        proxy_url += "&premium=true&render=true" 
-                    r = requests.get(proxy_url, timeout=60)
+                    if site_name in ["PredictZ", "WinDrawWin"]: 
+                        # MAXIMUM ARMOR: ultra_premium residential IPs + JS Render
+                        proxy_url += "&ultra_premium=true&render=true" 
+                    elif site_name == "SoccerVista":
+                        proxy_url += "&premium=true&render=true"
+                    # Timeout expanded to 75s so ScraperAPI has time to run its internal 70s retry loop
+                    r = requests.get(proxy_url, timeout=75) 
                 
                 elif attempt == 2:
                     r = tls_requests.get(active_url, impersonate="chrome124", headers=strict_headers, timeout=30)
                 
                 else:
                     if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                        proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}&premium=true&country_code=us"
-                        # CRITICAL FIX: Ensure attempt 3 also has render enabled for these sites
-                        if site_name in ["PredictZ", "WinDrawWin", "SoccerVista"]: 
-                            proxy_url += "&render=true"
-                        r = requests.get(proxy_url, timeout=60)
+                        proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
+                        if site_name in ["PredictZ", "WinDrawWin"]: 
+                            proxy_url += "&ultra_premium=true&render=true&country_code=us"
+                        elif site_name == "SoccerVista":
+                            proxy_url += "&premium=true&render=true&country_code=us"
+                        else:
+                            proxy_url += "&premium=true&country_code=us"
+                        r = requests.get(proxy_url, timeout=75)
                     else:
                         r = tls_requests.get(active_url, impersonate="safari17_0", headers=strict_headers, timeout=30)
 
