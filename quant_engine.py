@@ -161,19 +161,19 @@ class ConsensusEngine:
                                         self.corner_stats[away_team] = highest_avg
                                         valid_corners += 1
                                         
-                    self.diagnostics["Corners_Engine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
+                    self.diagnostics["CornersEngine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
                     return
                 elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     time.sleep(2 * attempt)
                     continue
                 else:
-                    self.diagnostics["Corners_Engine"] = f"🔴 FAILED (HTTP {r.status_code})"
+                    self.diagnostics["CornersEngine"] = f"🔴 FAILED (HTTP {r.status_code})"
                     return
             except Exception:
                 time.sleep(2 * attempt)
                 continue
 
-        self.diagnostics["Corners_Engine"] = "🔴 TIMEOUT/ERROR"
+        self.diagnostics["CornersEngine"] = "🔴 TIMEOUT/ERROR"
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 3
@@ -196,9 +196,8 @@ class ConsensusEngine:
 
                 if attempt == 1 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    if site_name == "SoccerVista": 
-                        proxy_url += "&render=true"
-                    if site_name == "PredictZ": 
+                    # UPGRADED ARMOR: Force Premium Residential & JS Render for all 3 tough targets
+                    if site_name in ["PredictZ", "WinDrawWin", "SoccerVista"]: 
                         proxy_url += "&premium=true&render=true" 
                     r = requests.get(proxy_url, timeout=60)
                 
@@ -208,6 +207,9 @@ class ConsensusEngine:
                 else:
                     if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                         proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}&premium=true&country_code=us"
+                        # CRITICAL FIX: Ensure attempt 3 also has render enabled for these sites
+                        if site_name in ["PredictZ", "WinDrawWin", "SoccerVista"]: 
+                            proxy_url += "&render=true"
                         r = requests.get(proxy_url, timeout=60)
                     else:
                         r = tls_requests.get(active_url, impersonate="safari17_0", headers=strict_headers, timeout=30)
@@ -720,7 +722,6 @@ class ConsensusEngine:
         settled_reports = self.settle_pending_tickets(memory)
 
         # Only send the Telegram alert if we actually scraped fresh data OR if we settled a ticket.
-        # This prevents spamming your phone with exact duplicate tickets in the afternoon.
         if not is_already_locked or settled_reports:
             msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
             if not agreed_matches:
