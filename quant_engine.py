@@ -81,6 +81,25 @@ class ConsensusEngine:
         self.corner_stats = {} 
         self.diagnostics = {}
 
+    def check_scraperapi_balance(self):
+        if not SCRAPER_API_KEY: 
+            return
+        try:
+            r = requests.get(f"http://api.scraperapi.com/account?api_key={SCRAPER_API_KEY}", timeout=15)
+            if r.status_code == 200:
+                data = r.json()
+                limit = data.get("requestLimit", 1)
+                used = data.get("requestCount", 0)
+                remaining = limit - used
+                self.diagnostics["ScraperAPI_Credits"] = f"🟢 OK ({remaining:,} remaining)"
+                
+                if remaining < 1000:
+                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
+            else:
+                self.diagnostics["ScraperAPI_Credits"] = "🔴 FAILED (Check API Dashboard)"
+        except Exception:
+            self.diagnostics["ScraperAPI_Credits"] = "🔴 OFFLINE"
+
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
         if text in ["home", "home win"]: return "1"
@@ -232,11 +251,10 @@ class ConsensusEngine:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
-                        prefix = "pt" if site_name == "PredictZ" else "wt"
-                        # Upgrade: Search for both mobile AND desktop row classes
-                        rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)"))
+                        # Ultimate CSS-Agnostic Parser: Seaches DOM structure, not exact Cloudflare class names
+                        rows = soup.find_all("div", class_=re.compile(r'(tr|row|match|fixture|event|pt|wt)', re.I))
                         if not rows:
-                            h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh|{prefix}team|{prefix}tm|{prefix}h"))
+                            h_elements = soup.find_all("div", class_=re.compile(r'(team|tmob|name|home|away|club|h$|a$)', re.I))
                             rows = [h.parent for h in h_elements if h.parent]
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
@@ -265,12 +283,10 @@ class ConsensusEngine:
                             home, away, pick = None, None, None
 
                             if site_name in ["PredictZ", "WinDrawWin"]:
-                                prefix = "pt" if site_name == "PredictZ" else "wt"
-                                
-                                # Upgrade: Extract home/away from both desktop and mobile tags
-                                h_elem = row.find(class_=re.compile(f"{prefix}tmobh|{prefix}h"))
-                                a_elem = row.find(class_=re.compile(f"{prefix}tmoba|{prefix}a"))
-                                p_elem = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred|{prefix}prd|{prefix}pred"))
+                                # CSS-Agnostic Extraction
+                                h_elem = row.find(class_=re.compile(r'(tmobh|h$|home|team1)', re.I))
+                                a_elem = row.find(class_=re.compile(r'(tmoba|a$|away|team2)', re.I))
+                                p_elem = row.find(class_=re.compile(r'(oddsdesc|mobpred|prd|pred|pick|tip)', re.I))
 
                                 if h_elem and a_elem and p_elem:
                                     home = h_elem.text
@@ -281,10 +297,10 @@ class ConsensusEngine:
                                     if len(links) >= 2:
                                         home = links[0].text
                                         away = links[1].text
-                                        p_div = row.find(class_=re.compile(f"{prefix}prd|{prefix}pred"))
+                                        p_div = row.find(class_=re.compile(r'(prd|pred|odds)', re.I))
                                         if p_div: pick = p_div.text
                                     else:
-                                        for td in row.find_all("div", class_=re.compile(f"{prefix}td|{prefix}prd")):
+                                        for td in row.find_all("div", class_=re.compile(r'(td|prd|pred|odds)', re.I)):
                                             norm = self.normalize_prediction(td.text)
                                             if norm:
                                                 pick = norm
@@ -445,7 +461,7 @@ class ConsensusEngine:
                 
                 preferred = [m for m in available if "flash" in m.lower() and not any(x in m.lower() for x in ["preview", "thinking", "lite"])]
                 fallback_flash = [m for m in available if "flash" in m.lower() and m not in preferred]
-                others = [m for m in available if m not in fallback_flash and m not in preferred]
+                others = [m for m in available if m not in preferred and m not in fallback_flash]
                 
                 ordered = preferred + fallback_flash + others
                 if ordered:
@@ -671,7 +687,6 @@ class ConsensusEngine:
         memory = self.load_memory()
         today_payload = memory.get(today_date)
 
-        # STRICT LOCK LOGIC - SAVES API TOKENS
         is_already_locked = False
         if isinstance(today_payload, dict) and not FORCE_RUN:
             if today_payload.get("locked"):
@@ -686,6 +701,7 @@ class ConsensusEngine:
             self.diagnostics["Daily_Lock"] = f"🟢 CACHED (Tokens Saved for {today_date})"
         else:
             print(f"🔓 Scraping and generating fresh tickets for {today_date}...")
+            self.check_scraperapi_balance()
             loop = asyncio.get_running_loop()
             with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
                 tasks = [loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()]
@@ -708,7 +724,6 @@ class ConsensusEngine:
             if ai_input_data or active_corner_teams:
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
-            # Strict Lock Enforced here
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             memory[today_date] = {
@@ -727,7 +742,6 @@ class ConsensusEngine:
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        # Only send the Telegram alert if we actually scraped fresh data OR if we settled a ticket.
         if not is_already_locked or settled_reports:
             msg = f"🤝 **RAW CONSENSUS DATA ({req_threshold}+ SITES AGREEMENT)** 🤝\n\n"
             if not agreed_matches:
