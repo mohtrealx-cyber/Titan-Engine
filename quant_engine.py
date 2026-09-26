@@ -197,7 +197,6 @@ class ConsensusEngine:
                 if attempt == 1 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
                     if site_name in ["PredictZ", "WinDrawWin"]: 
-                        # Downgraded from Ultra Premium to avoid 403, added UK routing
                         proxy_url += "&premium=true&render=true&country_code=uk" 
                     elif site_name == "SoccerVista":
                         proxy_url += "&premium=true&render=true"
@@ -234,9 +233,10 @@ class ConsensusEngine:
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
                         prefix = "pt" if site_name == "PredictZ" else "wt"
+                        # Upgrade: Search for both mobile AND desktop row classes
                         rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)"))
                         if not rows:
-                            h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh|{prefix}team|{prefix}tm"))
+                            h_elements = soup.find_all("div", class_=re.compile(f"{prefix}tmobh|{prefix}team|{prefix}tm|{prefix}h"))
                             rows = [h.parent for h in h_elements if h.parent]
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
@@ -267,9 +267,10 @@ class ConsensusEngine:
                             if site_name in ["PredictZ", "WinDrawWin"]:
                                 prefix = "pt" if site_name == "PredictZ" else "wt"
                                 
-                                h_elem = row.find(class_=f"{prefix}tmobh")
-                                a_elem = row.find(class_=f"{prefix}tmoba")
-                                p_elem = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred"))
+                                # Upgrade: Extract home/away from both desktop and mobile tags
+                                h_elem = row.find(class_=re.compile(f"{prefix}tmobh|{prefix}h"))
+                                a_elem = row.find(class_=re.compile(f"{prefix}tmoba|{prefix}a"))
+                                p_elem = row.find(class_=re.compile(f"{prefix}oddsdesc|{prefix}mobpred|{prefix}prd|{prefix}pred"))
 
                                 if h_elem and a_elem and p_elem:
                                     home = h_elem.text
@@ -283,7 +284,7 @@ class ConsensusEngine:
                                         p_div = row.find(class_=re.compile(f"{prefix}prd|{prefix}pred"))
                                         if p_div: pick = p_div.text
                                     else:
-                                        for td in row.find_all("div", class_=f"{prefix}td"):
+                                        for td in row.find_all("div", class_=re.compile(f"{prefix}td|{prefix}prd")):
                                             norm = self.normalize_prediction(td.text)
                                             if norm:
                                                 pick = norm
@@ -444,7 +445,7 @@ class ConsensusEngine:
                 
                 preferred = [m for m in available if "flash" in m.lower() and not any(x in m.lower() for x in ["preview", "thinking", "lite"])]
                 fallback_flash = [m for m in available if "flash" in m.lower() and m not in preferred]
-                others = [m for m in available if m not in preferred and m not in fallback_flash]
+                others = [m for m in available if m not in fallback_flash and m not in preferred]
                 
                 ordered = preferred + fallback_flash + others
                 if ordered:
