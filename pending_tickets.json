@@ -8287,5 +8287,12 @@
                 "score": "-"
             }
         ]
+    },
+    "2026-09-27": {
+        "locked": true,
+        "agreed_matches": [],
+        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 De Graafschap vs Den Bosch \u2794 Over 8.5 Corners\n\u2022 Brommapojkarna W vs Malmo Ff (W) \u2794 Over 8.5 Corners\n\u2022 Arendal vs Brattv\u00e5g \u2794 Over 8.0 Corners\n\ud83d\udd04 [RESERVE PICK]: Cavalier vs Arnett Gardens \u2794 Over 8.0 Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Criciuma vs Avai \u2794 Over 9.0 Corners\n\u2022 Leon vs Fc Juarez \u2794 Over 9.0 Corners\n\ud83d\udd04 [RESERVE PICK]: U.A.N.L. - Tigres (W) vs Atletico San Luis (W) \u2794 Over 8.5 Corners\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 Defensores De Belgrano vs Ferro Carril Oeste \u2794 Over 9.5 Corners\n\u2022 One Knoxville Sc vs Westchester Sc \u2794 Over 9.5 Corners\n\u2022 Eibar vs Las Palmas \u2794 Over 9.0 Corners\n\ud83d\udd04 [RESERVE PICK]: Pescara vs Spezia \u2794 Over 9.0 Corners\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
+        "req_threshold": 3,
+        "tickets": []
     }
 }
