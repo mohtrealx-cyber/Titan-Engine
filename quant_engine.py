@@ -47,7 +47,7 @@ def get_dynamic_configs():
         },
         "PredictZ": {
             "url": "https://www.predictz.com/predictions/",
-            "fallback_url": "https://www.predictz.com/",
+            "fallback_url": "https://www.predictz.com/predictions/",
             "row_selector": "div", "row_class": "pttr",
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
@@ -55,7 +55,7 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "WinDrawWin": {
-            "url": "https://www.windrawwin.com/predictions/today/",
+            "url": "https://www.windrawwin.com/predictions/",
             "fallback_url": "https://www.windrawwin.com/predictions/",
             "row_selector": "div", "row_class": "wtrow",
             "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
@@ -102,9 +102,9 @@ class ConsensusEngine:
 
     def normalize_prediction(self, raw_text):
         text = str(raw_text).strip().lower()
-        if text in ["home", "home win"]: return "1"
-        if text in ["draw", "x", "0"]: return "X"
-        if text in ["away", "away win"]: return "2"
+        if text in ["home", "home win", "h"]: return "1"
+        if text in ["draw", "x", "0", "d"]: return "X"
+        if text in ["away", "away win", "a"]: return "2"
 
         if len(text) > 0:
             char = text[0]
@@ -216,7 +216,7 @@ class ConsensusEngine:
                 if attempt == 1 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
                     if site_name in ["PredictZ", "WinDrawWin"]: 
-                        proxy_url += "&premium=true&render=true&country_code=uk" 
+                        proxy_url += "&premium=true&render=true&country_code=us" 
                     elif site_name == "SoccerVista":
                         proxy_url += "&premium=true&render=true"
                     r = requests.get(proxy_url, timeout=75) 
@@ -227,9 +227,7 @@ class ConsensusEngine:
                 else:
                     if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                         proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                        if site_name in ["PredictZ", "WinDrawWin"]: 
-                            proxy_url += "&premium=true&render=true&country_code=us"
-                        elif site_name == "SoccerVista":
+                        if site_name in ["PredictZ", "WinDrawWin", "SoccerVista"]: 
                             proxy_url += "&premium=true&render=true&country_code=us"
                         else:
                             proxy_url += "&premium=true&country_code=us"
@@ -251,17 +249,13 @@ class ConsensusEngine:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
-                        # HEURISTIC UPGRADE: Look for specific classes, then tables, then divs with links
                         prefix = "pt" if site_name == "PredictZ" else "wt"
                         rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)", re.I))
-                        
                         if not rows:
                             rows = soup.find_all("tr")
-                            
                         if not rows:
                             raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
                             rows = [r for r in raw_rows if len(r.find_all('a')) >= 2 and len(r.text) < 800]
-
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
                         if not rows:
@@ -307,7 +301,24 @@ class ConsensusEngine:
                                         if p_div and self.normalize_prediction(p_div.text):
                                             pick = p_div.text
                                         else:
-                                            valid_picks = ["HOME", "DRAW", "AWAY", "1", "X", "2", "HOME WIN", "AWAY WIN"]
+                                            valid_picks = ["HOME", "DRAW", "AWAY", "1", "X", "2", "HOME WIN", "AWAY WIN", "H", "A", "D"]
+                                            for text_chunk in row.stripped_strings:
+                                                if text_chunk.strip().upper() in valid_picks:
+                                                    pick = text_chunk.strip()
+                                                    break
+                                    else:
+                                        tds = row.find_all(["td", "div"])
+                                        for td in tds:
+                                            txt = td.get_text(" ", strip=True)
+                                            if " v " in txt or " vs " in txt:
+                                                parts = re.split(r'\s+v\s+|\s+vs\s+', txt, maxsplit=1, flags=re.I)
+                                                if len(parts) == 2:
+                                                    home = parts[0].strip()
+                                                    away = parts[1].strip()
+                                                    break
+                                        
+                                        if home and away:
+                                            valid_picks = ["HOME", "DRAW", "AWAY", "1", "X", "2", "HOME WIN", "AWAY WIN", "H", "A", "D"]
                                             for text_chunk in row.stripped_strings:
                                                 if text_chunk.strip().upper() in valid_picks:
                                                     pick = text_chunk.strip()
