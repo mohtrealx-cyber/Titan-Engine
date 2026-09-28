@@ -8573,14 +8573,35 @@
     "2026-09-28": {
         "locked": true,
         "agreed_matches": [
-            "\u2022 **Northern Ireland vs Hungary** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+            "\u2022 **Georgia vs Ukraine** \u2794 X\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Armenia vs Montenegro** \u2794 X\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26a0\ufe0f Statarea backed: 1\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Sweden vs Poland** \u2794 1\n  \u21b3 \u2705 Backed by: `Vitibet + Statarea + PredictZ`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
+            "\u2022 **Ofk Bor 1919 vs Metalac Gm** \u2794 2\n  \u21b3 \u2705 Backed by: `Vitibet + SoccerVista + PredictZ`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n"
         ],
-        "ai_optimized_message": "\ud83d\udd25 Ticket 1: Premium Singles (100% of Daily Stake)\n\u2022 Northern Ireland vs Hungary \u2794 1X (Double Chance)\n\ud83d\udd04 [RESERVE PICK]: Hapoel Kfar Shalem vs Maccabi Kabilio Jaffa \u2794 Over 8.5 Total Corners",
+        "ai_optimized_message": "\ud83d\udee1\ufe0f Ticket 1: Ironclad (40% of Daily Stake)\n\u2022 Georgia vs Ukraine \u2794 Double Chance: 1X\n\u2022 Ofk Bor 1919 vs Metalac Gm \u2794 Double Chance: X2\n\u2022 Hapoel Kfar Shalem vs Maccabi Kabilio Jaffa \u2794 Over 8.5 Corners\n\ud83d\udd04 [RESERVE PICK]: Sportivo San Lorenzo vs Recoleta \u2794 Over 8.5 Corners\n\n\u2696\ufe0f Ticket 2: Balanced (20% of Daily Stake)\n\u2022 Sweden vs Poland \u2794 Double Chance: 1X\n\ud83d\udd04 [RESERVE PICK]: Armenia vs Montenegro \u2794 Double Chance: 1X\n\n\ud83c\udfaf Ticket 3: Volatility (10% of Daily Stake)\n\u2022 No remaining unique matches \u2794 N/A\n\ud83d\udd04 [RESERVE PICK]: No remaining unique matches \u2794 N/A\n\n\ud83e\uddea Ticket 4: Custom Tickets (30% of Daily Stake)",
         "req_threshold": 3,
         "tickets": [
             {
-                "match": "Northern Ireland vs Hungary",
+                "match": "Georgia vs Ukraine",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Armenia vs Montenegro",
+                "prediction": "X",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Sweden vs Poland",
                 "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Ofk Bor 1919 vs Metalac Gm",
+                "prediction": "2",
                 "status": "PENDING",
                 "score": "-"
             }
