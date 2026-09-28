@@ -55,7 +55,7 @@ def get_dynamic_configs():
             "use_scraperapi": True
         },
         "WinDrawWin": {
-            "url": "https://www.windrawwin.com/predictions/",
+            "url": "https://www.windrawwin.com/predictions/today/",
             "fallback_url": "https://www.windrawwin.com/predictions/",
             "row_selector": "div", "row_class": "wtrow",
             "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
@@ -215,8 +215,10 @@ class ConsensusEngine:
 
                 if attempt == 1 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    if site_name in ["PredictZ", "WinDrawWin"]: 
-                        proxy_url += "&premium=true&render=true&country_code=us" 
+                    if site_name == "WinDrawWin": 
+                        proxy_url += "&premium=true&render=true&country_code=uk" 
+                    elif site_name == "PredictZ":
+                        proxy_url += "&premium=true&render=true&country_code=us"
                     elif site_name == "SoccerVista":
                         proxy_url += "&premium=true&render=true"
                     r = requests.get(proxy_url, timeout=75) 
@@ -227,7 +229,9 @@ class ConsensusEngine:
                 else:
                     if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
                         proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                        if site_name in ["PredictZ", "WinDrawWin", "SoccerVista"]: 
+                        if site_name == "WinDrawWin":
+                            proxy_url += "&premium=true&render=true&country_code=uk"
+                        elif site_name in ["PredictZ", "SoccerVista"]: 
                             proxy_url += "&premium=true&render=true&country_code=us"
                         else:
                             proxy_url += "&premium=true&country_code=us"
