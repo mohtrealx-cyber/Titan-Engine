@@ -210,9 +210,9 @@ class ConsensusEngine:
                 if attempt == 1:
                     if use_proxy:
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url}
-                        if site_name == "WinDrawWin":
+                        if site_name in ["WinDrawWin", "PredictZ"]:
                             params.update({"premium": "true", "render": "true", "country_code": "uk"})
-                        elif site_name in ["PredictZ", "SoccerVista"]:
+                        elif site_name == "SoccerVista":
                             params.update({"premium": "true", "render": "true", "country_code": "us"})
                         
                         r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
@@ -221,13 +221,17 @@ class ConsensusEngine:
                 
                 # Attempt 2: Strict curl_cffi fingerprint fallback (NO custom headers, let the engine impersonate perfectly)
                 elif attempt == 2:
-                    impersonate_profile = "safari15_3" if site_name == "WinDrawWin" else "chrome120"
+                    impersonate_profile = "safari15_3" if site_name in ["WinDrawWin", "PredictZ"] else "chrome120"
                     r = tls_requests.get(active_url, impersonate=impersonate_profile, timeout=30)
                 
                 # Attempt 3: Final Hail Mary (Try proxy again or standard request)
                 else:
                     if use_proxy:
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                        if site_name in ["WinDrawWin", "PredictZ"]:
+                            params["country_code"] = "uk"
+                        elif site_name == "SoccerVista":
+                            params["country_code"] = "us"
                         r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
