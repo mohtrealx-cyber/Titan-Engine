@@ -36,7 +36,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": True  
+            "use_scraperapi": False  # FIX: Statarea doesn't need ScraperAPI. Pulling direct prevents timeouts.
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
@@ -193,10 +193,14 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 3
-        # THE FIX: Increased timeout to 45s to let residential proxies resolve
-        req_timeout = 45 
+        req_timeout = 60 # FIX: Boosted to 60s. Residential Proxies need time to resolve!
         last_status = None
         target_url = cfg["url"]
+        
+        googlebot_headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        }
 
         for attempt in range(1, max_attempts + 1):
             try:
@@ -204,35 +208,34 @@ class ConsensusEngine:
                 use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                 r = None
                 
-                if site_name in ["PredictZ", "WinDrawWin"]:
-                    if use_proxy:
-                        # Direct UK Residential Tunnel (NO RENDER=TRUE, NO BROWSER OVERHEAD)
-                        proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
-                        proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                        proxies = {"http": proxy_node, "https": proxy_node}
-                        
-                        r = tls_requests.get(
-                            active_url, 
-                            impersonate="chrome124", 
-                            proxies=proxies, 
-                            timeout=req_timeout
-                        )
-                    else:
-                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
-                        
-                elif site_name == "SoccerVista":
-                    if use_proxy:
+                if use_proxy:
+                    if site_name in ["PredictZ", "WinDrawWin"]:
+                        if attempt == 1:
+                            # Strategy 1: TLS Proxy Tunnel
+                            proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
+                            proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                            proxies = {"http": proxy_node, "https": proxy_node}
+                            r = tls_requests.get(active_url, impersonate="chrome124", proxies=proxies, timeout=req_timeout)
+                        else:
+                            # Strategy 2: REST API with SEO Headers (Seamless Fallback if Strategy 1 times out)
+                            params = {
+                                "api_key": SCRAPER_API_KEY, 
+                                "url": active_url, 
+                                "premium": "true", 
+                                "country_code": "uk",
+                                "keep_headers": "true"
+                            }
+                            r = requests.get("http://api.scraperapi.com/", params=params, headers=googlebot_headers, timeout=req_timeout)
+                            
+                    elif site_name == "SoccerVista":
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
                         r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                     else:
-                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
-                        
-                else:
-                    if use_proxy:
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url}
                         r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-                    else:
-                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                else:
+                    # Direct Non-Proxy Routing
+                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
                 if r is None:
                     continue
@@ -449,7 +452,7 @@ class ConsensusEngine:
                             break
                     
                     if other_pick: 
-                        match_text += f"  ↳ ⚠️️ {left_out} backed: {other_pick}\n"
+                        match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
                         contradictions.append(f"{left_out} ({other_pick})")
                     else: 
                         match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
@@ -562,7 +565,7 @@ class ConsensusEngine:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
             for attempt in range(1, 3):
                 try:
-                    response = requests.post(url, json=payload, timeout=60)
+                    response = requests.post(url, json=payload, timeout=90)
                     if response.status_code == 200:
                         data = response.json()
                         self.diagnostics["AIHandshake"] = f"🟢 Connected ({model_name})"
@@ -606,12 +609,7 @@ class ConsensusEngine:
         results = {}
         url = f"https://www.statarea.com/predictions/date/{target_date}/"
         try:
-            if SCRAPER_API_KEY:
-                proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                r = requests.get(proxy_url, timeout=35)
-            else:
-                r = tls_requests.get(url, impersonate="chrome124", timeout=25)
-                
+            r = tls_requests.get(url, impersonate="chrome124", timeout=20)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 for row in soup.find_all("div", class_="matchrow"):
@@ -711,10 +709,10 @@ class ConsensusEngine:
         for chunk in msg_chunks:
             payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
             try:
-                r = requests.post(url, json=payload, timeout=25)
+                r = requests.post(url, json=payload, timeout=(10, 15))
                 if r.status_code != 200:
                     payload.pop("parse_mode", None)
-                    r2 = requests.post(url, json=payload, timeout=25)
+                    r2 = requests.post(url, json=payload, timeout=(10, 15))
                     if r2.status_code != 200:
                         print(f"Telegram alert error: {r2.text}")
             except Exception as e:
