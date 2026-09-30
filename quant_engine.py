@@ -213,20 +213,19 @@ class ConsensusEngine:
                 use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                 r = None
                 
-                # ATTEMPT 1: The Perfect Split-Routing Strategy
+                # ATTEMPT 1: Target-Specific Bypasses
                 if attempt == 1:
                     if use_proxy:
                         if site_name == "WinDrawWin":
-                            # WinDrawWin: Hates JS renderers, loves TLS spoofing via UK Tunnel
+                            # WinDrawWin loves TLS spoofing via UK Tunnel
                             proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
                             proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
                             r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
                         elif site_name == "PredictZ":
-                            # PredictZ: Hates TLS spoofing, loves JS rendering via UK REST API
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true", "country_code": "uk"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
+                            # PredictZ: Try Premium REST API WITHOUT JS rendering (JS render often hits cookie walls)
+                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
+                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
                         elif site_name == "SoccerVista":
-                            # SoccerVista: Needs JS rendering to load tables
                             params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
                             r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
                         else:
@@ -237,14 +236,13 @@ class ConsensusEngine:
                 
                 # ATTEMPT 2: Alternate fail-safes
                 elif attempt == 2:
-                    if use_proxy:
+                    if site_name == "PredictZ":
+                        # PredictZ: Direct TLS Spoofing (Bypass proxy entirely to test if ScraperAPI IPs are burned)
+                        r = tls_requests.get(active_url, impersonate="chrome124", headers=browser_headers, timeout=30)
+                    elif use_proxy:
                         if site_name == "WinDrawWin":
                             params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "keep_headers": "true", "country_code": "uk"}
                             r = requests.get("http://api.scraperapi.com/", params=params, headers=browser_headers, timeout=50)
-                        elif site_name == "PredictZ":
-                            proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
-                            proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                            r = tls_requests.get(active_url, impersonate="safari15_3", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
                         else:
                             r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
                     else:
@@ -256,7 +254,7 @@ class ConsensusEngine:
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
                         if site_name in ["SoccerVista", "PredictZ", "WinDrawWin"]: 
                             params["render"] = "true"
-                        if site_name in ["PredictZ", "WinDrawWin"]:
+                        if site_name == "WinDrawWin":
                             params["country_code"] = "uk"
                         r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
                     else:
@@ -280,7 +278,13 @@ class ConsensusEngine:
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
                         prefix = "pt" if site_name == "PredictZ" else "wt"
+                        # Enhanced Aggressive Parsing to bypass layout changes
                         rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)", re.I))
+                        if not rows:
+                            # Direct search for the home team element's parent container
+                            child_elems = soup.find_all("div", class_=re.compile(f"({prefix}tmobh)", re.I))
+                            if child_elems:
+                                rows = [c.parent for c in child_elems if c.parent]
                         if not rows:
                             rows = soup.find_all("tr")
                         if not rows:
