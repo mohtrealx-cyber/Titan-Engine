@@ -18,8 +18,8 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# Properly checking environment variables to respect the 5:00 AM lock!
-FORCE_RUN = os.environ.get("FORCE_RUN", "").strip().lower() in ["true", "1", "yes"]
+# KEEPING THIS TRUE FOR THIS SPEED TEST RUN
+FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
 
@@ -87,7 +87,7 @@ class ConsensusEngine:
         if not SCRAPER_API_KEY: 
             return
         try:
-            r = requests.get(f"http://api.scraperapi.com/account?api_key={SCRAPER_API_KEY}", timeout=15)
+            r = requests.get(f"http://api.scraperapi.com/account?api_key={SCRAPER_API_KEY}", timeout=(10, 15))
             if r.status_code == 200:
                 data = r.json()
                 limit = data.get("requestLimit", 1)
@@ -96,7 +96,7 @@ class ConsensusEngine:
                 self.diagnostics["ScraperAPICredits"] = f"🟢 OK ({remaining:,} remaining)"
                 
                 if remaining < 1000:
-                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
+                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
             else:
                 self.diagnostics["ScraperAPICredits"] = "🔴 FAILED (Check API Dashboard)"
         except Exception:
@@ -155,9 +155,9 @@ class ConsensusEngine:
             try:
                 if SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = requests.get(proxy_url, timeout=25)
+                    r = requests.get(proxy_url, timeout=(10, 20))
                 else:
-                    r = tls_requests.get(url, impersonate="chrome124", timeout=20)
+                    r = tls_requests.get(url, impersonate="chrome124", timeout=15)
                 
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -192,17 +192,10 @@ class ConsensusEngine:
         self.diagnostics["CornersEngine"] = "🔴 TIMEOUT/ERROR"
 
     def fetch_and_scrape_sync(self, site_name, cfg):
-        # Strict low-timeout setup to prevent 15-minute hanging
         max_attempts = 3
         req_timeout = 25 
         last_status = None
         target_url = cfg["url"]
-        
-        # SEO Bot Masking for Cloudflare Evasion
-        googlebot_headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-        }
 
         for attempt in range(1, max_attempts + 1):
             try:
@@ -210,35 +203,34 @@ class ConsensusEngine:
                 use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                 r = None
                 
-                # ==========================================
-                # ONCE AND FOR ALL PROXY ROUTING
-                # ==========================================
-                if use_proxy:
-                    if site_name in ["PredictZ", "WinDrawWin"]:
-                        # THE ONCE-AND-FOR-ALL FIX:
-                        # 1. No "render=true" (stops the 15-minute hanging and 500 timeouts)
-                        # 2. Premium UK IPs + keep_headers (bypasses geo-blocks)
-                        # 3. Googlebot headers (walks straight past Cloudflare 403s)
-                        params = {
-                            "api_key": SCRAPER_API_KEY, 
-                            "url": active_url, 
-                            "premium": "true", 
-                            "country_code": "uk",
-                            "keep_headers": "true"
-                        }
-                        r = requests.get("http://api.scraperapi.com/", params=params, headers=googlebot_headers, timeout=req_timeout)
-                    
-                    elif site_name == "SoccerVista":
-                        # SoccerVista genuinely needs JS rendering to build tables
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=45)
+                if site_name in ["PredictZ", "WinDrawWin"]:
+                    if use_proxy:
+                        proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
+                        proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                        proxies = {"http": proxy_node, "https": proxy_node}
+                        
+                        r = tls_requests.get(
+                            active_url, 
+                            impersonate="chrome124", 
+                            proxies=proxies, 
+                            timeout=req_timeout
+                        )
                     else:
-                        # Standard routing for Statarea
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                        
+                elif site_name == "SoccerVista":
+                    if use_proxy:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=(10, 30))
+                    else:
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                        
                 else:
-                    # Non-proxy routing (Vitibet)
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                    if use_proxy:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=(10, 20))
+                    else:
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
                 if r is None:
                     continue
@@ -246,8 +238,8 @@ class ConsensusEngine:
                 last_status = r.status_code
 
                 if r.status_code == 200:
-                    # Prevent fake 200 OK Cloudflare trap pages
                     challenge_phrases = ["just a moment", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "security check", "verify you are human", "enable javascript", "cloudflare"]
+                    
                     if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 150000:
                         if attempt < max_attempts:
                             time.sleep(1)
@@ -259,7 +251,6 @@ class ConsensusEngine:
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
                         prefix = "pt" if site_name == "PredictZ" else "wt"
-                        # Dynamic HTML hunter to counter PredictZ layout shifts
                         rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row|pr-match)", re.I))
                         if not rows:
                             child_elems = soup.find_all("div", class_=re.compile(f"({prefix}tmobh|{prefix}tmoba|team1|team2)", re.I))
@@ -270,7 +261,6 @@ class ConsensusEngine:
                         if not rows:
                             raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
                             rows = [row_elem for row_elem in raw_rows if len(row_elem.find_all('a')) >= 2 and len(row_elem.text) < 800]
-                    
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
                         if not rows:
@@ -478,7 +468,7 @@ class ConsensusEngine:
     def get_available_gemini_models(self, api_key):
         list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
         try:
-            res = requests.get(list_url, timeout=15)
+            res = requests.get(list_url, timeout=(10, 15))
             if res.status_code == 200:
                 data = res.json()
                 available = [
@@ -487,7 +477,6 @@ class ConsensusEngine:
                     if "generateContent" in m.get("supportedGenerationMethods", [])
                 ]
                 
-                # Banning deep-research, tts, audio, and experimental models that crash the output
                 usable_flash = [
                     m for m in available 
                     if "flash" in m.lower() 
@@ -523,7 +512,7 @@ class ConsensusEngine:
         2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor.
         3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
             🛡️ Ticket 1: Ironclad (40% of Daily Stake)
-            ⚖️️ Ticket 2: Balanced (20% of Daily Stake)
+            ⚖ Ticket 2: Balanced (20% of Daily Stake)
             🎯 Ticket 3: Volatility (10% of Daily Stake)
             🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         4. TICKET BUILDING LOGIC:
@@ -570,7 +559,7 @@ class ConsensusEngine:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
             for attempt in range(1, 3):
                 try:
-                    response = requests.post(url, json=payload, timeout=60)
+                    response = requests.post(url, json=payload, timeout=(10, 60))
                     if response.status_code == 200:
                         data = response.json()
                         self.diagnostics["AIHandshake"] = f"🟢 Connected ({model_name})"
@@ -614,7 +603,12 @@ class ConsensusEngine:
         results = {}
         url = f"https://www.statarea.com/predictions/date/{target_date}/"
         try:
-            r = tls_requests.get(url, impersonate="chrome124", timeout=20)
+            if SCRAPER_API_KEY:
+                proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
+                r = requests.get(proxy_url, timeout=(10, 15))
+            else:
+                r = tls_requests.get(url, impersonate="chrome124", timeout=15)
+                
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 for row in soup.find_all("div", class_="matchrow"):
@@ -636,15 +630,31 @@ class ConsensusEngine:
     def settle_pending_tickets(self, memory):
         settled_reports = []
         needs_save = False
-
         dates_to_check = set()
+        
+        eat_tz = datetime.timezone(datetime.timedelta(hours=3))
+        today_date_obj = datetime.datetime.now(datetime.timezone.utc).astimezone(eat_tz).date()
+
         for date_str, payload in memory.items():
+            try:
+                ticket_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+                days_old = (today_date_obj - ticket_date).days
+            except Exception:
+                days_old = 0
+
             tickets = payload if isinstance(payload, list) else payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
-                    dates_to_check.add(date_str)
+                    # THE SPEED FIX: Stop the engine from checking tickets older than 4 days
+                    if days_old > 4:
+                        t["status"] = "EXPIRED ⚪"
+                        needs_save = True
+                    else:
+                        dates_to_check.add(date_str)
 
-        if not dates_to_check: return []
+        if not dates_to_check:
+            if needs_save: self.save_memory(memory)
+            return []
 
         results_matrix = {}
         for d in dates_to_check:
@@ -698,10 +708,10 @@ class ConsensusEngine:
         for chunk in msg_chunks:
             payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
             try:
-                r = requests.post(url, json=payload, timeout=15)
+                r = requests.post(url, json=payload, timeout=(10, 15))
                 if r.status_code != 200:
                     payload.pop("parse_mode", None)
-                    r2 = requests.post(url, json=payload, timeout=15)
+                    r2 = requests.post(url, json=payload, timeout=(10, 15))
                     if r2.status_code != 200:
                         print(f"Telegram alert error: {r2.text}")
             except Exception as e:
@@ -733,7 +743,7 @@ class ConsensusEngine:
             self.check_scraperapi_balance()
             loop = asyncio.get_running_loop()
             
-            # THE CONCURRENCY FIX: Max 3 workers instead of 6 to prevent proxy choking!
+            # THE CONCURRENCY FIX: Max 3 workers to stop ScraperAPI from hanging
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
                 tasks = [loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()]
                 tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
