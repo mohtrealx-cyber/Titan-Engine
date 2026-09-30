@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE FOR ONE LAST RUN TO BREAK THE CACHE
+# KEEPING THIS TRUE TO BREAK THE CACHE AND TEST THE SPEED FIX
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -94,9 +94,6 @@ class ConsensusEngine:
                 used = data.get("requestCount", 0)
                 remaining = limit - used
                 self.diagnostics["ScraperAPICredits"] = f"🟢 OK ({remaining:,} remaining)"
-                
-                if remaining < 1000:
-                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
             else:
                 self.diagnostics["ScraperAPICredits"] = "🔴 FAILED (Check API Dashboard)"
         except Exception:
@@ -151,11 +148,11 @@ class ConsensusEngine:
 
     def fetch_corners_sync(self):
         url = "https://www.totalcorner.com/match/today"
-        for attempt in range(1, 4):
+        for attempt in range(1, 3):
             try:
                 if SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = requests.get(proxy_url, timeout=40)
+                    r = requests.get(proxy_url, timeout=25)
                 else:
                     r = tls_requests.get(url, impersonate="chrome124", timeout=20)
                 
@@ -184,34 +181,19 @@ class ConsensusEngine:
                                         
                     self.diagnostics["CornersEngine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
                     return
-                elif r.status_code in [403, 500, 502, 503, 504, 429]:
-                    time.sleep(2 * attempt)
-                    continue
                 else:
-                    self.diagnostics["CornersEngine"] = f"🔴 FAILED (HTTP {r.status_code})"
-                    return
+                    time.sleep(1)
             except Exception:
-                time.sleep(2 * attempt)
-                continue
-
+                time.sleep(1)
+                
         self.diagnostics["CornersEngine"] = "🔴 TIMEOUT/ERROR"
 
     def fetch_and_scrape_sync(self, site_name, cfg):
+        # Strict low-timeout setup to prevent the 15-minute hanging issue
         max_attempts = 3
+        req_timeout = 25 
         last_status = None
         target_url = cfg["url"]
-
-        browser_headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-        }
-
-        # The SEO God-Mode Bypass (Mimics Google's Crawler)
-        googlebot_headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-        }
 
         for attempt in range(1, max_attempts + 1):
             try:
@@ -219,58 +201,41 @@ class ConsensusEngine:
                 use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                 r = None
                 
-                # ATTEMPT 1: Target-Specific Bypasses
-                if attempt == 1:
+                # ==========================================
+                # ONCE AND FOR ALL PROXY ROUTING
+                # ==========================================
+                if site_name in ["PredictZ", "WinDrawWin"]:
                     if use_proxy:
-                        if site_name == "PredictZ":
-                            # PREDICTZ STRATEGY 1: Googlebot SEO Bypass through EU proxy
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "keep_headers": "true", "country_code": "eu"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, headers=googlebot_headers, timeout=60)
-                        elif site_name == "WinDrawWin":
-                            proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
-                            proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                            r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
-                        elif site_name == "SoccerVista":
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
-                        else:
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=45)
+                        # Direct UK Residential Tunnel (NO RENDER=TRUE, NO BROWSER OVERHEAD)
+                        # This impersonates Chrome locally, then pipes traffic securely through ScraperAPI's firewall evasion port.
+                        proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
+                        proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                        proxies = {"http": proxy_node, "https": proxy_node}
+                        
+                        r = tls_requests.get(
+                            active_url, 
+                            impersonate="chrome124", 
+                            proxies=proxies, 
+                            timeout=req_timeout
+                        )
                     else:
-                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
-                
-                # ATTEMPT 2: Alternate fail-safes
-                elif attempt == 2:
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                        
+                elif site_name == "SoccerVista":
+                    # SoccerVista legitimately requires JS rendering to build its tables.
                     if use_proxy:
-                        if site_name == "PredictZ":
-                            # PREDICTZ STRATEGY 2: Safari TLS Spoofing via EU Proxy Tunnel
-                            proxy_auth = f"scraperapi.premium=true.country_code=eu:{SCRAPER_API_KEY}"
-                            proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                            r = tls_requests.get(active_url, impersonate="safari15_3", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
-                        elif site_name == "WinDrawWin":
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "keep_headers": "true", "country_code": "uk"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, headers=browser_headers, timeout=50)
-                        else:
-                            r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=40)
                     else:
-                        r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
-                
-                # ATTEMPT 3: Universal Fallback
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                        
                 else:
+                    # Standard routing for Statarea and Vitibet
                     if use_proxy:
-                        if site_name == "PredictZ":
-                            # PREDICTZ STRATEGY 3: Base REST API (Global IP, no premium)
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "render": "true"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
-                        else:
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                            if site_name in ["SoccerVista", "WinDrawWin"]: 
-                                params["render"] = "true"
-                            if site_name == "WinDrawWin":
-                                params["country_code"] = "uk"
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                     else:
-                        r = tls_requests.get(active_url, impersonate="chrome120", timeout=30)
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
                 if r is None:
                     continue
@@ -278,10 +243,12 @@ class ConsensusEngine:
                 last_status = r.status_code
 
                 if r.status_code == 200:
-                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "security check", "verify you are human", "enable javascript", "attention required"]
-                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 25000:
+                    # Cloudflare block detection expanded to prevent fake 200 OK passes
+                    challenge_phrases = ["just a moment", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "security check", "verify you are human", "enable javascript", "cloudflare"]
+                    
+                    if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 150000:
                         if attempt < max_attempts:
-                            time.sleep(2 * attempt)
+                            time.sleep(1)
                             continue
                         self.diagnostics[site_name] = "🟡 BLOCKED (Cloudflare Challenge)"
                         return
@@ -290,10 +257,10 @@ class ConsensusEngine:
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
                         prefix = "pt" if site_name == "PredictZ" else "wt"
-                        # Extra Aggressive DOM Parser 
+                        # Dynamic HTML hunter to counter PredictZ layout shifts
                         rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row|pr-match)", re.I))
                         if not rows:
-                            child_elems = soup.find_all("div", class_=re.compile(f"({prefix}tmobh|{prefix}tmoba)", re.I))
+                            child_elems = soup.find_all("div", class_=re.compile(f"({prefix}tmobh|{prefix}tmoba|team1|team2)", re.I))
                             if child_elems:
                                 rows = list(set([c.parent for c in child_elems if c.parent]))
                         if not rows:
@@ -311,12 +278,11 @@ class ConsensusEngine:
 
                     if not rows:
                         if attempt < max_attempts:
-                            time.sleep(2 * attempt)
+                            time.sleep(1)
                             continue
                         
-                        # Capture exactly what webpage Cloudflare fed us
                         page_title = soup.title.text.strip() if soup.title else "No Title"
-                        self.diagnostics[site_name] = f"🟡 BLOCKED (No Match Rows | Title: {page_title[:25]})"
+                        self.diagnostics[site_name] = f"🟡 BLOCKED (0 Rows Parsed | Title: {page_title[:25]})"
                         return
 
                     valid_count = 0
@@ -331,41 +297,24 @@ class ConsensusEngine:
                             home, away, pick = None, None, None
 
                             if site_name in ["PredictZ", "WinDrawWin"]:
-                                h_elem = row.find(class_=re.compile(r'(tmobh|h$|home|team1)', re.I))
-                                a_elem = row.find(class_=re.compile(r'(tmoba|a$|away|team2)', re.I))
-                                p_elem = row.find(class_=re.compile(r'(oddsdesc|mobpred|prd|pred|pick|tip)', re.I))
+                                h_elem = row.find(class_=re.compile(r'(tmobh|team1|h$|home)', re.I))
+                                a_elem = row.find(class_=re.compile(r'(tmoba|team2|a$|away)', re.I))
+                                p_elem = row.find(class_=re.compile(r'(oddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
 
-                                if h_elem and a_elem and p_elem:
+                                if h_elem and a_elem:
                                     home = h_elem.text
                                     away = a_elem.text
-                                    pick = p_elem.text
-                                else:
+                                    if p_elem: pick = p_elem.text
+                                    
+                                if not home or not away:
                                     links = row.find_all("a")
                                     if len(links) >= 2:
                                         home = links[0].text.strip()
                                         away = links[1].text.strip()
-                                        
                                         p_div = row.find(class_=re.compile(r'(prd|pred|odds)', re.I))
                                         if p_div and self.normalize_prediction(p_div.text):
                                             pick = p_div.text
                                         else:
-                                            valid_picks = ["HOME", "DRAW", "AWAY", "1", "X", "2", "HOME WIN", "AWAY WIN", "H", "A", "D"]
-                                            for text_chunk in row.stripped_strings:
-                                                if text_chunk.strip().upper() in valid_picks:
-                                                    pick = text_chunk.strip()
-                                                    break
-                                    else:
-                                        tds = row.find_all(["td", "div"])
-                                        for td in tds:
-                                            txt = td.get_text(" ", strip=True)
-                                            if " v " in txt or " vs " in txt:
-                                                parts = re.split(r'\s+v\s+|\s+vs\s+', txt, maxsplit=1, flags=re.I)
-                                                if len(parts) == 2:
-                                                    home = parts[0].strip()
-                                                    away = parts[1].strip()
-                                                    break
-                                        
-                                        if home and away:
                                             valid_picks = ["HOME", "DRAW", "AWAY", "1", "X", "2", "HOME WIN", "AWAY WIN", "H", "A", "D"]
                                             for text_chunk in row.stripped_strings:
                                                 if text_chunk.strip().upper() in valid_picks:
@@ -427,10 +376,8 @@ class ConsensusEngine:
                                 if len(parts) == 2:
                                     home_str, away_str = self.clean_team_name(parts[0]), self.clean_team_name(parts[1])
 
-                            home, away = home_str, away_str
-
-                            if home and away and pick:
-                                self.log_prediction_qa(site_name, home, away, pick)
+                            if home_str and away_str and pick:
+                                self.log_prediction_qa(site_name, home_str, away_str, pick)
                                 valid_count += 1
 
                         except Exception:
@@ -441,14 +388,11 @@ class ConsensusEngine:
                         return
 
                 if r.status_code in [403, 500, 502, 503, 504, 429]:
-                    time.sleep(2 * attempt)
-                    continue
-                else:
-                    time.sleep(2 * attempt)
+                    time.sleep(1)
                     continue
 
             except Exception:
-                time.sleep(2 * attempt)
+                time.sleep(1)
                 continue
 
         self.diagnostics[site_name] = f"🔴 FAILED (HTTP {last_status if last_status else 'TIMEOUT'})"
@@ -459,7 +403,6 @@ class ConsensusEngine:
         ai_input_data = []
 
         all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin", "SoccerVista"]
-        
         required_consensus = 3 
 
         for match, listings in self.master_matrix.items():
@@ -518,23 +461,23 @@ class ConsensusEngine:
             res = requests.get(list_url, timeout=15)
             if res.status_code == 200:
                 data = res.json()
-                available = []
-                for m in data.get("models", []):
-                    if "generateContent" in m.get("supportedGenerationMethods", []):
-                        name = m.get("name", "").replace("models/", "")
-                        if name:
-                            available.append(name)
+                available = [
+                    m.get("name", "").replace("models/", "")
+                    for m in data.get("models", [])
+                    if "generateContent" in m.get("supportedGenerationMethods", [])
+                ]
                 
-                preferred = [m for m in available if "flash" in m.lower() and not any(x in m.lower() for x in ["preview", "thinking", "lite"])]
-                fallback_flash = [m for m in available if "flash" in m.lower() and m not in preferred]
-                others = [m for m in available if m not in preferred and m not in fallback_flash]
-                
-                ordered = preferred + fallback_flash + others
-                if ordered:
-                    return ordered
+                # Strict ban on deep-research, tts, audio, and experimental models
+                usable_flash = [
+                    m for m in available 
+                    if "flash" in m.lower() 
+                    and not any(x in m.lower() for x in ["preview", "thinking", "lite", "deep-research", "pro", "tts", "audio", "vision"])
+                ]
+                if usable_flash:
+                    return usable_flash
         except Exception:
             pass
-        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
+        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
@@ -607,7 +550,7 @@ class ConsensusEngine:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
             for attempt in range(1, 3):
                 try:
-                    response = requests.post(url, json=payload, timeout=40)
+                    response = requests.post(url, json=payload, timeout=60)
                     if response.status_code == 200:
                         data = response.json()
                         self.diagnostics["AIHandshake"] = f"🟢 Connected ({model_name})"
@@ -792,7 +735,7 @@ class ConsensusEngine:
 
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
-            # Only save the lock if we are NOT force running (so we don't accidentally cache a test run)
+            # Only save the lock if we are NOT force running
             if not FORCE_RUN:
                 memory[today_date] = {
                     "locked": should_lock,
