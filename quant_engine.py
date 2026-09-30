@@ -96,7 +96,7 @@ class ConsensusEngine:
                 self.diagnostics["ScraperAPICredits"] = f"🟢 OK ({remaining:,} remaining)"
                 
                 if remaining < 1000:
-                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
+                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
             else:
                 self.diagnostics["ScraperAPICredits"] = "🔴 FAILED (Check API Dashboard)"
         except Exception:
@@ -201,6 +201,13 @@ class ConsensusEngine:
         last_status = None
         target_url = cfg["url"]
 
+        # Human-like headers to inject into requests to avoid 500 errors
+        browser_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+        }
+
         for attempt in range(1, max_attempts + 1):
             try:
                 active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
@@ -208,29 +215,33 @@ class ConsensusEngine:
                 
                 r = None
                 
-                # Attempt 1: Premium Residential IPs without JS rendering (avoids 500 timeouts)
+                # ATTEMPT 1: The "God Mode" Bypass (Perfect TLS Fingerprint + Proxy Port)
                 if attempt == 1:
                     if use_proxy:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
+                        proxy_auth = "scraperapi"
                         if site_name in ["WinDrawWin", "PredictZ"]:
-                            params["country_code"] = "uk"
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=45)
+                            proxy_auth += ".premium=true.country_code=uk"
+                        proxy_auth += f":{SCRAPER_API_KEY}"
+                        proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                        
+                        proxies = {"http": proxy_url, "https": proxy_url}
+                        r = tls_requests.get(active_url, impersonate="chrome124", proxies=proxies, timeout=45)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
                 
-                # Attempt 2: Strict curl_cffi fingerprint fallback directly
+                # ATTEMPT 2: Standard REST API Call with Strict Header Forwarding
                 elif attempt == 2:
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
-                
-                # Attempt 3: ScraperAPI with Heavy JS rendering as a final fallback
-                else:
                     if use_proxy:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "keep_headers": "true", "premium": "true"}
                         if site_name in ["WinDrawWin", "PredictZ"]:
                             params["country_code"] = "uk"
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
+                        r = requests.get("http://api.scraperapi.com/", params=params, headers=browser_headers, timeout=45)
                     else:
-                        r = tls_requests.get(active_url, impersonate="chrome120", timeout=30)
+                        r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
+                
+                # ATTEMPT 3: Raw Engine Call (Direct)
+                else:
+                    r = tls_requests.get(active_url, impersonate="chrome120", timeout=30)
 
                 if r is None:
                     continue
@@ -512,7 +523,7 @@ class ConsensusEngine:
         2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor.
         3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
             🛡️ Ticket 1: Ironclad (40% of Daily Stake)
-            ⚖️ Ticket 2: Balanced (20% of Daily Stake)
+            ⚖️️ Ticket 2: Balanced (20% of Daily Stake)
             🎯 Ticket 3: Volatility (10% of Daily Stake)
             🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         4. TICKET BUILDING LOGIC:
