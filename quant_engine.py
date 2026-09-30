@@ -17,7 +17,9 @@ TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACK
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
-FORCE_RUN = os.environ.get("FORCE_RUN", "").strip().lower() in ["true", "1", "yes"]
+
+# FORCED TO TRUE TO BREAK THE CACHED LOCK AND FORCE A FRESH SCRAPE
+FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
 
@@ -206,35 +208,29 @@ class ConsensusEngine:
                 
                 r = None
                 
-                # Attempt 1: Try ScraperAPI with perfect parameter routing, or native fallback
+                # Attempt 1: Premium Residential IPs without JS rendering (avoids 500 timeouts)
                 if attempt == 1:
                     if use_proxy:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url}
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
                         if site_name in ["WinDrawWin", "PredictZ"]:
-                            params.update({"premium": "true", "render": "true", "country_code": "uk"})
-                        elif site_name == "SoccerVista":
-                            params.update({"premium": "true", "render": "true", "country_code": "us"})
-                        
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
+                            params["country_code"] = "uk"
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=45)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
                 
-                # Attempt 2: Strict curl_cffi fingerprint fallback (NO custom headers, let the engine impersonate perfectly)
+                # Attempt 2: Strict curl_cffi fingerprint fallback directly
                 elif attempt == 2:
-                    impersonate_profile = "safari15_3" if site_name in ["WinDrawWin", "PredictZ"] else "chrome120"
-                    r = tls_requests.get(active_url, impersonate=impersonate_profile, timeout=30)
+                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
                 
-                # Attempt 3: Final Hail Mary (Try proxy again or standard request)
+                # Attempt 3: ScraperAPI with Heavy JS rendering as a final fallback
                 else:
                     if use_proxy:
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
                         if site_name in ["WinDrawWin", "PredictZ"]:
                             params["country_code"] = "uk"
-                        elif site_name == "SoccerVista":
-                            params["country_code"] = "us"
                         r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
                     else:
-                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
+                        r = tls_requests.get(active_url, impersonate="chrome120", timeout=30)
 
                 if r is None:
                     continue
@@ -748,14 +744,16 @@ class ConsensusEngine:
 
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
-            memory[today_date] = {
-                "locked": should_lock,
-                "agreed_matches": agreed_matches,
-                "ai_optimized_message": ai_optimized_message,
-                "req_threshold": req_threshold,
-                "tickets": structured_tickets
-            }
-            self.save_memory(memory)
+            # Only save the lock if we are NOT force running (so we don't accidentally cache a test run)
+            if not FORCE_RUN:
+                memory[today_date] = {
+                    "locked": should_lock,
+                    "agreed_matches": agreed_matches,
+                    "ai_optimized_message": ai_optimized_message,
+                    "req_threshold": req_threshold,
+                    "tickets": structured_tickets
+                }
+                self.save_memory(memory)
             
             if should_lock:
                 self.diagnostics["DailyLock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
