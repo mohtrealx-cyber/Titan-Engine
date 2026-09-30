@@ -217,14 +217,14 @@ class ConsensusEngine:
                 if attempt == 1:
                     if use_proxy:
                         if site_name == "WinDrawWin":
-                            # WinDrawWin loves TLS spoofing via UK Tunnel
                             proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
                             proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
                             r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
                         elif site_name == "PredictZ":
-                            # PredictZ: Try Premium REST API WITHOUT JS rendering (JS render often hits cookie walls)
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
+                            # Use random global premium IP via TLS spoofing
+                            proxy_auth = f"scraperapi.premium=true:{SCRAPER_API_KEY}"
+                            proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                            r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
                         elif site_name == "SoccerVista":
                             params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
                             r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
@@ -236,11 +236,12 @@ class ConsensusEngine:
                 
                 # ATTEMPT 2: Alternate fail-safes
                 elif attempt == 2:
-                    if site_name == "PredictZ":
-                        # PredictZ: Direct TLS Spoofing (Bypass proxy entirely to test if ScraperAPI IPs are burned)
-                        r = tls_requests.get(active_url, impersonate="chrome124", headers=browser_headers, timeout=30)
-                    elif use_proxy:
-                        if site_name == "WinDrawWin":
+                    if use_proxy:
+                        if site_name == "PredictZ":
+                            # Fallback: REST API with JS Rendering
+                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
+                        elif site_name == "WinDrawWin":
                             params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "keep_headers": "true", "country_code": "uk"}
                             r = requests.get("http://api.scraperapi.com/", params=params, headers=browser_headers, timeout=50)
                         else:
@@ -248,11 +249,13 @@ class ConsensusEngine:
                     else:
                         r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
                 
-                # ATTEMPT 3: Universal JS Rendering Fallback
+                # ATTEMPT 3: Universal Direct Fallback
                 else:
-                    if use_proxy:
+                    if site_name == "PredictZ":
+                        r = tls_requests.get(active_url, impersonate="chrome120", timeout=30)
+                    elif use_proxy:
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                        if site_name in ["SoccerVista", "PredictZ", "WinDrawWin"]: 
+                        if site_name in ["SoccerVista", "WinDrawWin"]: 
                             params["render"] = "true"
                         if site_name == "WinDrawWin":
                             params["country_code"] = "uk"
@@ -266,7 +269,7 @@ class ConsensusEngine:
                 last_status = r.status_code
 
                 if r.status_code == 200:
-                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "security check"]
+                    challenge_phrases = ["just a moment...", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "security check", "verify you are human", "enable javascript", "attention required"]
                     if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 25000:
                         if attempt < max_attempts:
                             time.sleep(2 * attempt)
@@ -278,13 +281,12 @@ class ConsensusEngine:
                     
                     if site_name in ["PredictZ", "WinDrawWin"]:
                         prefix = "pt" if site_name == "PredictZ" else "wt"
-                        # Enhanced Aggressive Parsing to bypass layout changes
-                        rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row)", re.I))
+                        # Extra Aggressive DOM Parser 
+                        rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row|pr-match)", re.I))
                         if not rows:
-                            # Direct search for the home team element's parent container
-                            child_elems = soup.find_all("div", class_=re.compile(f"({prefix}tmobh)", re.I))
+                            child_elems = soup.find_all("div", class_=re.compile(f"({prefix}tmobh|{prefix}tmoba)", re.I))
                             if child_elems:
-                                rows = [c.parent for c in child_elems if c.parent]
+                                rows = list(set([c.parent for c in child_elems if c.parent]))
                         if not rows:
                             rows = soup.find_all("tr")
                         if not rows:
@@ -302,7 +304,10 @@ class ConsensusEngine:
                         if attempt < max_attempts:
                             time.sleep(2 * attempt)
                             continue
-                        self.diagnostics[site_name] = "🟡 BLOCKED (No Match Rows Found)"
+                        
+                        # Capture exactly what webpage Cloudflare fed us
+                        page_title = soup.title.text.strip() if soup.title else "No Title"
+                        self.diagnostics[site_name] = f"🟡 BLOCKED (No Match Rows | Title: {page_title[:25]})"
                         return
 
                     valid_count = 0
