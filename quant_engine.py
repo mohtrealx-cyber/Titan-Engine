@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE FOR THIS SPEED TEST RUN
+# KEEPING THIS TRUE TO BREAK THE CACHE AND TEST THE TIMEOUT FIX
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -87,7 +87,7 @@ class ConsensusEngine:
         if not SCRAPER_API_KEY: 
             return
         try:
-            r = requests.get(f"http://api.scraperapi.com/account?api_key={SCRAPER_API_KEY}", timeout=(10, 15))
+            r = requests.get(f"http://api.scraperapi.com/account?api_key={SCRAPER_API_KEY}", timeout=15)
             if r.status_code == 200:
                 data = r.json()
                 limit = data.get("requestLimit", 1)
@@ -96,7 +96,7 @@ class ConsensusEngine:
                 self.diagnostics["ScraperAPICredits"] = f"🟢 OK ({remaining:,} remaining)"
                 
                 if remaining < 1000:
-                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
+                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
             else:
                 self.diagnostics["ScraperAPICredits"] = "🔴 FAILED (Check API Dashboard)"
         except Exception:
@@ -155,9 +155,9 @@ class ConsensusEngine:
             try:
                 if SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = requests.get(proxy_url, timeout=(10, 20))
+                    r = requests.get(proxy_url, timeout=35)
                 else:
-                    r = tls_requests.get(url, impersonate="chrome124", timeout=15)
+                    r = tls_requests.get(url, impersonate="chrome124", timeout=25)
                 
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -193,7 +193,8 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 3
-        req_timeout = 25 
+        # THE FIX: Increased timeout to 45s to let residential proxies resolve
+        req_timeout = 45 
         last_status = None
         target_url = cfg["url"]
 
@@ -205,6 +206,7 @@ class ConsensusEngine:
                 
                 if site_name in ["PredictZ", "WinDrawWin"]:
                     if use_proxy:
+                        # Direct UK Residential Tunnel (NO RENDER=TRUE, NO BROWSER OVERHEAD)
                         proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
                         proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
                         proxies = {"http": proxy_node, "https": proxy_node}
@@ -221,14 +223,14 @@ class ConsensusEngine:
                 elif site_name == "SoccerVista":
                     if use_proxy:
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=(10, 30))
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
                         
                 else:
                     if use_proxy:
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=(10, 20))
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
@@ -405,7 +407,7 @@ class ConsensusEngine:
                 time.sleep(1)
                 continue
 
-        self.diagnostics[site_name] = f"🔴 FAILED (HTTP {last_status if last_status else 'TIMEOUT'})"
+        self.diagnostics[site_name] = f"🔴 FAILED (HTTP TIMEOUT)"
 
     def process_consensus_signals(self):
         agreed_matches = []
@@ -447,7 +449,7 @@ class ConsensusEngine:
                             break
                     
                     if other_pick: 
-                        match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
+                        match_text += f"  ↳ ⚠️️ {left_out} backed: {other_pick}\n"
                         contradictions.append(f"{left_out} ({other_pick})")
                     else: 
                         match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
@@ -468,7 +470,7 @@ class ConsensusEngine:
     def get_available_gemini_models(self, api_key):
         list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
         try:
-            res = requests.get(list_url, timeout=(10, 15))
+            res = requests.get(list_url, timeout=15)
             if res.status_code == 200:
                 data = res.json()
                 available = [
@@ -477,6 +479,7 @@ class ConsensusEngine:
                     if "generateContent" in m.get("supportedGenerationMethods", [])
                 ]
                 
+                # Banning deep-research, tts, audio, and experimental models that crash the output
                 usable_flash = [
                     m for m in available 
                     if "flash" in m.lower() 
@@ -512,7 +515,7 @@ class ConsensusEngine:
         2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor.
         3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
             🛡️ Ticket 1: Ironclad (40% of Daily Stake)
-            ⚖ Ticket 2: Balanced (20% of Daily Stake)
+            ⚖️ Ticket 2: Balanced (20% of Daily Stake)
             🎯 Ticket 3: Volatility (10% of Daily Stake)
             🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         4. TICKET BUILDING LOGIC:
@@ -559,7 +562,7 @@ class ConsensusEngine:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
             for attempt in range(1, 3):
                 try:
-                    response = requests.post(url, json=payload, timeout=(10, 60))
+                    response = requests.post(url, json=payload, timeout=60)
                     if response.status_code == 200:
                         data = response.json()
                         self.diagnostics["AIHandshake"] = f"🟢 Connected ({model_name})"
@@ -605,9 +608,9 @@ class ConsensusEngine:
         try:
             if SCRAPER_API_KEY:
                 proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                r = requests.get(proxy_url, timeout=(10, 15))
+                r = requests.get(proxy_url, timeout=35)
             else:
-                r = tls_requests.get(url, impersonate="chrome124", timeout=15)
+                r = tls_requests.get(url, impersonate="chrome124", timeout=25)
                 
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
@@ -645,7 +648,7 @@ class ConsensusEngine:
             tickets = payload if isinstance(payload, list) else payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
-                    # THE SPEED FIX: Stop the engine from checking tickets older than 4 days
+                    # Stop checking old tickets
                     if days_old > 4:
                         t["status"] = "EXPIRED ⚪"
                         needs_save = True
@@ -708,10 +711,10 @@ class ConsensusEngine:
         for chunk in msg_chunks:
             payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
             try:
-                r = requests.post(url, json=payload, timeout=(10, 15))
+                r = requests.post(url, json=payload, timeout=25)
                 if r.status_code != 200:
                     payload.pop("parse_mode", None)
-                    r2 = requests.post(url, json=payload, timeout=(10, 15))
+                    r2 = requests.post(url, json=payload, timeout=25)
                     if r2.status_code != 200:
                         print(f"Telegram alert error: {r2.text}")
             except Exception as e:
@@ -743,7 +746,6 @@ class ConsensusEngine:
             self.check_scraperapi_balance()
             loop = asyncio.get_running_loop()
             
-            # THE CONCURRENCY FIX: Max 3 workers to stop ScraperAPI from hanging
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
                 tasks = [loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c) for n, c in self.configs.items()]
                 tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
