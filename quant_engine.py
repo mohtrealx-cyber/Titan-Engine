@@ -18,8 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# SET TO TRUE RIGHT NOW TO BREAK THE CACHE FOR THIS TEST. 
-# CHANGE TO FALSE ONCE PREDICTZ GOES GREEN!
+# KEEPING THIS TRUE FOR ONE LAST RUN TO BREAK THE CACHE
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -202,45 +201,52 @@ class ConsensusEngine:
         last_status = None
         target_url = cfg["url"]
 
+        browser_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+        }
+
         for attempt in range(1, max_attempts + 1):
             try:
                 active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
                 use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                 r = None
                 
-                # ATTEMPT 1: Target-Specific Bypasses
+                # ATTEMPT 1: The Perfect Split-Routing Strategy
                 if attempt == 1:
                     if use_proxy:
-                        if site_name == "SoccerVista":
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
-                        elif site_name == "PredictZ":
-                            # PredictZ: Let ScraperAPI dynamically route to best Unblocked IP
-                            proxy_auth = f"scraperapi.premium=true:{SCRAPER_API_KEY}"
-                            proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                            r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
-                        elif site_name == "WinDrawWin": 
-                            # WinDrawWin: Stick with UK routing since it worked perfectly
+                        if site_name == "WinDrawWin":
+                            # WinDrawWin: Hates JS renderers, loves TLS spoofing via UK Tunnel
                             proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
                             proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
                             r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
+                        elif site_name == "PredictZ":
+                            # PredictZ: Hates TLS spoofing, loves JS rendering via UK REST API
+                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true", "country_code": "uk"}
+                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
+                        elif site_name == "SoccerVista":
+                            # SoccerVista: Needs JS rendering to load tables
+                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
                         else:
-                            r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
+                            params = {"api_key": SCRAPER_API_KEY, "url": active_url}
+                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=45)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
                 
-                # ATTEMPT 2: Dedicated REST API Fallbacks
+                # ATTEMPT 2: Alternate fail-safes
                 elif attempt == 2:
                     if use_proxy:
-                        if site_name == "PredictZ":
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=50)
-                        elif site_name == "WinDrawWin":
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=50)
+                        if site_name == "WinDrawWin":
+                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "keep_headers": "true", "country_code": "uk"}
+                            r = requests.get("http://api.scraperapi.com/", params=params, headers=browser_headers, timeout=50)
+                        elif site_name == "PredictZ":
+                            proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
+                            proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                            r = tls_requests.get(active_url, impersonate="safari15_3", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
                         else:
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=50)
+                            r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
                     else:
                         r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
                 
@@ -248,9 +254,11 @@ class ConsensusEngine:
                 else:
                     if use_proxy:
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                        if site_name in ["SoccerVista", "PredictZ"]: 
+                        if site_name in ["SoccerVista", "PredictZ", "WinDrawWin"]: 
                             params["render"] = "true"
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
+                        if site_name in ["PredictZ", "WinDrawWin"]:
+                            params["country_code"] = "uk"
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome120", timeout=30)
 
