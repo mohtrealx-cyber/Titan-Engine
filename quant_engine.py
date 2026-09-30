@@ -18,8 +18,8 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# FORCED TO TRUE TO BREAK THE CACHED LOCK AND FORCE A FRESH SCRAPE
-FORCE_RUN = True 
+# SET TO FALSE: The system will now respect the daily lock and save your tokens!
+FORCE_RUN = False 
 
 MEMORY_FILE = "pending_tickets.json"
 
@@ -217,14 +217,13 @@ class ConsensusEngine:
                 if attempt == 1:
                     if use_proxy:
                         if site_name == "SoccerVista":
-                            # SoccerVista requires JS rendering via REST API
                             params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
                             r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
                         else:
-                            # WinDrawWin and PredictZ use curl_cffi proxy tunnels for perfect fingerprints
+                            # Both WinDrawWin and PredictZ get routed through the UK premium tunnel
                             proxy_auth = "scraperapi.premium=true"
-                            if site_name == "WinDrawWin": proxy_auth += ".country_code=uk"
-                            elif site_name == "PredictZ": proxy_auth += ".country_code=us"  # Switched to US for PredictZ
+                            if site_name in ["WinDrawWin", "PredictZ"]: 
+                                proxy_auth += ".country_code=uk"
                             proxy_auth += f":{SCRAPER_API_KEY}"
                             proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
                             r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
@@ -234,10 +233,8 @@ class ConsensusEngine:
                 # ATTEMPT 2: Fallback Strategies
                 elif attempt == 2:
                     if use_proxy and site_name in ["PredictZ", "WinDrawWin"]:
-                        # Fallback to REST API if Proxy Tunnel hits a 403 firewall
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "keep_headers": "true"}
-                        if site_name == "WinDrawWin": params["country_code"] = "uk"
-                        elif site_name == "PredictZ": params["country_code"] = "us"
+                        params["country_code"] = "uk"
                         r = requests.get("http://api.scraperapi.com/", params=params, headers=browser_headers, timeout=50)
                     else:
                         r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
