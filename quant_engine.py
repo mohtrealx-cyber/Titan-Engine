@@ -96,7 +96,7 @@ class ConsensusEngine:
                 self.diagnostics["ScraperAPICredits"] = f"🟢 OK ({remaining:,} remaining)"
                 
                 if remaining < 1000:
-                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
+                    self.send_telegram_alert(f"⚠️ **SCRAPERAPI ALERT: LOW BALANCE** ⚠️\nYou only have {remaining:,} API credits left out of {limit:,}. Top up soon to prevent engine failure.")
             else:
                 self.diagnostics["ScraperAPICredits"] = "🔴 FAILED (Check API Dashboard)"
         except Exception:
@@ -201,7 +201,6 @@ class ConsensusEngine:
         last_status = None
         target_url = cfg["url"]
 
-        # Human-like headers to inject into requests to avoid 500 errors
         browser_headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "Accept-Language": "en-US,en;q=0.9",
@@ -212,36 +211,45 @@ class ConsensusEngine:
             try:
                 active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
                 use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
-                
                 r = None
                 
-                # ATTEMPT 1: The "God Mode" Bypass (Perfect TLS Fingerprint + Proxy Port)
+                # ATTEMPT 1: Target-Specific Bypasses
                 if attempt == 1:
                     if use_proxy:
-                        proxy_auth = "scraperapi"
-                        if site_name in ["WinDrawWin", "PredictZ"]:
-                            proxy_auth += ".premium=true.country_code=uk"
-                        proxy_auth += f":{SCRAPER_API_KEY}"
-                        proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                        
-                        proxies = {"http": proxy_url, "https": proxy_url}
-                        r = tls_requests.get(active_url, impersonate="chrome124", proxies=proxies, timeout=45)
+                        if site_name == "SoccerVista":
+                            # SoccerVista requires JS rendering via REST API
+                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
+                        else:
+                            # WinDrawWin and PredictZ use curl_cffi proxy tunnels for perfect fingerprints
+                            proxy_auth = "scraperapi.premium=true"
+                            if site_name == "WinDrawWin": proxy_auth += ".country_code=uk"
+                            elif site_name == "PredictZ": proxy_auth += ".country_code=us"  # Switched to US for PredictZ
+                            proxy_auth += f":{SCRAPER_API_KEY}"
+                            proxy_url = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                            r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_url, "https": proxy_url}, timeout=45)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
                 
-                # ATTEMPT 2: Standard REST API Call with Strict Header Forwarding
+                # ATTEMPT 2: Fallback Strategies
                 elif attempt == 2:
-                    if use_proxy:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "keep_headers": "true", "premium": "true"}
-                        if site_name in ["WinDrawWin", "PredictZ"]:
-                            params["country_code"] = "uk"
-                        r = requests.get("http://api.scraperapi.com/", params=params, headers=browser_headers, timeout=45)
+                    if use_proxy and site_name in ["PredictZ", "WinDrawWin"]:
+                        # Fallback to REST API if Proxy Tunnel hits a 403 firewall
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "keep_headers": "true"}
+                        if site_name == "WinDrawWin": params["country_code"] = "uk"
+                        elif site_name == "PredictZ": params["country_code"] = "us"
+                        r = requests.get("http://api.scraperapi.com/", params=params, headers=browser_headers, timeout=50)
                     else:
                         r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
                 
-                # ATTEMPT 3: Raw Engine Call (Direct)
+                # ATTEMPT 3: Universal Hail Mary
                 else:
-                    r = tls_requests.get(active_url, impersonate="chrome120", timeout=30)
+                    if use_proxy:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
+                        if site_name == "SoccerVista": params["render"] = "true"
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
+                    else:
+                        r = tls_requests.get(active_url, impersonate="chrome120", timeout=30)
 
                 if r is None:
                     continue
@@ -523,7 +531,7 @@ class ConsensusEngine:
         2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor.
         3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
             🛡️ Ticket 1: Ironclad (40% of Daily Stake)
-            ⚖️️ Ticket 2: Balanced (20% of Daily Stake)
+            ⚖️ Ticket 2: Balanced (20% of Daily Stake)
             🎯 Ticket 3: Volatility (10% of Daily Stake)
             🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         4. TICKET BUILDING LOGIC:
