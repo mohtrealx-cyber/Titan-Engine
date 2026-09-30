@@ -199,45 +199,41 @@ class ConsensusEngine:
         last_status = None
         target_url = cfg["url"]
 
-        strict_headers = {
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Upgrade-Insecure-Requests": "1",
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "none",
-            "Sec-Fetch-User": "?1"
-        }
-
         for attempt in range(1, max_attempts + 1):
             try:
                 active_url = cfg.get("fallback_url") if (attempt == 3 and cfg.get("fallback_url")) else target_url
-
-                if attempt == 1 and cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
-                    if site_name == "WinDrawWin": 
-                        proxy_url += "&premium=true&render=true&country_code=uk" 
-                    elif site_name == "PredictZ":
-                        proxy_url += "&premium=true&render=true&country_code=us"
-                    elif site_name == "SoccerVista":
-                        proxy_url += "&premium=true&render=true"
-                    r = requests.get(proxy_url, timeout=75) 
+                use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                 
-                elif attempt == 2:
-                    r = tls_requests.get(active_url, impersonate="chrome124", headers=strict_headers, timeout=30)
+                r = None
                 
-                else:
-                    if cfg.get("use_scraperapi") and SCRAPER_API_KEY:
-                        proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={active_url}"
+                # Attempt 1: Try ScraperAPI with perfect parameter routing, or native fallback
+                if attempt == 1:
+                    if use_proxy:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url}
                         if site_name == "WinDrawWin":
-                            proxy_url += "&premium=true&render=true&country_code=uk"
-                        elif site_name in ["PredictZ", "SoccerVista"]: 
-                            proxy_url += "&premium=true&render=true&country_code=us"
-                        else:
-                            proxy_url += "&premium=true&country_code=us"
-                        r = requests.get(proxy_url, timeout=75)
+                            params.update({"premium": "true", "render": "true", "country_code": "uk"})
+                        elif site_name in ["PredictZ", "SoccerVista"]:
+                            params.update({"premium": "true", "render": "true", "country_code": "us"})
+                        
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
                     else:
-                        r = tls_requests.get(active_url, impersonate="safari17_0", headers=strict_headers, timeout=30)
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
+                
+                # Attempt 2: Strict curl_cffi fingerprint fallback (NO custom headers, let the engine impersonate perfectly)
+                elif attempt == 2:
+                    impersonate_profile = "safari15_3" if site_name == "WinDrawWin" else "chrome120"
+                    r = tls_requests.get(active_url, impersonate=impersonate_profile, timeout=30)
+                
+                # Attempt 3: Final Hail Mary (Try proxy again or standard request)
+                else:
+                    if use_proxy:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=75)
+                    else:
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
+
+                if r is None:
+                    continue
 
                 last_status = r.status_code
 
@@ -259,7 +255,7 @@ class ConsensusEngine:
                             rows = soup.find_all("tr")
                         if not rows:
                             raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
-                            rows = [r for r in raw_rows if len(r.find_all('a')) >= 2 and len(r.text) < 800]
+                            rows = [row_elem for row_elem in raw_rows if len(row_elem.find_all('a')) >= 2 and len(row_elem.text) < 800]
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
                         if not rows:
@@ -327,7 +323,7 @@ class ConsensusEngine:
                                                 if text_chunk.strip().upper() in valid_picks:
                                                     pick = text_chunk.strip()
                                                     break
-                                                
+                                            
                             elif site_name == "SoccerVista":
                                 tds = row.find_all("td")
                                 if len(tds) >= 3:
