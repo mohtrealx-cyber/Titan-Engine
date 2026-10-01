@@ -43,7 +43,7 @@ def get_dynamic_configs():
             "fallback_url": None,
             "row_selector": "a", "row_class": "livescore-match-row",
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-            "away_selector": "span", "home_class": "livescore-team-name", "home_index": 1,
+            "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
             "use_scraperapi": False
         },
@@ -94,9 +94,6 @@ class ConsensusEngine:
                 used = data.get("requestCount", 0)
                 remaining = limit - used
                 self.diagnostics["ScraperAPICredits"] = f"🟢 OK ({remaining:,} remaining)"
-                
-                if remaining < 100:
-                    print(f"⚠️ CRITICAL: Low ScraperAPI credits ({remaining:,}). Top up soon!")
             else:
                 self.diagnostics["ScraperAPICredits"] = "🔴 FAILED (Check API Dashboard)"
         except Exception:
@@ -154,7 +151,7 @@ class ConsensusEngine:
         for attempt in range(1, 3):
             try:
                 if SCRAPER_API_KEY and attempt == 1:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}&premium=true"
                     r = requests.get(proxy_url, timeout=35)
                 else:
                     r = tls_requests.get(url, impersonate="chrome124", timeout=25)
@@ -193,7 +190,7 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 3
-        req_timeout = 60 
+        req_timeout = 75 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
 
@@ -204,12 +201,10 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # ULTRA-LEAN CREDIT-SAVING REST ROUTING (NO RENDER)
+                # HIGH-POWERED RENDERING ROUTING (CREDITS ARE AMPLE NOW)
                 # =======================================================
                 if use_proxy:
-                    # premium=true costs 1 credit. render=true costs 5 credits.
-                    # Removing render=true saves your remaining credits and prevents HTTP 500s.
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
+                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
                     if site_name in ["PredictZ", "WinDrawWin"]:
                         params["country_code"] = "uk"
                     
