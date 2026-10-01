@@ -16,7 +16,6 @@ from curl_cffi import requests as tls_requests
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
-GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
 # KEEPING THIS TRUE TO FORCE FRESH RUN
 FORCE_RUN = True 
@@ -190,7 +189,6 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 4
-        # FIX: Restored the 90-second timeout so requests don't hang up before ScraperAPI solves Cloudflare
         req_timeout = 90 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
@@ -200,9 +198,6 @@ class ConsensusEngine:
                 active_url = cfg.get("fallback_url") if (attempt >= 3 and cfg.get("fallback_url")) else target_url
                 r = None
                 
-                # =======================================================
-                # ADAPTIVE MULTI-NODE WATERFALL ROUTING (90s Patience)
-                # =======================================================
                 if site_name == "WinDrawWin":
                     if attempt == 1 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}, timeout=req_timeout)
@@ -214,7 +209,6 @@ class ConsensusEngine:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}, timeout=req_timeout)
                 
                 elif site_name == "SoccerVista":
-                    # FIX: SoccerVista requires `render=true` because its tables are built with JS
                     if attempt <= 3 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}, timeout=req_timeout)
                     else:
@@ -493,80 +487,51 @@ class ConsensusEngine:
 
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
-    def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
-        api_key = (GEMINI_API_KEY or "").strip()
-        if not api_key:
-            self.diagnostics["AIStatus"] = "🔴 Missing GEMINI_API_KEY"
-            return None
-
-        model_name = "gemini-3.8-flash"
-
-        # ======================================================================
-        # STRICT SINGLE-TICKET ARCHITECTURE (TICKET 1 ALONE - 100% STAKE)
-        # ======================================================================
-        prompt = f"""
-        You are Titan, an elite quantitative sports betting AI Portfolio Manager.
-        Your mission is to construct ONE SINGLE SUPREME BETTING TICKET (Ticket 1 alone) containing ONLY the highest-conviction, safest matches of the day.
-
-        === RAW CONSENSUS DATA ===
-        {json.dumps(ai_input_data, indent=2)}
-
-        === HIGH-PROBABILITY CORNER STATISTICS ===
-        {json.dumps(active_corner_teams, indent=2)}
-
-        CRITICAL ARCHITECTURE RULES:
-        1. OUTPUT EXACTLY ONE TICKET: Generate ONLY Ticket 1. DO NOT generate Ticket 2, Ticket 3, Ticket 4, or any other ticket under any circumstance.
-        2. TICKET 1 HEADER MUST BE EXACTLY:
-           🛡️ Ticket 1: Elite Ironclad (100% of Daily Stake)
-        3. SELECTION LOGIC:
-           - Sift through the available data and choose the TOP 3 to 5 absolute BEST matches.
-           - Prioritize matches with 3+ or 4+ backing sites and ZERO contradictions.
-           - If there are fewer than 3 pristine consensus matches, fill the remaining slot(s) with the highest-probability Corner picks (e.g. 'Over 8.5 Corners') from the corner statistics.
-           - Apply smart risk mitigation directly on the slip (e.g., straight Win or Double Chance '1X'/'X2' if draw risk is present).
-        4. RESERVE PICK:
-           - At the very bottom of Ticket 1, append EXACTLY ONE safety backup match tagged as:
-             `🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]`
-        5. NO CHIT-CHAT, NO EXPLANATIONS: Output ONLY the cleanly formatted ticket ready for Telegram delivery.
-
-        OUTPUT FORMAT:
-        🛡️ Ticket 1: Elite Ironclad (100% of Daily Stake)
-        • [Match Name] ➔ [Prediction]
-        • [Match Name] ➔ [Prediction]
-        • [Match Name] ➔ [Prediction]
-        🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
-        """
-
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    # ======================================================================
+    # PURE PYTHON ALGORITHMIC TICKET BUILDER (NO AI / 0 CREDITS / INSTANT)
+    # ======================================================================
+    def build_algorithmic_ticket(self, ai_input_data, active_corner_teams):
+        self.diagnostics["QuantEngine"] = "🟢 Algorithmic Ticket Generated"
         
-        last_error = "Unknown"
-        for attempt in range(1, 8):
-            try:
-                response = requests.post(url, json=payload, timeout=60)
-                if response.status_code == 200:
-                    data = response.json()
-                    self.diagnostics["AIHandshake"] = f"🟢 Connected ({model_name})"
-                    self.diagnostics["AIStatus"] = "🟢 Optimization Complete"
-                    return data['candidates'][0]['content']['parts'][0]['text']
+        # Sort logic: Most backing sites first, least contradictions second
+        def get_score(match_data):
+            backing_count = len(match_data["backed_by"].split(" + "))
+            contradiction_count = len(match_data["contradictions"])
+            return (backing_count, -contradiction_count)
+
+        sorted_matches = sorted(ai_input_data, key=get_score, reverse=True)
+        
+        final_picks = []
+        
+        # Pull the absolute best 4 matches from the consensus
+        for m in sorted_matches:
+            final_picks.append(f"{m['match']} ➔ {m['consensus_pick']}")
+            if len(final_picks) == 4:
+                break
                 
-                try:
-                    err_detail = response.json().get("error", {}).get("message", response.text[:100])
-                except Exception:
-                    err_detail = response.text[:100]
-                last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
-
-                if response.status_code in [500, 503, 429]:
-                    time.sleep(8) 
-                    continue
-                else:
+        # If we have less than 4 matches, intelligently fill with high-probability corners
+        if len(final_picks) < 4:
+            for corner in active_corner_teams:
+                corner_pick = f"{corner['match']} ➔ Over 8.5 Corners (Avg: {corner['avg_corners']})"
+                if corner_pick not in final_picks:
+                    final_picks.append(corner_pick)
+                if len(final_picks) == 4:
                     break
-            except Exception as e:
-                last_error = f"Network Exception: {e}"
-                time.sleep(8)
-                continue
-
-        self.diagnostics["AIStatus"] = f"🔴 {last_error}"
-        return None
+                    
+        if not final_picks:
+            return "No high-conviction matches found today to safely build an elite ticket."
+            
+        # Format the perfect ticket output
+        ticket_text = "🤖 **TITAN ALGORITHMIC TICKET** 🤖\n\n"
+        ticket_text += "🛡️ **Ticket 1: Elite Ironclad (100% of Daily Stake)**\n"
+        
+        for pick in final_picks[:3]:
+            ticket_text += f"• {pick}\n"
+            
+        if len(final_picks) > 3:
+            ticket_text += f"🔄 [RESERVE PICK]: {final_picks[3]}\n"
+            
+        return ticket_text
 
     def load_memory(self):
         if os.path.exists(MEMORY_FILE):
@@ -716,7 +681,7 @@ class ConsensusEngine:
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["DailyLock"] = f"🟢 CACHED (Tokens Saved for {today_date})"
         else:
-            print(f"🔓 Scraping data for {today_date} and building Ticket 1...")
+            print(f"🔓 Scraping data for {today_date} and building Algorithmic Ticket...")
             self.check_scraperapi_balance()
             loop = asyncio.get_running_loop()
             
@@ -739,7 +704,8 @@ class ConsensusEngine:
 
             ai_optimized_message = None
             if ai_input_data or active_corner_teams:
-                ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
+                # FIX: Generating ticket using pure, instant Python logic
+                ai_optimized_message = self.build_algorithmic_ticket(ai_input_data, active_corner_teams)
 
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
@@ -756,7 +722,7 @@ class ConsensusEngine:
             if should_lock:
                 self.diagnostics["DailyLock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else:
-                self.diagnostics["DailyLock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT) / AI RETRY PENDING"
+                self.diagnostics["DailyLock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT)"
 
         settled_reports = self.settle_pending_tickets(memory)
 
@@ -779,8 +745,7 @@ class ConsensusEngine:
 
             if ai_optimized_message and not is_already_locked:
                 time.sleep(1.5)
-                ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKET** 🤖\n\n{ai_optimized_message}"
-                self.send_telegram_alert(ticket_msg)
+                self.send_telegram_alert(ai_optimized_message)
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
