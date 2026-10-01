@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE FOR THE FINAL VICTORY RUN
+# KEEPING THIS TRUE TO FORCE FRESH RUN
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -63,7 +63,7 @@ def get_dynamic_configs():
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "home_class": "", "home_index": 1,
             "pick_selector": "td", "pick_class": "", "pick_index": 4,
-            "use_scraperapi": True
+            "use_scraperapi": False # Adaptive waterfall starts with fast direct TLS
         },
         "Zulubet": {
             "url": "https://www.zulubet.com/",
@@ -190,23 +190,42 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 4
-        req_timeout = 60 
+        req_timeout = 45 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
 
         for attempt in range(1, max_attempts + 1):
             try:
                 active_url = cfg.get("fallback_url") if (attempt >= 3 and cfg.get("fallback_url")) else target_url
-                use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                 r = None
                 
-                if use_proxy:
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                    if site_name == "WinDrawWin":
-                        params["country_code"] = "uk"
-                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                # =======================================================
+                # ADAPTIVE MULTI-NODE WATERFALL ROUTING
+                # =======================================================
+                if site_name == "WinDrawWin":
+                    # Attempt 1: UK node | Attempt 2: US node | Attempt 3: Direct TLS | Attempt 4: Standard ScraperAPI
+                    if attempt == 1 and SCRAPER_API_KEY:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}, timeout=req_timeout)
+                    elif attempt == 2 and SCRAPER_API_KEY:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us"}, timeout=req_timeout)
+                    elif attempt == 3:
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                    elif attempt == 4 and SCRAPER_API_KEY:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}, timeout=req_timeout)
+                elif site_name == "SoccerVista":
+                    # Attempt 1: Fast direct TLS | Attempt 2: ScraperAPI standard | Attempt 3: ScraperAPI Premium
+                    if attempt == 1:
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=25)
+                    elif attempt == 2 and SCRAPER_API_KEY:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url}, timeout=35)
+                    elif attempt >= 3 and SCRAPER_API_KEY:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}, timeout=45)
                 else:
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                    use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
+                    if use_proxy:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}, timeout=req_timeout)
+                    else:
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
                 if r is None:
                     continue
@@ -216,7 +235,7 @@ class ConsensusEngine:
                     
                     if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 150000:
                         last_error_str = "Cloudflare Challenge"
-                        time.sleep(2)
+                        time.sleep(1)
                         continue
 
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -398,16 +417,16 @@ class ConsensusEngine:
 
                 elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     last_error_str = f"HTTP {r.status_code}"
-                    time.sleep(2)
+                    time.sleep(1)
                     continue
                 else:
                     last_error_str = f"HTTP {r.status_code}"
-                    time.sleep(2)
+                    time.sleep(1)
                     continue
 
             except Exception as e:
                 last_error_str = f"Error: {type(e).__name__}"
-                time.sleep(2)
+                time.sleep(1)
                 continue
 
         self.diagnostics[site_name] = f"🔴 FAILED ({last_error_str})"
@@ -470,22 +489,20 @@ class ConsensusEngine:
 
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
-    def get_available_gemini_models(self):
-        # AI re-activated. Hardcoded to exactly gemini-3.8-flash
-        return ["gemini-3.8-flash"]
-
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
         if not api_key:
             self.diagnostics["AIStatus"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        model_name = self.get_available_gemini_models()[0]
+        model_name = "gemini-3.8-flash"
 
+        # ======================================================================
+        # STRICT SINGLE-TICKET ARCHITECTURE (TICKET 1 ALONE - 100% STAKE)
+        # ======================================================================
         prompt = f"""
         You are Titan, an elite quantitative sports betting AI Portfolio Manager.
-        Your objective is to analyze the following raw consensus data and corner statistics, 
-        and construct highly optimized, risk-mitigated betting tickets.
+        Your mission is to construct ONE SINGLE SUPREME BETTING TICKET (Ticket 1 alone) containing ONLY the highest-conviction, safest matches of the day.
 
         === RAW CONSENSUS DATA ===
         {json.dumps(ai_input_data, indent=2)}
@@ -493,56 +510,32 @@ class ConsensusEngine:
         === HIGH-PROBABILITY CORNER STATISTICS ===
         {json.dumps(active_corner_teams, indent=2)}
 
-        STRICT ARCHITECTURE RULES:
-        1. NEVER repeat the same match across multiple tickets or reserve slots. Every match used (whether main or reserve) must be completely unique across your entire output.
-        2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor.
-        3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
-            🛡️ Ticket 1: Ironclad (40% of Daily Stake)
-            ⚖️ Ticket 2: Balanced (20% of Daily Stake)
-            🎯 Ticket 3: Volatility (10% of Daily Stake)
-            🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
-        4. TICKET BUILDING LOGIC:
-            - TICKET 1: MUST contain EXACTLY THREE main matches sourced exclusively from the 'Core Consensus' tier with ZERO contradictions. If fewer than 3 pristine matches exist, fill remaining spots with safest Corner predictions.
-            - TICKET 2: Mix any remaining 'Core Consensus' matches with Corners. Matches with contradictions can be placed here.
-            - TICKET 3: Use the remaining matches and higher-risk options.
-            - TICKET 4: Leave this ticket COMPLETELY BLANK under the header. Do not generate any matches for it.
-        5. CRITICAL RESERVE/BACKUP RULE:
-            - At the end of Tickets 1, 2, and 3 ONLY, append EXACTLY ONE additional backup match tagged as follows:
-              `🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]`
-            - Ticket 4 gets NO matches and NO reserve pick.
-        6. IF there are only 1 or 2 matches available for the day: Output a single ticket using this exact header:
-            🔥 Ticket 1: Premium Singles (100% of Daily Stake)
-            • [Match Name] ➔ [Optimized Prediction]
-            🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]
-        7. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines.
-        8. NO paragraphs of text. NO explanations. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
+        CRITICAL ARCHITECTURE RULES:
+        1. OUTPUT EXACTLY ONE TICKET: Generate ONLY Ticket 1. DO NOT generate Ticket 2, Ticket 3, Ticket 4, or any other ticket under any circumstance.
+        2. TICKET 1 HEADER MUST BE EXACTLY:
+           🛡️ Ticket 1: Elite Ironclad (100% of Daily Stake)
+        3. SELECTION LOGIC:
+           - Sift through the available data and choose the TOP 3 to 5 absolute BEST matches.
+           - Prioritize matches with 3+ or 4+ backing sites and ZERO contradictions.
+           - If there are fewer than 3 pristine consensus matches, fill the remaining slot(s) with the highest-probability Corner picks (e.g. 'Over 8.5 Corners') from the corner statistics.
+           - Apply smart risk mitigation directly on the slip (e.g., straight Win or Double Chance '1X'/'X2' if draw risk is present).
+        4. RESERVE PICK:
+           - At the very bottom of Ticket 1, append EXACTLY ONE safety backup match tagged as:
+             `🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]`
+        5. NO CHIT-CHAT, NO EXPLANATIONS: Output ONLY the cleanly formatted ticket ready for Telegram delivery.
 
-        OUTPUT FORMAT TEMPLATE:
-        🛡️ Ticket 1: Ironclad (40% of Daily Stake)
+        OUTPUT FORMAT:
+        🛡️ Ticket 1: Elite Ironclad (100% of Daily Stake)
         • [Match Name] ➔ [Prediction]
         • [Match Name] ➔ [Prediction]
         • [Match Name] ➔ [Prediction]
         🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
-
-        ⚖️ Ticket 2: Balanced (20% of Daily Stake)
-        • [Match Name] ➔ [Prediction]
-        • [Match Name] ➔ [Prediction]
-        🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
-
-        🎯 Ticket 3: Volatility (10% of Daily Stake)
-        • [Match Name] ➔ [Prediction]
-        • [Match Name] ➔ [Prediction]
-        • [Match Name] ➔ [Prediction]
-        🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
-
-        🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         
         last_error = "Unknown"
-        # 10-Second Patient Long-Polling loop to effortlessly bypass 503 Traffic Spikes
         for attempt in range(1, 8):
             try:
                 response = requests.post(url, json=payload, timeout=60)
@@ -559,13 +552,13 @@ class ConsensusEngine:
                 last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
 
                 if response.status_code in [500, 503, 429]:
-                    time.sleep(10) 
+                    time.sleep(8) 
                     continue
                 else:
                     break
             except Exception as e:
                 last_error = f"Network Exception: {e}"
-                time.sleep(10)
+                time.sleep(8)
                 continue
 
         self.diagnostics["AIStatus"] = f"🔴 {last_error}"
@@ -719,7 +712,7 @@ class ConsensusEngine:
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["DailyLock"] = f"🟢 CACHED (Tokens Saved for {today_date})"
         else:
-            print(f"🔓 Scraping data for {today_date} and initiating Titan AI...")
+            print(f"🔓 Scraping data for {today_date} and building Ticket 1...")
             self.check_scraperapi_balance()
             loop = asyncio.get_running_loop()
             
@@ -742,7 +735,6 @@ class ConsensusEngine:
 
             ai_optimized_message = None
             if ai_input_data or active_corner_teams:
-                # Re-engaged the Gemini brain
                 ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
 
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
@@ -783,7 +775,7 @@ class ConsensusEngine:
 
             if ai_optimized_message and not is_already_locked:
                 time.sleep(1.5)
-                ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
+                ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKET** 🤖\n\n{ai_optimized_message}"
                 self.send_telegram_alert(ticket_msg)
 
 if __name__ == "__main__":
