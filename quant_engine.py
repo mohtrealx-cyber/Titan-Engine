@@ -201,7 +201,7 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # BULLETPROOF REST API ROUTING (NO LOCAL PROXY DICTIONARIES)
+                # BULLETPROOF REST API ROUTING FOR ALL SITES
                 # =======================================================
                 if use_proxy:
                     params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
@@ -460,8 +460,8 @@ class ConsensusEngine:
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
     def get_available_gemini_models(self, api_key):
-        # HARDCODED STABLE FALLBACKS WITH MULTI-TIER ROTATION TO BYPASS 503 SPIKES
-        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-1.5-flash"]
+        # HARDCODED STABLE FALLBACKS (EXCLUDING DEPRECATED 1.5-flash)
+        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
 
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
@@ -532,7 +532,7 @@ class ConsensusEngine:
         last_error = "Unknown"
         for model_name in models_to_try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-            for attempt in range(1, 5):  # FIX: Expanded retry attempts to ride out 503 demand spikes across models
+            for attempt in range(1, 5):
                 try:
                     response = requests.post(url, json=payload, timeout=60)
                     if response.status_code == 200:
@@ -548,7 +548,7 @@ class ConsensusEngine:
                     last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
 
                     if response.status_code in [500, 503, 429]:
-                        time.sleep(4 * attempt) # Exponential backoff for 503 high demand
+                        time.sleep(4 * attempt)
                         continue
                     else:
                         break
