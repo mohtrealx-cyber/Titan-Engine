@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE TO BREAK THE CACHE AND TEST THE SURGICAL FIXES
+# KEEPING THIS TRUE TO BREAK THE CACHE FOR THIS FINAL TEST
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -194,11 +194,6 @@ class ConsensusEngine:
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
         
-        googlebot_headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-        }
-
         for attempt in range(1, max_attempts + 1):
             try:
                 active_url = cfg.get("fallback_url") if (attempt >= 3 and cfg.get("fallback_url")) else target_url
@@ -206,49 +201,22 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # SURGICAL ROUTING LOGIC
+                # ULTRA-RELIABLE REST API PARAMETER ROUTING
                 # =======================================================
-                if site_name == "WinDrawWin" and use_proxy:
-                    if attempt == 1:
-                        proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
-                        proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                        r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
-                    elif attempt == 2:
-                        proxy_auth = f"scraperapi.premium=true.country_code=us:{SCRAPER_API_KEY}"
-                        proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                        r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
-                    else:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-                
-                elif site_name == "PredictZ" and use_proxy:
-                    if attempt == 1:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-                    elif attempt == 2:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us", "keep_headers": "true"}
-                        r = requests.get("http://api.scraperapi.com/", params=params, headers=googlebot_headers, timeout=req_timeout)
-                    else:
-                        proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
-                        proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                        r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
-                        
-                elif site_name == "SoccerVista" and use_proxy:
-                    if attempt == 1:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-                    else:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-
-                elif site_name == "Statarea" and use_proxy:
-                    if attempt == 1:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-                    else:
-                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-                        
+                if use_proxy:
+                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
+                    
+                    if site_name in ["PredictZ", "WinDrawWin"]:
+                        if attempt == 1:
+                            params["country_code"] = "uk"
+                        elif attempt == 2:
+                            params["country_code"] = "us"
+                        else:
+                            params["render"] = "true"
+                    elif site_name == "SoccerVista":
+                        params["render"] = "true"
+                    
+                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
                     r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
@@ -277,14 +245,11 @@ class ConsensusEngine:
                         if not rows:
                             raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
                             rows = [row_elem for row_elem in raw_rows if len(row_elem.find_all('a')) >= 2 and len(row_elem.text) < 800]
-                    
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
-                        # FIX 3: Detect Mobile versions with div layouts
                         if not rows or len(rows) < 5:
                             raw_rows = soup.find_all("div", class_=re.compile(r'(predict|match|row|fixture|item)', re.I))
                             rows = [r for r in raw_rows if len(r.find_all('a')) >= 2 or len(r.find_all('div')) >= 2]
-                            
                     else:
                         row_target = cfg["row_class"]
                         rows = soup.find_all(cfg["row_selector"], class_=row_target)
@@ -374,17 +339,6 @@ class ConsensusEngine:
                                         elif txt in ["1", "X", "2", "1X", "X2", "12"]:
                                             pick = txt
                                             break
-                                            
-                                # Mobile fallback parser
-                                if not home or not away:
-                                    text_chunks = [t.strip() for t in row.stripped_strings if t.strip()]
-                                    for i, chunk in enumerate(text_chunks):
-                                        if " v " in chunk.lower() or " vs " in chunk.lower():
-                                            parts = re.split(r'(?i)\s+v\s+|\s+vs\s+', chunk, maxsplit=1)
-                                            if len(parts) == 2:
-                                                home, away = parts[0].strip(), parts[1].strip()
-                                        elif chunk in ["1", "X", "2", "1X", "X2", "12"]:
-                                            pick = chunk
 
                             else:
                                 home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
@@ -481,7 +435,7 @@ class ConsensusEngine:
                             break
                     
                     if other_pick: 
-                        match_text += f"  ↳ ⚠️️ {left_out} backed: {other_pick}\n"
+                        match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
                         contradictions.append(f"{left_out} ({other_pick})")
                     else: 
                         match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
@@ -520,7 +474,7 @@ class ConsensusEngine:
                     return usable_flash
         except Exception:
             pass
-        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
 
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
