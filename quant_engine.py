@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE TO BREAK THE CACHE FOR THE FINAL SWEEP
+# KEEPING THIS TRUE TO BREAK THE CACHE FOR THIS TEST
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -43,7 +43,7 @@ def get_dynamic_configs():
             "fallback_url": None,
             "row_selector": "a", "row_class": "livescore-match-row",
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-            "away_selector": "span", "home_class": "livescore-team-name", "away_index": 1,
+            "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
             "use_scraperapi": False
         },
@@ -70,7 +70,7 @@ def get_dynamic_configs():
             "fallback_url": "https://www.soccervista.com/predictions/",
             "row_selector": "tr", "row_class": "",
             "home_selector": "td", "home_class": "", "home_index": 0,
-            "away_selector": "td", "away_class": "", "away_index": 1,
+            "away_selector": "td", "home_class": "", "home_index": 1,
             "pick_selector": "td", "pick_class": "", "pick_index": 4,
             "use_scraperapi": True
         }
@@ -94,6 +94,9 @@ class ConsensusEngine:
                 used = data.get("requestCount", 0)
                 remaining = limit - used
                 self.diagnostics["ScraperAPICredits"] = f"🟢 OK ({remaining:,} remaining)"
+                
+                if remaining < 300:
+                    print(f"⚠️ LOW SCRAPERAPI CREDITS: {remaining:,} remaining. Consider topping up.")
             else:
                 self.diagnostics["ScraperAPICredits"] = "🔴 FAILED (Check API Dashboard)"
         except Exception:
@@ -151,7 +154,7 @@ class ConsensusEngine:
         for attempt in range(1, 3):
             try:
                 if SCRAPER_API_KEY and attempt == 1:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}&premium=true"
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
                     r = requests.get(proxy_url, timeout=35)
                 else:
                     r = tls_requests.get(url, impersonate="chrome124", timeout=25)
@@ -201,20 +204,12 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # SURGICAL ROUTING: US Render Node for PredictZ Cloudflare Bypass
+                # CREDIT-SAVING ROUTING (NO RENDER=TRUE TO SAVE CREDITS)
                 # =======================================================
                 if use_proxy:
                     params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                    
-                    if site_name == "WinDrawWin":
+                    if site_name in ["PredictZ", "WinDrawWin"]:
                         params["country_code"] = "uk"
-                        if attempt > 1: params["render"] = "true"
-                    elif site_name == "PredictZ":
-                        # FIX: US Render node specifically to pierce PredictZ Cloudflare Turnstile
-                        params["country_code"] = "us"
-                        params["render"] = "true"
-                    elif site_name == "SoccerVista":
-                        params["render"] = "true"
                     
                     r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
@@ -464,7 +459,7 @@ class ConsensusEngine:
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
     def get_available_gemini_models(self, api_key):
-        # FIX: Updated to strictly target gemini-3.8-flash as mandated by Google's latest endpoint updates
+        # FIX: Explicitly updated to gemini-3.8-flash as mandated by Google's API
         return ["gemini-3.8-flash", "gemini-2.5-flash"]
 
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
