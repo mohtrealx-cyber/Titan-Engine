@@ -469,7 +469,7 @@ class ConsensusEngine:
                             break
                     
                     if other_pick: 
-                        match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
+                        match_text += f"  ↳ ⚠️️ {left_out} backed: {other_pick}\n"
                         contradictions.append(f"{left_out} ({other_pick})")
                     else: 
                         match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
@@ -488,7 +488,8 @@ class ConsensusEngine:
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
     # ======================================================================
-    # PURE PYTHON ALGORITHMIC TICKET BUILDER (NO AI / 0 CREDITS / INSTANT)
+    # PURE PYTHON ALGORITHMIC TICKET BUILDER 
+    # (Strict: Wins to Main Ticket, Draws to Reserve)
     # ======================================================================
     def build_algorithmic_ticket(self, ai_input_data, active_corner_teams):
         self.diagnostics["QuantEngine"] = "🟢 Algorithmic Ticket Generated"
@@ -501,35 +502,55 @@ class ConsensusEngine:
 
         sorted_matches = sorted(ai_input_data, key=get_score, reverse=True)
         
-        final_picks = []
+        # FIX: Separate Draws (X) from Wins (1, 2)
+        main_candidates = [m for m in sorted_matches if m['consensus_pick'] in ["1", "2"]]
+        draw_candidates = [m for m in sorted_matches if m['consensus_pick'] == "X"]
         
-        # Pull the absolute best 4 matches from the consensus
-        for m in sorted_matches:
+        final_picks = []
+        reserve_pick = None
+        
+        # 1. Fill the top 3 with absolute safest Home/Away Wins
+        for m in main_candidates:
             final_picks.append(f"{m['match']} ➔ {m['consensus_pick']}")
-            if len(final_picks) == 4:
+            if len(final_picks) == 3:
                 break
                 
-        # If we have less than 4 matches, intelligently fill with high-probability corners
-        if len(final_picks) < 4:
+        # 2. If we don't have 3 solid wins, intelligently fill with high-probability corners
+        if len(final_picks) < 3:
             for corner in active_corner_teams:
                 corner_pick = f"{corner['match']} ➔ Over 8.5 Corners (Avg: {corner['avg_corners']})"
                 if corner_pick not in final_picks:
                     final_picks.append(corner_pick)
-                if len(final_picks) == 4:
+                if len(final_picks) == 3:
                     break
                     
         if not final_picks:
             return "No high-conviction matches found today to safely build an elite ticket."
             
+        # 3. SELECT THE RESERVE PICK: Push "Draws (X)" exclusively to the reserve slot
+        if draw_candidates:
+            reserve_pick = f"{draw_candidates[0]['match']} ➔ {draw_candidates[0]['consensus_pick']}"
+        else:
+            # Fallback if no draws exist: use a 4th win or a corner
+            leftovers = [m for m in main_candidates if f"{m['match']} ➔ {m['consensus_pick']}" not in final_picks]
+            if leftovers:
+                reserve_pick = f"{leftovers[0]['match']} ➔ {leftovers[0]['consensus_pick']}"
+            else:
+                for corner in active_corner_teams:
+                    corner_pick = f"{corner['match']} ➔ Over 8.5 Corners (Avg: {corner['avg_corners']})"
+                    if corner_pick not in final_picks:
+                        reserve_pick = corner_pick
+                        break
+
         # Format the perfect ticket output
         ticket_text = "🤖 **TITAN ALGORITHMIC TICKET** 🤖\n\n"
         ticket_text += "🛡️ **Ticket 1: Elite Ironclad (100% of Daily Stake)**\n"
         
-        for pick in final_picks[:3]:
+        for pick in final_picks:
             ticket_text += f"• {pick}\n"
             
-        if len(final_picks) > 3:
-            ticket_text += f"🔄 [RESERVE PICK]: {final_picks[3]}\n"
+        if reserve_pick:
+            ticket_text += f"🔄 [RESERVE PICK]: {reserve_pick}\n"
             
         return ticket_text
 
@@ -704,7 +725,7 @@ class ConsensusEngine:
 
             ai_optimized_message = None
             if ai_input_data or active_corner_teams:
-                # FIX: Generating ticket using pure, instant Python logic
+                # Execution of the pure Python algorithmic ticket builder
                 ai_optimized_message = self.build_algorithmic_ticket(ai_input_data, active_corner_teams)
 
             should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
