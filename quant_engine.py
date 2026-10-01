@@ -36,7 +36,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": True  # Route Statarea through ScraperAPI to avoid direct cloud IP blocks
+            "use_scraperapi": True  
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
@@ -151,7 +151,7 @@ class ConsensusEngine:
         for attempt in range(1, 3):
             try:
                 if SCRAPER_API_KEY and attempt == 1:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}&premium=true"
                     r = requests.get(proxy_url, timeout=35)
                 else:
                     r = tls_requests.get(url, impersonate="chrome124", timeout=25)
@@ -201,21 +201,18 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # SURGICAL ROUTING: Proven UK TLS Tunnel for WinDrawWin & PredictZ
+                # BULLETPROOF REST API ROUTING (NO LOCAL PROXY DICTIONARIES)
                 # =======================================================
-                if site_name in ["WinDrawWin", "PredictZ"] and use_proxy:
-                    proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
-                    proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                    r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
-                
-                elif site_name == "SoccerVista" and use_proxy:
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
-                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-
-                elif site_name == "Statarea" and use_proxy:
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url}
-                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                if use_proxy:
+                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
+                    if site_name in ["PredictZ", "WinDrawWin"]:
+                        params["country_code"] = "uk"
+                        if attempt > 1:
+                            params["render"] = "true"
+                    elif site_name == "SoccerVista":
+                        params["render"] = "true"
                     
+                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
                     r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
@@ -463,28 +460,8 @@ class ConsensusEngine:
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
     def get_available_gemini_models(self, api_key):
-        list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
-        try:
-            res = requests.get(list_url, timeout=15)
-            if res.status_code == 200:
-                data = res.json()
-                available = [
-                    m.get("name", "").replace("models/", "")
-                    for m in data.get("models", [])
-                    if "generateContent" in m.get("supportedGenerationMethods", [])
-                ]
-                
-                # FIX: Strict filter to target standard text flash models and exclude image, omni, and previews
-                stable_flash = [
-                    m for m in available 
-                    if ("flash" in m.lower() or "gemini-2" in m.lower())
-                    and not any(x in m.lower() for x in ["preview", "thinking", "lite", "deep-research", "pro", "tts", "audio", "vision", "omni", "image", "img", "3."])
-                ]
-                if stable_flash:
-                    return stable_flash
-        except Exception:
-            pass
-        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
+        # HARDCODED STABLE FALLBACKS WITH MULTI-TIER ROTATION TO BYPASS 503 SPIKES
+        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-1.5-flash"]
 
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
@@ -555,7 +532,7 @@ class ConsensusEngine:
         last_error = "Unknown"
         for model_name in models_to_try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-            for attempt in range(1, 4):  # FIX: Expanded attempts to gracefully ride out 503 high-demand spikes
+            for attempt in range(1, 5):  # FIX: Expanded retry attempts to ride out 503 demand spikes across models
                 try:
                     response = requests.post(url, json=payload, timeout=60)
                     if response.status_code == 200:
