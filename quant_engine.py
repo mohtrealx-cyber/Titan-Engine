@@ -201,14 +201,18 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # BULLETPROOF REST API ROUTING FOR ALL SITES
+                # SURGICAL ROUTING: US Render for PredictZ Cloudflare Bypass
                 # =======================================================
                 if use_proxy:
                     params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                    if site_name in ["PredictZ", "WinDrawWin"]:
+                    
+                    if site_name == "WinDrawWin":
                         params["country_code"] = "uk"
-                        if attempt > 1:
-                            params["render"] = "true"
+                        if attempt > 1: params["render"] = "true"
+                    elif site_name == "PredictZ":
+                        # FIX: US Node + Headless Render to defeat PredictZ Cloudflare Turnstile
+                        params["country_code"] = "us"
+                        params["render"] = "true"
                     elif site_name == "SoccerVista":
                         params["render"] = "true"
                     
@@ -460,8 +464,8 @@ class ConsensusEngine:
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
     def get_available_gemini_models(self, api_key):
-        # HARDCODED STABLE FALLBACKS (EXCLUDING DEPRECATED 1.5-flash)
-        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
+        # FIX: Explicitly targeting gemini-2.5-flash and gemini-2.0-flash to bypass flash-latest 503 spikes
+        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
@@ -532,7 +536,7 @@ class ConsensusEngine:
         last_error = "Unknown"
         for model_name in models_to_try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-            for attempt in range(1, 5):
+            for attempt in range(1, 6):
                 try:
                     response = requests.post(url, json=payload, timeout=60)
                     if response.status_code == 200:
