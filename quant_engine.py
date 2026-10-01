@@ -63,6 +63,15 @@ def get_dynamic_configs():
             "away_selector": "td", "home_class": "", "home_index": 1,
             "pick_selector": "td", "pick_class": "", "pick_index": 4,
             "use_scraperapi": True
+        },
+        "Zulubet": {
+            "url": "https://www.zulubet.com/",
+            "fallback_url": "http://www.zulubet.com/",
+            "row_selector": "tr", "row_class": "",
+            "home_selector": "", "home_class": "", "home_index": 0,
+            "away_selector": "", "away_class": "", "away_index": 0,
+            "pick_selector": "", "pick_class": "", "pick_index": 0,
+            "use_scraperapi": False # Zulubet is lightweight and has no anti-bot, direct TLS is perfect
         }
     }
 
@@ -179,7 +188,7 @@ class ConsensusEngine:
         self.diagnostics["CornersEngine"] = "🔴 TIMEOUT/ERROR"
 
     def fetch_and_scrape_sync(self, site_name, cfg):
-        max_attempts = 3
+        max_attempts = 4
         req_timeout = 90 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
@@ -196,7 +205,7 @@ class ConsensusEngine:
                     if site_name == "WinDrawWin":
                         params["country_code"] = "uk"
                     elif site_name == "SoccerVista":
-                        params["render"] = "true"  # Forces headless browser to wait for JS elements
+                        params["render"] = "true"  # Waits for dynamic JS tables
                     
                     r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
@@ -226,7 +235,7 @@ class ConsensusEngine:
                         if not rows:
                             raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
                             rows = [row_elem for row_elem in raw_rows if len(row_elem.find_all('a')) >= 2 and len(row_elem.text) < 800]
-                    elif site_name == "SoccerVista":
+                    elif site_name in ["SoccerVista", "Zulubet"]:
                         rows = soup.find_all("tr")
                         if not rows or len(rows) < 5:
                             raw_rows = soup.find_all("div", class_=re.compile(r'(predict|match|row|fixture|item)', re.I))
@@ -331,6 +340,28 @@ class ConsensusEngine:
                                         elif chunk in ["1", "X", "2", "1X", "X2", "12"]:
                                             pick = chunk
 
+                            elif site_name == "Zulubet":
+                                # ZULUBET CUSTOM PARSER: Fast, robust string extraction
+                                text_chunks = [t.strip() for t in row.stripped_strings if t.strip()]
+                                
+                                for chunk in text_chunks:
+                                    if " - " in chunk and len(chunk) > 5 and not re.search(r'\d+:\d+', chunk):
+                                        parts = chunk.split(" - ", 1)
+                                        if len(parts) == 2:
+                                            home, away = parts[0].strip(), parts[1].strip()
+                                    elif chunk.upper() in ["1", "X", "2", "1X", "X2", "12"]:
+                                        pick = chunk.upper()
+                                        
+                                if not home or not away:
+                                    tds = row.find_all("td")
+                                    for td in tds:
+                                        txt = td.text.strip()
+                                        if " - " in txt and not re.search(r'\d+:\d+', txt):
+                                            parts = txt.split(" - ", 1)
+                                            if len(parts) == 2:
+                                                home, away = parts[0].strip(), parts[1].strip()
+                                                break
+
                             else:
                                 home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
                                 away = row.find_all(cfg["away_selector"], class_=cfg["away_class"])[cfg["away_index"]].text
@@ -390,7 +421,7 @@ class ConsensusEngine:
         agreed_matches = []
         structured_tickets = []
         
-        all_scrapers = ["Statarea", "Vitibet", "WinDrawWin", "SoccerVista"]
+        all_scrapers = ["Statarea", "Vitibet", "WinDrawWin", "SoccerVista", "Zulubet"]
         required_consensus = 3 
 
         for match, listings in self.master_matrix.items():
@@ -409,6 +440,7 @@ class ConsensusEngine:
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
+                contradictions = []
 
                 match_text = (
                     f"• **{match}** ➔ {top_pick}\n"
@@ -425,6 +457,7 @@ class ConsensusEngine:
                     
                     if other_pick: 
                         match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
+                        contradictions.append(f"{left_out} ({other_pick})")
                     else: 
                         match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
 
