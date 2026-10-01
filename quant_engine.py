@@ -35,7 +35,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": False  # FIX: Disabled ScraperAPI to prevent 500s. Direct TLS works best here.
+            "use_scraperapi": False  # Working perfectly with direct TLS
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
@@ -44,7 +44,7 @@ def get_dynamic_configs():
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
             "away_selector": "span", "home_class": "livescore-team-name", "home_index": 1,
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
-            "use_scraperapi": False
+            "use_scraperapi": False # Working perfectly with direct TLS
         },
         "PredictZ": {
             "url": "https://www.predictz.com/predictions/",
@@ -71,7 +71,7 @@ def get_dynamic_configs():
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "home_class": "", "home_index": 1,
             "pick_selector": "td", "pick_class": "", "pick_index": 4,
-            "use_scraperapi": True
+            "use_scraperapi": False # FIX: Disabled ScraperAPI to eliminate the 90s TIMEOUT! Direct TLS will handle this.
         }
     }
 
@@ -149,12 +149,7 @@ class ConsensusEngine:
         url = "https://www.totalcorner.com/match/today"
         for attempt in range(1, 3):
             try:
-                if SCRAPER_API_KEY and attempt == 1:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = requests.get(proxy_url, timeout=35)
-                else:
-                    r = tls_requests.get(url, impersonate="chrome124", timeout=25)
-                
+                r = tls_requests.get(url, impersonate="chrome124", timeout=25)
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     rows = soup.find_all("tr")
@@ -189,7 +184,7 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 4
-        req_timeout = 60 
+        req_timeout = 90 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
 
@@ -202,15 +197,20 @@ class ConsensusEngine:
                 if use_proxy:
                     params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
                     
-                    if site_name == "WinDrawWin":
+                    if site_name in ["PredictZ", "WinDrawWin"]:
+                        # Unifying sister-site logic with the proven WinDrawWin configuration
                         params["country_code"] = "uk"
-                    elif site_name == "PredictZ":
-                        # FIX: Use specialized antibot to clear PredictZ 500 errors
-                        params["antibot"] = "true"
+                        
+                        # PREDICTZ INTELLIGENT FALLBACK:
+                        # Attempt 1: Fast UK proxy.
+                        # Attempt 2/4: Heavy Cloudflare render to solve the Turnstile puzzle
+                        if site_name == "PredictZ" and attempt % 2 == 0:
+                            params["render"] = "true"
                     
                     r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                    # Direct TLS spoofing for Statarea, Vitibet, and SoccerVista
+                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
 
                 if r is None:
                     continue
@@ -591,7 +591,7 @@ class ConsensusEngine:
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["DailyLock"] = f"🟢 CACHED (Tokens Saved for {today_date})"
         else:
-            print(f"🔓 Scraping data for {today_date}... (AI optimization has been disabled)")
+            print(f"🔓 Scraping data for {today_date}... (AI optimization disabled to isolate scrapers)")
             self.check_scraperapi_balance()
             loop = asyncio.get_running_loop()
             
