@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE TO BREAK THE CACHE FOR THIS TEST
+# KEEPING THIS TRUE TO BREAK THE CACHE
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -43,7 +43,7 @@ def get_dynamic_configs():
             "fallback_url": None,
             "row_selector": "a", "row_class": "livescore-match-row",
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-            "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
+            "away_selector": "span", "home_class": "livescore-team-name", "home_index": 1,
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
             "use_scraperapi": False
         },
@@ -151,7 +151,7 @@ class ConsensusEngine:
         for attempt in range(1, 3):
             try:
                 if SCRAPER_API_KEY and attempt == 1:
-                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}&premium=true"
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
                     r = requests.get(proxy_url, timeout=35)
                 else:
                     r = tls_requests.get(url, impersonate="chrome124", timeout=25)
@@ -201,12 +201,17 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # HIGH-POWERED RENDERING ROUTING (CREDITS ARE AMPLE NOW)
+                # SURGICAL ANTIBOT ROUTING FOR CLOUDFLARE SISTER SITES
                 # =======================================================
                 if use_proxy:
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
+                    
                     if site_name in ["PredictZ", "WinDrawWin"]:
-                        params["country_code"] = "uk"
+                        # THE HEAVY ARTILLERY: 'antibot=true' actively solves Cloudflare Turnstile
+                        # without blindly rendering a headless browser that gets trapped in infinite loops.
+                        params["antibot"] = "true"
+                    elif site_name == "SoccerVista":
+                        params["render"] = "true"
                     
                     r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
@@ -437,7 +442,7 @@ class ConsensusEngine:
                             break
                     
                     if other_pick: 
-                        match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
+                        match_text += f"  ↳ ⚠️️ {left_out} backed: {other_pick}\n"
                         contradictions.append(f"{left_out} ({other_pick})")
                     else: 
                         match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
@@ -455,18 +460,15 @@ class ConsensusEngine:
 
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
-    def get_available_gemini_models(self, api_key):
-        # FIX: Explicitly updated to gemini-3.8-flash as mandated by Google's API
-        return ["gemini-3.8-flash", "gemini-2.5-flash"]
-
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
         if not api_key:
             self.diagnostics["AIStatus"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        models_to_try = self.get_available_gemini_models(api_key)
-
+        # 🛑 RIP OUT DYNAMIC LOOKUP. HARDCODE EXACT MODEL REQUIRED BY GOOGLE.
+        model_name = "gemini-3.8-flash"
+        
         prompt = f"""
         You are Titan, an elite quantitative sports betting AI Portfolio Manager.
         Your objective is to analyze the following raw consensus data and corner statistics, 
@@ -524,34 +526,33 @@ class ConsensusEngine:
         """
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         
         last_error = "Unknown"
-        for model_name in models_to_try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-            for attempt in range(1, 6):
+        for attempt in range(1, 6):
+            try:
+                response = requests.post(url, json=payload, timeout=60)
+                if response.status_code == 200:
+                    data = response.json()
+                    self.diagnostics["AIHandshake"] = f"🟢 Connected ({model_name})"
+                    self.diagnostics["AIStatus"] = "🟢 Optimization Complete"
+                    return data['candidates'][0]['content']['parts'][0]['text']
+                
                 try:
-                    response = requests.post(url, json=payload, timeout=60)
-                    if response.status_code == 200:
-                        data = response.json()
-                        self.diagnostics["AIHandshake"] = f"🟢 Connected ({model_name})"
-                        self.diagnostics["AIStatus"] = "🟢 Optimization Complete"
-                        return data['candidates'][0]['content']['parts'][0]['text']
-                    
-                    try:
-                        err_detail = response.json().get("error", {}).get("message", response.text[:100])
-                    except Exception:
-                        err_detail = response.text[:100]
-                    last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
+                    err_detail = response.json().get("error", {}).get("message", response.text[:100])
+                except Exception:
+                    err_detail = response.text[:100]
+                last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
 
-                    if response.status_code in [500, 503, 429]:
-                        time.sleep(4 * attempt)
-                        continue
-                    else:
-                        break
-                except Exception as e:
-                    last_error = f"Network Exception: {e}"
-                    time.sleep(2 * attempt)
+                if response.status_code in [500, 503, 429]:
+                    time.sleep(4 * attempt)
                     continue
+                else:
+                    break
+            except Exception as e:
+                last_error = f"Network Exception: {e}"
+                time.sleep(2 * attempt)
+                continue
 
         self.diagnostics["AIStatus"] = f"🔴 {last_error}"
         return None
