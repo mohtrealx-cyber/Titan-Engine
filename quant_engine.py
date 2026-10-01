@@ -36,7 +36,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": True  
+            "use_scraperapi": False  # Direct pull avoids ScraperAPI 500s
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
@@ -201,19 +201,17 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # NATIVE REST API ROUTING (STABLE CLOUD-BASED PROXIES)
+                # SURGICAL ROUTING: Unified UK TLS Tunnel for WinDrawWin & PredictZ
                 # =======================================================
-                if use_proxy:
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                    
-                    if site_name in ["PredictZ", "WinDrawWin"]:
-                        params["country_code"] = "uk"
-                        if attempt > 1:
-                            params["render"] = "true"
-                    elif site_name == "SoccerVista":
-                        params["render"] = "true"
-                    
+                if site_name in ["WinDrawWin", "PredictZ"] and use_proxy:
+                    proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
+                    proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                    r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
+                
+                elif site_name == "SoccerVista" and use_proxy:
+                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
                     r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+
                 else:
                     r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
@@ -472,7 +470,7 @@ class ConsensusEngine:
                     if "generateContent" in m.get("supportedGenerationMethods", [])
                 ]
                 
-                # FIX: Strict filter ensuring only high-quota text flash models are picked
+                # FIX: Strict filter to target standard text flash models and exclude image, omni, and previews
                 stable_flash = [
                     m for m in available 
                     if ("flash" in m.lower() or "gemini-2" in m.lower())
@@ -482,7 +480,7 @@ class ConsensusEngine:
                     return stable_flash
         except Exception:
             pass
-        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
+        return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
@@ -553,7 +551,7 @@ class ConsensusEngine:
         last_error = "Unknown"
         for model_name in models_to_try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-            for attempt in range(1, 3):
+            for attempt in range(1, 4):  # FIX: Increased retry attempts for 503/429 spikes
                 try:
                     response = requests.post(url, json=payload, timeout=60)
                     if response.status_code == 200:
@@ -569,7 +567,7 @@ class ConsensusEngine:
                     last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
 
                     if response.status_code in [500, 503, 429]:
-                        time.sleep(2 * attempt)
+                        time.sleep(3 * attempt) # Exponential backoff for high demand
                         continue
                     else:
                         break
