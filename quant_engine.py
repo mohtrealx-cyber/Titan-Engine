@@ -16,8 +16,9 @@ from curl_cffi import requests as tls_requests
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
+GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE TO BREAK THE CACHE FOR THIS TEST
+# KEEPING THIS TRUE TO BREAK THE CACHE FOR THE FINAL SWEEP
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -35,7 +36,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": False  # Working perfectly with direct TLS
+            "use_scraperapi": False  
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
@@ -44,16 +45,7 @@ def get_dynamic_configs():
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
             "away_selector": "span", "home_class": "livescore-team-name", "home_index": 1,
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
-            "use_scraperapi": False # Working perfectly with direct TLS
-        },
-        "PredictZ": {
-            "url": "https://www.predictz.com/predictions/",
-            "fallback_url": "https://www.predictz.com/predictions/",
-            "row_selector": "div", "row_class": "pttr",
-            "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
-            "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
-            "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
-            "use_scraperapi": True
+            "use_scraperapi": False
         },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
@@ -71,7 +63,7 @@ def get_dynamic_configs():
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "home_class": "", "home_index": 1,
             "pick_selector": "td", "pick_class": "", "pick_index": 4,
-            "use_scraperapi": False # FIX: Disabled ScraperAPI to eliminate the 90s TIMEOUT! Direct TLS will handle this.
+            "use_scraperapi": True # Routed back to ScraperAPI to prevent direct IP timeouts
         }
     }
 
@@ -149,7 +141,12 @@ class ConsensusEngine:
         url = "https://www.totalcorner.com/match/today"
         for attempt in range(1, 3):
             try:
-                r = tls_requests.get(url, impersonate="chrome124", timeout=25)
+                if SCRAPER_API_KEY and attempt == 1:
+                    proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
+                    r = requests.get(proxy_url, timeout=35)
+                else:
+                    r = tls_requests.get(url, impersonate="chrome124", timeout=25)
+                
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     rows = soup.find_all("tr")
@@ -184,7 +181,7 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 4
-        req_timeout = 90 
+        req_timeout = 60 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
 
@@ -196,21 +193,12 @@ class ConsensusEngine:
                 
                 if use_proxy:
                     params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                    
-                    if site_name in ["PredictZ", "WinDrawWin"]:
-                        # Unifying sister-site logic with the proven WinDrawWin configuration
+                    if site_name == "WinDrawWin":
                         params["country_code"] = "uk"
-                        
-                        # PREDICTZ INTELLIGENT FALLBACK:
-                        # Attempt 1: Fast UK proxy.
-                        # Attempt 2/4: Heavy Cloudflare render to solve the Turnstile puzzle
-                        if site_name == "PredictZ" and attempt % 2 == 0:
-                            params["render"] = "true"
                     
                     r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
-                    # Direct TLS spoofing for Statarea, Vitibet, and SoccerVista
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
+                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
                 if r is None:
                     continue
@@ -225,11 +213,10 @@ class ConsensusEngine:
 
                     soup = BeautifulSoup(r.content, 'html.parser')
                     
-                    if site_name in ["PredictZ", "WinDrawWin"]:
-                        prefix = "pt" if site_name == "PredictZ" else "wt"
-                        rows = soup.find_all("div", class_=re.compile(f"({prefix}tr|{prefix}row|match-row|pr-match)", re.I))
+                    if site_name == "WinDrawWin":
+                        rows = soup.find_all("div", class_=re.compile(r"(wttr|wtrow|match-row|pr-match)", re.I))
                         if not rows:
-                            child_elems = soup.find_all("div", class_=re.compile(f"({prefix}tmobh|{prefix}tmoba|team1|team2)", re.I))
+                            child_elems = soup.find_all("div", class_=re.compile(r"(wttmobh|wttmoba|team1|team2)", re.I))
                             if child_elems:
                                 rows = list(set([c.parent for c in child_elems if c.parent]))
                         if not rows:
@@ -263,10 +250,10 @@ class ConsensusEngine:
 
                             home, away, pick = None, None, None
 
-                            if site_name in ["PredictZ", "WinDrawWin"]:
-                                h_elem = row.find(class_=re.compile(r'(tmobh|team1|h$|home)', re.I))
-                                a_elem = row.find(class_=re.compile(r'(tmoba|team2|a$|away)', re.I))
-                                p_elem = row.find(class_=re.compile(r'(oddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
+                            if site_name == "WinDrawWin":
+                                h_elem = row.find(class_=re.compile(r'(wttmobh|team1|h$|home)', re.I))
+                                a_elem = row.find(class_=re.compile(r'(wttmoba|team2|a$|away)', re.I))
+                                p_elem = row.find(class_=re.compile(r'(wtoddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
 
                                 if h_elem and a_elem:
                                     home = h_elem.text
@@ -400,8 +387,10 @@ class ConsensusEngine:
     def process_consensus_signals(self):
         agreed_matches = []
         structured_tickets = []
-        
-        all_scrapers = ["Statarea", "Vitibet", "PredictZ", "WinDrawWin", "SoccerVista"]
+        ai_input_data = []
+
+        # PredictZ permanently eliminated from the master list
+        all_scrapers = ["Statarea", "Vitibet", "WinDrawWin", "SoccerVista"]
         required_consensus = 3 
 
         for match, listings in self.master_matrix.items():
@@ -420,6 +409,7 @@ class ConsensusEngine:
             if prediction_weights[top_pick] >= required_consensus:
                 backing_sites_list = sites_backing[top_pick]
                 backing_sites_str = " + ".join(backing_sites_list)
+                contradictions = []
 
                 match_text = (
                     f"• **{match}** ➔ {top_pick}\n"
@@ -436,13 +426,119 @@ class ConsensusEngine:
                     
                     if other_pick: 
                         match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
+                        contradictions.append(f"{left_out} ({other_pick})")
                     else: 
                         match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
 
                 agreed_matches.append(match_text)
                 structured_tickets.append({"match": match, "prediction": top_pick, "status": "PENDING", "score": "-"})
                 
-        return agreed_matches, structured_tickets, required_consensus
+                ai_input_data.append({
+                    "match": match, 
+                    "consensus_pick": top_pick, 
+                    "backed_by": backing_sites_str, 
+                    "contradictions": contradictions, 
+                    "tier": "Core Consensus"
+                })
+
+        return agreed_matches, structured_tickets, ai_input_data, required_consensus
+
+    def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
+        api_key = (GEMINI_API_KEY or "").strip()
+        if not api_key:
+            self.diagnostics["AIStatus"] = "🔴 Missing GEMINI_API_KEY"
+            return None
+
+        # Hardcoded exactly to gemini-3.8-flash
+        model_name = "gemini-3.8-flash"
+
+        prompt = f"""
+        You are Titan, an elite quantitative sports betting AI Portfolio Manager.
+        Your objective is to analyze the following raw consensus data and corner statistics, 
+        and construct highly optimized, risk-mitigated betting tickets.
+
+        === RAW CONSENSUS DATA ===
+        {json.dumps(ai_input_data, indent=2)}
+
+        === HIGH-PROBABILITY CORNER STATISTICS ===
+        {json.dumps(active_corner_teams, indent=2)}
+
+        STRICT ARCHITECTURE RULES:
+        1. NEVER repeat the same match across multiple tickets or reserve slots. Every match used (whether main or reserve) must be completely unique across your entire output.
+        2. ACT AS A PORTFOLIO MANAGER: You are allowed to DROP weak consensus matches and REPLACE them with Corner predictions (e.g., 'Over 8.5 Corners') in Tickets 1, 2, or 3 if the corner data provides a mathematically safer floor.
+        3. YOU MUST FORMAT YOUR HEADERS EXACTLY LIKE THIS to enforce my daily dynamic staking strategy:
+            🛡️ Ticket 1: Ironclad (40% of Daily Stake)
+            ⚖️ Ticket 2: Balanced (20% of Daily Stake)
+            🎯 Ticket 3: Volatility (10% of Daily Stake)
+            🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
+        4. TICKET BUILDING LOGIC:
+            - TICKET 1: MUST contain EXACTLY THREE main matches sourced exclusively from the 'Core Consensus' tier with ZERO contradictions. If fewer than 3 pristine matches exist, fill remaining spots with safest Corner predictions.
+            - TICKET 2: Mix any remaining 'Core Consensus' matches with Corners. Matches with contradictions can be placed here.
+            - TICKET 3: Use the remaining matches and higher-risk options.
+            - TICKET 4: Leave this ticket COMPLETELY BLANK under the header. Do not generate any matches for it.
+        5. CRITICAL RESERVE/BACKUP RULE:
+            - At the end of Tickets 1, 2, and 3 ONLY, append EXACTLY ONE additional backup match tagged as follows:
+              `🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]`
+            - Ticket 4 gets NO matches and NO reserve pick.
+        6. IF there are only 1 or 2 matches available for the day: Output a single ticket using this exact header:
+            🔥 Ticket 1: Premium Singles (100% of Daily Stake)
+            • [Match Name] ➔ [Optimized Prediction]
+            🔄 [RESERVE PICK]: [Match Name] ➔ [Optimized Prediction]
+        7. Apply your advanced risk-mitigation optimizations DIRECTLY on the slip lines.
+        8. NO paragraphs of text. NO explanations. Output ONLY the beautifully formatted tickets ready to be sent via Telegram.
+
+        OUTPUT FORMAT TEMPLATE:
+        🛡️ Ticket 1: Ironclad (40% of Daily Stake)
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
+
+        ⚖️ Ticket 2: Balanced (20% of Daily Stake)
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
+
+        🎯 Ticket 3: Volatility (10% of Daily Stake)
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        • [Match Name] ➔ [Prediction]
+        🔄 [RESERVE PICK]: [Match Name] ➔ [Prediction]
+
+        🧪 Ticket 4: Custom Tickets (30% of Daily Stake)
+        """
+
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        
+        last_error = "Unknown"
+        for attempt in range(1, 6):
+            try:
+                response = requests.post(url, json=payload, timeout=60)
+                if response.status_code == 200:
+                    data = response.json()
+                    self.diagnostics["AIHandshake"] = f"🟢 Connected ({model_name})"
+                    self.diagnostics["AIStatus"] = "🟢 Optimization Complete"
+                    return data['candidates'][0]['content']['parts'][0]['text']
+                
+                try:
+                    err_detail = response.json().get("error", {}).get("message", response.text[:100])
+                except Exception:
+                    err_detail = response.text[:100]
+                last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
+
+                if response.status_code in [500, 503, 429]:
+                    time.sleep(5)
+                    continue
+                else:
+                    break
+            except Exception as e:
+                last_error = f"Network Exception: {e}"
+                time.sleep(5)
+                continue
+
+        self.diagnostics["AIStatus"] = f"🔴 {last_error}"
+        return None
 
     def load_memory(self):
         if os.path.exists(MEMORY_FILE):
@@ -588,10 +684,11 @@ class ConsensusEngine:
             print(f"🔒 Data for {today_date} is already securely locked. Bypassing scrapers to conserve ScraperAPI tokens.")
             daily_data = memory[today_date]
             agreed_matches = daily_data.get("agreed_matches", [])
+            ai_optimized_message = daily_data.get("ai_optimized_message")
             req_threshold = daily_data.get("req_threshold", 3)
             self.diagnostics["DailyLock"] = f"🟢 CACHED (Tokens Saved for {today_date})"
         else:
-            print(f"🔓 Scraping data for {today_date}... (AI optimization disabled to isolate scrapers)")
+            print(f"🔓 Scraping and generating fresh tickets for {today_date}...")
             self.check_scraperapi_balance()
             loop = asyncio.get_running_loop()
             
@@ -600,15 +697,29 @@ class ConsensusEngine:
                 tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
                 await asyncio.gather(*tasks)
 
-            agreed_matches, structured_tickets, req_threshold = self.process_consensus_signals()
+            agreed_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
 
-            should_lock = (current_hour >= 5)
+            active_corner_teams = []
+            for match in self.master_matrix.keys():
+                parts = match.split(" vs ")
+                if len(parts) == 2:
+                    h, a = parts[0].strip(), parts[1].strip()
+                    if h in self.corner_stats and self.corner_stats[h] >= 9.5:
+                        active_corner_teams.append({"match": match, "team": h, "avg_corners": self.corner_stats[h]})
+                    if a in self.corner_stats and self.corner_stats[a] >= 9.5:
+                        active_corner_teams.append({"match": match, "team": a, "avg_corners": self.corner_stats[a]})
+
+            ai_optimized_message = None
+            if ai_input_data or active_corner_teams:
+                ai_optimized_message = self.ask_llm_to_optimize_tickets(ai_input_data, active_corner_teams)
+
+            should_lock = (current_hour >= 5) and (ai_optimized_message is not None or not ai_input_data)
 
             if not FORCE_RUN:
                 memory[today_date] = {
                     "locked": should_lock,
                     "agreed_matches": agreed_matches,
-                    "ai_optimized_message": None,
+                    "ai_optimized_message": ai_optimized_message,
                     "req_threshold": req_threshold,
                     "tickets": structured_tickets
                 }
@@ -617,7 +728,7 @@ class ConsensusEngine:
             if should_lock:
                 self.diagnostics["DailyLock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else:
-                self.diagnostics["DailyLock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT)"
+                self.diagnostics["DailyLock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT) / AI RETRY PENDING"
 
         settled_reports = self.settle_pending_tickets(memory)
 
@@ -637,6 +748,11 @@ class ConsensusEngine:
             for site, status in self.diagnostics.items(): msg += f"↳ {site}: {status}\n"
 
             self.send_telegram_alert(msg)
+
+            if ai_optimized_message and not is_already_locked:
+                time.sleep(1.5)
+                ticket_msg = f"🤖 **TITAN AI OPTIMIZED TICKETS** 🤖\n\n{ai_optimized_message}"
+                self.send_telegram_alert(ticket_msg)
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
