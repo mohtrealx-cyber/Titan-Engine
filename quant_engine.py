@@ -43,7 +43,7 @@ def get_dynamic_configs():
             "fallback_url": None,
             "row_selector": "a", "row_class": "livescore-match-row",
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-            "away_selector": "span", "home_class": "livescore-team-name", "away_index": 1,
+            "away_selector": "span", "home_class": "livescore-team-name", "home_index": 1,
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
             "use_scraperapi": False
         },
@@ -54,7 +54,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
             "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
-            "use_scraperapi": False  # FIX: Disabled ScraperAPI to prevent 500s and use direct TLS spoofing
+            "use_scraperapi": True
         },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
@@ -63,7 +63,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
             "pick_selector": "div", "pick_class": "wtoddsdesc", "pick_index": 0,
-            "use_scraperapi": False  # FIX: Disabled ScraperAPI to prevent 500s and use direct TLS spoofing
+            "use_scraperapi": True
         },
         "SoccerVista": {
             "url": "https://www.soccervista.com/",
@@ -152,7 +152,7 @@ class ConsensusEngine:
             try:
                 if SCRAPER_API_KEY and attempt == 1:
                     proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-                    r = requests.get(proxy_url, timeout=35)
+                    r = requests.get(proxy_url, timeout=45)
                 else:
                     r = tls_requests.get(url, impersonate="chrome124", timeout=25)
                 
@@ -190,12 +190,10 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 4
-        req_timeout = 30 
+        # FIX: Increased timeout to 90s to give headless browser time to solve Cloudflare JS
+        req_timeout = 90 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
-
-        # FIX: Define robust TLS profiles to rotate and trick Cloudflare
-        tls_profiles = ["chrome124", "safari15_3", "chrome120", "safari15_5"]
 
         for attempt in range(1, max_attempts + 1):
             try:
@@ -204,12 +202,19 @@ class ConsensusEngine:
                 r = None
                 
                 if use_proxy:
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
+                    # FIX: Headless rendering and Premium Proxies explicitly enabled to smash 403s
+                    params = {
+                        "api_key": SCRAPER_API_KEY, 
+                        "url": active_url, 
+                        "premium": "true",
+                        "render": "true" 
+                    }
+                    if site_name in ["PredictZ", "WinDrawWin"]:
+                        params["country_code"] = "uk"
+                        
+                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
-                    # FIX: Rotate TLS fingerprints directly to pierce Cloudflare on PredictZ/WinDrawWin
-                    current_profile = tls_profiles[(attempt - 1) % len(tls_profiles)]
-                    r = tls_requests.get(active_url, impersonate=current_profile, timeout=req_timeout)
+                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
                 if r is None:
                     continue
@@ -219,7 +224,7 @@ class ConsensusEngine:
                     
                     if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 150000:
                         last_error_str = "Cloudflare Challenge"
-                        time.sleep(1)
+                        time.sleep(2)
                         continue
 
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -382,16 +387,16 @@ class ConsensusEngine:
 
                 elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     last_error_str = f"HTTP {r.status_code}"
-                    time.sleep(1)
+                    time.sleep(2)
                     continue
                 else:
                     last_error_str = f"HTTP {r.status_code}"
-                    time.sleep(1)
+                    time.sleep(2)
                     continue
 
             except Exception as e:
                 last_error_str = f"Error: {type(e).__name__}"
-                time.sleep(1)
+                time.sleep(2)
                 continue
 
         self.diagnostics[site_name] = f"🔴 FAILED ({last_error_str})"
@@ -460,7 +465,7 @@ class ConsensusEngine:
             self.diagnostics["AIStatus"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        # FIX: Hardcoded to exactly gemini-3.8-flash per Google's error instructions.
+        # Fully hardcoded to exactly gemini-3.8-flash 
         model_name = "gemini-3.8-flash"
 
         prompt = f"""
@@ -523,8 +528,7 @@ class ConsensusEngine:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         
         last_error = "Unknown"
-        # FIX: Implement a patient Long-Polling loop for 503 High Demand spikes
-        for attempt in range(1, 7):
+        for attempt in range(1, 8):
             try:
                 response = requests.post(url, json=payload, timeout=60)
                 if response.status_code == 200:
@@ -540,8 +544,7 @@ class ConsensusEngine:
                 last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
 
                 if response.status_code in [500, 503, 429]:
-                    # Wait a solid 10 seconds before hitting Google again during a traffic spike
-                    time.sleep(10)
+                    time.sleep(10) # Patient 10-second wait to ride out 503 load spikes
                     continue
                 else:
                     break
