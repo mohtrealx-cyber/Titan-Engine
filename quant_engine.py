@@ -201,13 +201,13 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # UNIFIED UK TLS NODE FOR SISTER SITES (PredictZ & WinDrawWin)
+                # UNIFIED UK TLS NODE FOR SISTER SITES (WinDrawWin & PredictZ)
                 # =======================================================
                 if use_proxy:
                     params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
                     
                     if site_name in ["WinDrawWin", "PredictZ"]:
-                        # FIX: Using the exact UK node config that successfully unlocked WinDrawWin
+                        # FIX: Apply winning UK configuration to both sister sites
                         params["country_code"] = "uk"
                         if attempt > 1: params["render"] = "true"
                     elif site_name == "SoccerVista":
@@ -461,8 +461,8 @@ class ConsensusEngine:
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
     def get_available_gemini_models(self, api_key):
-        # FIX: Purged deprecated 1.5-flash and strictly targeting stable 2.5 / 2.0 flash models
-        return ["gemini-2.5-flash", "gemini-2.0-flash"]
+        # FIX: Updated to gemini-3.8-flash and 2.5-flash as mandated by Google's API updates
+        return ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"]
 
     def ask_llm_to_optimize_tickets(self, ai_input_data, active_corner_teams):
         api_key = (GEMINI_API_KEY or "").strip()
