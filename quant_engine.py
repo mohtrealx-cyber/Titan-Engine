@@ -63,7 +63,7 @@ def get_dynamic_configs():
             "home_selector": "td", "home_class": "", "home_index": 0,
             "away_selector": "td", "home_class": "", "home_index": 1,
             "pick_selector": "td", "pick_class": "", "pick_index": 4,
-            "use_scraperapi": False # Adaptive waterfall starts with fast direct TLS
+            "use_scraperapi": True 
         },
         "Zulubet": {
             "url": "https://www.zulubet.com/",
@@ -190,7 +190,8 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 4
-        req_timeout = 45 
+        # FIX: Restored the 90-second timeout so requests don't hang up before ScraperAPI solves Cloudflare
+        req_timeout = 90 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
 
@@ -200,10 +201,9 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # ADAPTIVE MULTI-NODE WATERFALL ROUTING
+                # ADAPTIVE MULTI-NODE WATERFALL ROUTING (90s Patience)
                 # =======================================================
                 if site_name == "WinDrawWin":
-                    # Attempt 1: UK node | Attempt 2: US node | Attempt 3: Direct TLS | Attempt 4: Standard ScraperAPI
                     if attempt == 1 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}, timeout=req_timeout)
                     elif attempt == 2 and SCRAPER_API_KEY:
@@ -212,14 +212,14 @@ class ConsensusEngine:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
                     elif attempt == 4 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}, timeout=req_timeout)
+                
                 elif site_name == "SoccerVista":
-                    # Attempt 1: Fast direct TLS | Attempt 2: ScraperAPI standard | Attempt 3: ScraperAPI Premium
-                    if attempt == 1:
-                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=25)
-                    elif attempt == 2 and SCRAPER_API_KEY:
-                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url}, timeout=35)
-                    elif attempt >= 3 and SCRAPER_API_KEY:
-                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}, timeout=45)
+                    # FIX: SoccerVista requires `render=true` because its tables are built with JS
+                    if attempt <= 3 and SCRAPER_API_KEY:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}, timeout=req_timeout)
+                    else:
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                
                 else:
                     use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                     if use_proxy:
@@ -235,7 +235,7 @@ class ConsensusEngine:
                     
                     if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 150000:
                         last_error_str = "Cloudflare Challenge"
-                        time.sleep(1)
+                        time.sleep(2)
                         continue
 
                     soup = BeautifulSoup(r.content, 'html.parser')
@@ -417,16 +417,20 @@ class ConsensusEngine:
 
                 elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     last_error_str = f"HTTP {r.status_code}"
-                    time.sleep(1)
+                    time.sleep(2)
                     continue
                 else:
                     last_error_str = f"HTTP {r.status_code}"
-                    time.sleep(1)
+                    time.sleep(2)
                     continue
 
+            except requests.exceptions.ReadTimeout:
+                last_error_str = "Error: ReadTimeout (ScraperAPI needs more time)"
+                time.sleep(2)
+                continue
             except Exception as e:
                 last_error_str = f"Error: {type(e).__name__}"
-                time.sleep(1)
+                time.sleep(2)
                 continue
 
         self.diagnostics[site_name] = f"🔴 FAILED ({last_error_str})"
