@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE FOR THE FINAL GREEN-LIGHT TEST
+# KEEPING THIS TRUE TO BREAK THE CACHE FOR THE FINAL TEST
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -36,7 +36,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": False  # Direct pull via curl_cffi to avoid HTTP 500
+            "use_scraperapi": True  
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
@@ -201,21 +201,19 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # SURGICAL ROUTING: Applying Winning UK Tunnel to PredictZ & WinDrawWin
+                # NATIVE REST API ROUTING (ELIMINATES REQUESTSERROR)
                 # =======================================================
-                if site_name in ["WinDrawWin", "PredictZ"] and use_proxy:
-                    proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
-                    proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                    r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
-                
-                elif site_name == "SoccerVista" and use_proxy:
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
-                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-
-                elif site_name == "Statarea":
-                    # Statarea pulls clean via direct TLS without proxy
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                if use_proxy:
+                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
                     
+                    if site_name in ["PredictZ", "WinDrawWin"]:
+                        params["country_code"] = "uk"
+                        if attempt > 1:
+                            params["render"] = "true"
+                    elif site_name == "SoccerVista":
+                        params["render"] = "true"
+                    
+                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
                     r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
@@ -474,11 +472,11 @@ class ConsensusEngine:
                     if "generateContent" in m.get("supportedGenerationMethods", [])
                 ]
                 
-                # FIX: Force strict selection of stable 2.5 / 2.0 flash models and blacklist 3.x/preview/tts
+                # FIX: Strict filter to target standard text flash models and exclude omni/3.x/preview/tts
                 stable_flash = [
                     m for m in available 
                     if ("flash" in m.lower() or "gemini-2" in m.lower())
-                    and not any(x in m.lower() for x in ["preview", "thinking", "lite", "deep-research", "pro", "tts", "audio", "vision", "3."])
+                    and not any(x in m.lower() for x in ["preview", "thinking", "lite", "deep-research", "pro", "tts", "audio", "vision", "omni", "3."])
                 ]
                 if stable_flash:
                     return stable_flash
@@ -601,7 +599,12 @@ class ConsensusEngine:
         results = {}
         url = f"https://www.statarea.com/predictions/date/{target_date}/"
         try:
-            r = tls_requests.get(url, impersonate="chrome124", timeout=25)
+            if SCRAPER_API_KEY:
+                proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
+                r = requests.get(proxy_url, timeout=35)
+            else:
+                r = tls_requests.get(url, impersonate="chrome124", timeout=25)
+                
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 for row in soup.find_all("div", class_="matchrow"):
