@@ -43,7 +43,7 @@ def get_dynamic_configs():
             "fallback_url": None,
             "row_selector": "a", "row_class": "livescore-match-row",
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-            "away_selector": "span", "away_class": "livescore-team-name", "away_index": 1,
+            "away_selector": "span", "home_class": "livescore-team-name", "home_index": 1,
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
             "use_scraperapi": False
         },
@@ -95,8 +95,8 @@ class ConsensusEngine:
                 remaining = limit - used
                 self.diagnostics["ScraperAPICredits"] = f"🟢 OK ({remaining:,} remaining)"
                 
-                if remaining < 300:
-                    print(f"⚠️ LOW SCRAPERAPI CREDITS: {remaining:,} remaining. Consider topping up.")
+                if remaining < 100:
+                    print(f"⚠️ CRITICAL: Low ScraperAPI credits ({remaining:,}). Top up soon!")
             else:
                 self.diagnostics["ScraperAPICredits"] = "🔴 FAILED (Check API Dashboard)"
         except Exception:
@@ -204,9 +204,11 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # CREDIT-SAVING ROUTING (NO RENDER=TRUE TO SAVE CREDITS)
+                # ULTRA-LEAN CREDIT-SAVING REST ROUTING (NO RENDER)
                 # =======================================================
                 if use_proxy:
+                    # premium=true costs 1 credit. render=true costs 5 credits.
+                    # Removing render=true saves your remaining credits and prevents HTTP 500s.
                     params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
                     if site_name in ["PredictZ", "WinDrawWin"]:
                         params["country_code"] = "uk"
