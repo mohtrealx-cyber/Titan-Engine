@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE FOR THE FINAL GREEN-LIGHT TEST
+# KEEPING THIS TRUE TO BREAK THE CACHE AND TEST THE TIMEOUT FIX
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -36,7 +36,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "name", "home_index": 0,
             "away_selector": "div", "away_class": "name", "away_index": 1,
             "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
-            "use_scraperapi": True  # FIX 1: Flipped back to True. Direct cloud IPs time out.
+            "use_scraperapi": True  
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
@@ -190,8 +190,8 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 3
-        req_timeout = 60 
-        last_status = None
+        req_timeout = 90  # THE FIX: 90 seconds gives ScraperAPI the time it needs to solve Cloudflare
+        last_error_str = "TIMEOUT"
         target_url = cfg["url"]
         
         googlebot_headers = {
@@ -206,43 +206,37 @@ class ConsensusEngine:
                 r = None
                 
                 if use_proxy:
-                    # FIX 2: SPLIT ROUTING FOR THE SISTER SITES
                     if site_name == "WinDrawWin":
-                        # WinDrawWin loves the TLS Proxy Tunnel
+                        # WinDrawWin works best with a raw TLS Proxy Tunnel
                         proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
                         proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
                         proxies = {"http": proxy_node, "https": proxy_node}
                         r = tls_requests.get(active_url, impersonate="chrome124", proxies=proxies, timeout=req_timeout)
                     
                     elif site_name == "PredictZ":
-                        # PredictZ drops the TLS Proxy Tunnel, so we use the REST API multi-stage attack
-                        if attempt == 1:
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk", "keep_headers": "true"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, headers=googlebot_headers, timeout=req_timeout)
-                        elif attempt == 2:
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
-                        else:
-                            params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
-                            r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                        # PredictZ works best with pure REST API + GoogleBot Headers
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk", "keep_headers": "true"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, headers=googlebot_headers, timeout=req_timeout)
                             
                     elif site_name == "SoccerVista":
+                        # SoccerVista legitimately requires JS rendering
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
                         r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                     
-                    else: # Statarea
+                    else: 
+                        # Statarea - Fast standard datacenter pull
                         params = {"api_key": SCRAPER_API_KEY, "url": active_url}
                         r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 else:
+                    # Non-Proxy Direct Access (Vitibet)
                     r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
                 if r is None:
                     continue
 
-                last_status = r.status_code
-
                 if r.status_code == 200:
                     challenge_phrases = ["just a moment", "cf-browser-verification", "checking your browser", "turnstile", "ray id", "security check", "verify you are human", "enable javascript", "cloudflare"]
+                    
                     if any(phrase in r.text.lower() for phrase in challenge_phrases) and len(r.text) < 150000:
                         if attempt < max_attempts:
                             time.sleep(1)
@@ -264,7 +258,6 @@ class ConsensusEngine:
                         if not rows:
                             raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
                             rows = [row_elem for row_elem in raw_rows if len(row_elem.find_all('a')) >= 2 and len(row_elem.text) < 800]
-                    
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
                         if not rows:
@@ -402,14 +395,24 @@ class ConsensusEngine:
                         return
 
                 if r.status_code in [403, 500, 502, 503, 504, 429]:
+                    last_error_str = f"HTTP {r.status_code}"
                     time.sleep(1)
                     continue
 
-            except Exception:
+            except requests.exceptions.ReadTimeout:
+                last_error_str = "ReadTimeout (ScraperAPI took >90s)"
+                time.sleep(1)
+                continue
+            except requests.exceptions.ConnectTimeout:
+                last_error_str = "ConnectTimeout"
+                time.sleep(1)
+                continue
+            except Exception as e:
+                last_error_str = f"Error: {type(e).__name__}"
                 time.sleep(1)
                 continue
 
-        self.diagnostics[site_name] = f"🔴 FAILED (HTTP TIMEOUT)"
+        self.diagnostics[site_name] = f"🔴 FAILED ({last_error_str})"
 
     def process_consensus_signals(self):
         agreed_matches = []
@@ -649,7 +652,6 @@ class ConsensusEngine:
             tickets = payload if isinstance(payload, list) else payload.get("tickets", [])
             for t in tickets:
                 if t.get("status") == "PENDING":
-                    # Stop checking old tickets
                     if days_old > 4:
                         t["status"] = "EXPIRED ⚪"
                         needs_save = True
