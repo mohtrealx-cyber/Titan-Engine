@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("T
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE TO BREAK THE CACHE FOR THE FINAL GREEN-LIGHT TEST
+# KEEPING THIS TRUE TO BREAK THE CACHE AND TEST THE SURGICAL FIXES
 FORCE_RUN = True 
 
 MEMORY_FILE = "pending_tickets.json"
@@ -189,8 +189,7 @@ class ConsensusEngine:
         self.diagnostics["CornersEngine"] = "🔴 TIMEOUT/ERROR"
 
     def fetch_and_scrape_sync(self, site_name, cfg):
-        # 4-Stage Progressive Attack Sequence
-        max_attempts = 4
+        max_attempts = 3
         req_timeout = 60 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
@@ -207,38 +206,51 @@ class ConsensusEngine:
                 r = None
                 
                 # =======================================================
-                # STAGE 1: Direct TLS Tunnel (Zero API Credits, Fastest)
+                # SURGICAL ROUTING LOGIC
                 # =======================================================
-                if attempt == 1:
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=30)
+                if site_name == "WinDrawWin" and use_proxy:
+                    if attempt == 1:
+                        proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
+                        proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                        r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
+                    elif attempt == 2:
+                        proxy_auth = f"scraperapi.premium=true.country_code=us:{SCRAPER_API_KEY}"
+                        proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                        r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
+                    else:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
                 
-                # =======================================================
-                # STAGE 2: Premium Proxy TLS Tunnel (Masks GitHub IP)
-                # =======================================================
-                elif attempt == 2 and use_proxy:
-                    proxy_auth = f"scraperapi.premium=true:{SCRAPER_API_KEY}"
-                    proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
-                    r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
-                
-                # =======================================================
-                # STAGE 3: ScraperAPI REST API (JS Rendering)
-                # =======================================================
-                elif attempt == 3 and use_proxy:
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                    if site_name in ["PredictZ", "WinDrawWin", "SoccerVista"]:
-                        params["render"] = "true"
-                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                elif site_name == "PredictZ" and use_proxy:
+                    if attempt == 1:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                    elif attempt == 2:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us", "keep_headers": "true"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, headers=googlebot_headers, timeout=req_timeout)
+                    else:
+                        proxy_auth = f"scraperapi.premium=true.country_code=uk:{SCRAPER_API_KEY}"
+                        proxy_node = f"http://{proxy_auth}@proxy-server.scraperapi.com:8001"
+                        r = tls_requests.get(active_url, impersonate="chrome124", proxies={"http": proxy_node, "https": proxy_node}, timeout=req_timeout)
+                        
+                elif site_name == "SoccerVista" and use_proxy:
+                    if attempt == 1:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                    else:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
 
-                # =======================================================
-                # STAGE 4: ScraperAPI REST API (Googlebot SEO Bypass)
-                # =======================================================
-                elif attempt == 4 and use_proxy:
-                    params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "keep_headers": "true"}
-                    r = requests.get("http://api.scraperapi.com/", params=params, headers=googlebot_headers, timeout=req_timeout)
-
-                # Fallback for Vitibet (Non-Proxy)
-                elif attempt > 1 and not use_proxy:
-                    r = tls_requests.get(active_url, impersonate="safari15_3", timeout=30)
+                elif site_name == "Statarea" and use_proxy:
+                    if attempt == 1:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                    else:
+                        params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
+                        r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                        
+                else:
+                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
 
                 if r is None:
                     continue
@@ -265,10 +277,14 @@ class ConsensusEngine:
                         if not rows:
                             raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
                             rows = [row_elem for row_elem in raw_rows if len(row_elem.find_all('a')) >= 2 and len(row_elem.text) < 800]
+                    
                     elif site_name == "SoccerVista":
                         rows = soup.find_all("tr")
-                        if not rows:
-                            rows = soup.find_all("div", class_=re.compile("predict|match"))
+                        # FIX 3: Detect Mobile versions with div layouts
+                        if not rows or len(rows) < 5:
+                            raw_rows = soup.find_all("div", class_=re.compile(r'(predict|match|row|fixture|item)', re.I))
+                            rows = [r for r in raw_rows if len(r.find_all('a')) >= 2 or len(r.find_all('div')) >= 2]
+                            
                     else:
                         row_target = cfg["row_class"]
                         rows = soup.find_all(cfg["row_selector"], class_=row_target)
@@ -358,6 +374,17 @@ class ConsensusEngine:
                                         elif txt in ["1", "X", "2", "1X", "X2", "12"]:
                                             pick = txt
                                             break
+                                            
+                                # Mobile fallback parser
+                                if not home or not away:
+                                    text_chunks = [t.strip() for t in row.stripped_strings if t.strip()]
+                                    for i, chunk in enumerate(text_chunks):
+                                        if " v " in chunk.lower() or " vs " in chunk.lower():
+                                            parts = re.split(r'(?i)\s+v\s+|\s+vs\s+', chunk, maxsplit=1)
+                                            if len(parts) == 2:
+                                                home, away = parts[0].strip(), parts[1].strip()
+                                        elif chunk in ["1", "X", "2", "1X", "X2", "12"]:
+                                            pick = chunk
 
                             else:
                                 home = row.find_all(cfg["home_selector"], class_=cfg["home_class"])[cfg["home_index"]].text
@@ -397,10 +424,6 @@ class ConsensusEngine:
                     if valid_count > 0 or skipped_count > 0:
                         self.diagnostics[site_name] = f"🟢 OK ({valid_count} Upcoming | {skipped_count} Played)"
                         return
-                    else:
-                        last_error_str = "No valid matches parsed"
-                        time.sleep(1)
-                        continue
 
                 elif r.status_code in [403, 500, 502, 503, 504, 429]:
                     last_error_str = f"HTTP {r.status_code}"
@@ -411,14 +434,6 @@ class ConsensusEngine:
                     time.sleep(1)
                     continue
 
-            except requests.exceptions.ReadTimeout:
-                last_error_str = "ReadTimeout (ScraperAPI took >60s)"
-                time.sleep(1)
-                continue
-            except requests.exceptions.ConnectTimeout:
-                last_error_str = "ConnectTimeout"
-                time.sleep(1)
-                continue
             except Exception as e:
                 last_error_str = f"Error: {type(e).__name__}"
                 time.sleep(1)
