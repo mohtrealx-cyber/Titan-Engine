@@ -43,7 +43,7 @@ def get_dynamic_configs():
             "fallback_url": None,
             "row_selector": "a", "row_class": "livescore-match-row",
             "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-            "away_selector": "span", "home_class": "livescore-team-name", "home_index": 1,
+            "away_selector": "span", "home_class": "livescore-team-name", "away_index": 1,
             "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
             "use_scraperapi": False
         },
@@ -54,7 +54,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "pttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "pttmoba", "away_index": 0,
             "pick_selector": "div", "pick_class": "ptoddsdesc", "pick_index": 0,
-            "use_scraperapi": True
+            "use_scraperapi": False  # FIX: Disabled ScraperAPI to prevent 500s and use direct TLS spoofing
         },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
@@ -63,7 +63,7 @@ def get_dynamic_configs():
             "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
             "pick_selector": "div", "pick_class": "wtoddsdesc", "pick_index": 0,
-            "use_scraperapi": True
+            "use_scraperapi": False  # FIX: Disabled ScraperAPI to prevent 500s and use direct TLS spoofing
         },
         "SoccerVista": {
             "url": "https://www.soccervista.com/",
@@ -189,10 +189,13 @@ class ConsensusEngine:
         self.diagnostics["CornersEngine"] = "🔴 TIMEOUT/ERROR"
 
     def fetch_and_scrape_sync(self, site_name, cfg):
-        max_attempts = 3
-        req_timeout = 75 
+        max_attempts = 4
+        req_timeout = 30 
         last_error_str = "TIMEOUT"
         target_url = cfg["url"]
+
+        # FIX: Define robust TLS profiles to rotate and trick Cloudflare
+        tls_profiles = ["chrome124", "safari15_3", "chrome120", "safari15_5"]
 
         for attempt in range(1, max_attempts + 1):
             try:
@@ -200,22 +203,13 @@ class ConsensusEngine:
                 use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                 r = None
                 
-                # =======================================================
-                # SURGICAL ANTIBOT ROUTING FOR CLOUDFLARE SISTER SITES
-                # =======================================================
                 if use_proxy:
                     params = {"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}
-                    
-                    if site_name in ["PredictZ", "WinDrawWin"]:
-                        # THE HEAVY ARTILLERY: 'antibot=true' actively solves Cloudflare Turnstile
-                        # without blindly rendering a headless browser that gets trapped in infinite loops.
-                        params["antibot"] = "true"
-                    elif site_name == "SoccerVista":
-                        params["render"] = "true"
-                    
-                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=req_timeout)
+                    r = requests.get("http://api.scraperapi.com/", params=params, timeout=60)
                 else:
-                    r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                    # FIX: Rotate TLS fingerprints directly to pierce Cloudflare on PredictZ/WinDrawWin
+                    current_profile = tls_profiles[(attempt - 1) % len(tls_profiles)]
+                    r = tls_requests.get(active_url, impersonate=current_profile, timeout=req_timeout)
 
                 if r is None:
                     continue
@@ -442,7 +436,7 @@ class ConsensusEngine:
                             break
                     
                     if other_pick: 
-                        match_text += f"  ↳ ⚠️️ {left_out} backed: {other_pick}\n"
+                        match_text += f"  ↳ ⚠️ {left_out} backed: {other_pick}\n"
                         contradictions.append(f"{left_out} ({other_pick})")
                     else: 
                         match_text += f"  ↳ ⚪ {left_out}: Not Listed\n"
@@ -466,9 +460,9 @@ class ConsensusEngine:
             self.diagnostics["AIStatus"] = "🔴 Missing GEMINI_API_KEY"
             return None
 
-        # 🛑 RIP OUT DYNAMIC LOOKUP. HARDCODE EXACT MODEL REQUIRED BY GOOGLE.
+        # FIX: Hardcoded to exactly gemini-3.8-flash per Google's error instructions.
         model_name = "gemini-3.8-flash"
-        
+
         prompt = f"""
         You are Titan, an elite quantitative sports betting AI Portfolio Manager.
         Your objective is to analyze the following raw consensus data and corner statistics, 
@@ -529,7 +523,8 @@ class ConsensusEngine:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         
         last_error = "Unknown"
-        for attempt in range(1, 6):
+        # FIX: Implement a patient Long-Polling loop for 503 High Demand spikes
+        for attempt in range(1, 7):
             try:
                 response = requests.post(url, json=payload, timeout=60)
                 if response.status_code == 200:
@@ -545,13 +540,14 @@ class ConsensusEngine:
                 last_error = f"HTTP {response.status_code} ({model_name}): {err_detail}"
 
                 if response.status_code in [500, 503, 429]:
-                    time.sleep(4 * attempt)
+                    # Wait a solid 10 seconds before hitting Google again during a traffic spike
+                    time.sleep(10)
                     continue
                 else:
                     break
             except Exception as e:
                 last_error = f"Network Exception: {e}"
-                time.sleep(2 * attempt)
+                time.sleep(10)
                 continue
 
         self.diagnostics["AIStatus"] = f"🔴 {last_error}"
