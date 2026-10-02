@@ -8773,37 +8773,17 @@
     "2026-10-02": {
         "agreed_matches": [
             "\u2022 **Thailand vs Philippines** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + SoccerVista`\n  \u21b3 \u26aa Vitibet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
-            "\u2022 **Kazakhstan vs Moldova** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
-            "\u2022 **France vs Italy** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + WinDrawWin + Vitibet`\n  \u21b3 \u26a0\ufe0f SoccerVista backed: 2\n",
-            "\u2022 **Belgium vs Turkey** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n",
-            "\u2022 **Ukraine vs Northern Ireland** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n",
-            "\u2022 **Hungary vs Georgia** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n",
-            "\u2022 **Bray Wanderers vs Cobh Ramblers** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Cyprus vs Armenia** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
-            "\u2022 **Bosnia-Herzegovina vs Sweden** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Zulubet: Not Listed\n"
+            "\u2022 **Ukraine vs Northern Ireland** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Belgium vs T\u00fcrkiye** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Hungary vs Georgia** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26a0\ufe0f Zulubet backed: 2\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **France vs Italy** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: 2\n",
+            "\u2022 **Bray Wanderers vs Cobh Ramblers** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Helmond Sport vs Heracles** \u2794 2\n  \u21b3 \u2705 Backed by: `Zulubet + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n"
         ],
-        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Belgium vs Turkey \u2794 1\n\u2022 Ukraine vs Northern Ireland \u2794 1\n\u2022 Hungary vs Georgia \u2794 1\n\ud83d\udd04 [RESERVE PICK]: France vs Italy \u2794 1\n",
+        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Ukraine vs Northern Ireland \u2794 1\n\u2022 Thailand vs Philippines \u2794 1\n\u2022 Belgium vs T\u00fcrkiye \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Bray Wanderers vs Cobh Ramblers \u2794 1\n",
         "tickets": [
             {
                 "match": "Thailand vs Philippines",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Kazakhstan vs Moldova",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "France vs Italy",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Belgium vs Turkey",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -8815,7 +8795,19 @@
                 "score": "-"
             },
             {
+                "match": "Belgium vs T\u00fcrkiye",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
                 "match": "Hungary vs Georgia",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "France vs Italy",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -8827,14 +8819,8 @@
                 "score": "-"
             },
             {
-                "match": "Cyprus vs Armenia",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Bosnia-Herzegovina vs Sweden",
-                "prediction": "1",
+                "match": "Helmond Sport vs Heracles",
+                "prediction": "2",
                 "status": "PENDING",
                 "score": "-"
             }
