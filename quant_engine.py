@@ -17,9 +17,6 @@ TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACK
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
 
-# KEEPING THIS TRUE TO FORCE A FRESH SWEEP
-FORCE_RUN = True 
-
 MEMORY_FILE = "pending_tickets.json"
 
 def get_dynamic_configs():
@@ -57,7 +54,7 @@ def get_dynamic_configs():
         },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
-            "fallback_url": "https://www.predictz.com/predictions/",
+            "fallback_url": "https://www.windrawwin.com/predictions/",
             "row_selector": "div", "row_class": "wtrow",
             "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
@@ -124,7 +121,7 @@ class ConsensusEngine:
             for flag in status_flags:
                 if flag in padded_text:
                     return True
-        except:
+        except Exception:
             pass
         return False
 
@@ -138,13 +135,11 @@ class ConsensusEngine:
 
         raw_match_key = f"{self.clean_team_name(home)} vs {self.clean_team_name(away)}"
         final_key = raw_match_key
-        matched_existing_fixture = False
 
         for existing_key in self.master_matrix.keys():
             similarity = difflib.SequenceMatcher(None, raw_match_key.lower(), existing_key.lower()).ratio()
             if similarity >= 0.75:
                 final_key = existing_key
-                matched_existing_fixture = True
                 break
 
         if final_key not in self.master_matrix:
@@ -153,12 +148,6 @@ class ConsensusEngine:
         existing_sites = [entry[0] for entry in self.master_matrix[final_key]]
         if site_name not in existing_sites:
             self.master_matrix[final_key].append((site_name, normalized_pick))
-
-        return {
-            "match_key": final_key,
-            "matched_existing_fixture": matched_existing_fixture,
-            "normalized_pick": normalized_pick,
-        }
 
     def fetch_corners_sync(self):
         url = "https://www.totalcorner.com/match/today"
@@ -201,46 +190,35 @@ class ConsensusEngine:
 
     def fetch_and_scrape_sync(self, site_name, cfg):
         max_attempts = 4
-        req_timeout = 60 
+        req_timeout = 90 
         last_status = "TIMEOUT"
         target_url = cfg["url"]
 
-        tls_profiles = ["chrome124", "safari17_0", "chrome120", "safari15_5"]
-
         for attempt in range(1, max_attempts + 1):
             try:
-                active_url = target_url
+                active_url = cfg.get("fallback_url") if (attempt >= 3 and cfg.get("fallback_url")) else target_url
                 r = None
 
-                # =======================================================
-                # THE TWIN BYPASS & CLOUDFLARE ROUTING
-                # =======================================================
                 if site_name == "WinDrawWin":
                     if attempt == 1 and SCRAPER_API_KEY:
-                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk", "render": "true"}, timeout=req_timeout)
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}, timeout=req_timeout)
                     elif attempt == 2 and SCRAPER_API_KEY:
-                        # Switch to PredictZ (Twin Site) to dodge WDW's 500 error firewall
-                        active_url = "https://www.predictz.com/predictions/"
-                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us", "render": "true"}, timeout=req_timeout)
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us", "antibot": "true"}, timeout=req_timeout)
                     elif attempt == 3:
-                        active_url = "https://www.predictz.com/predictions/"
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
-                    elif attempt == 4:
-                        r = tls_requests.get(active_url, impersonate="safari17_0", timeout=req_timeout)
-                
+                    elif attempt == 4 and SCRAPER_API_KEY:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}, timeout=req_timeout)
                 elif site_name == "SoccerVista":
                     if attempt <= 3 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}, timeout=req_timeout)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
-                
                 else:
                     use_proxy = cfg.get("use_scraperapi") and bool(SCRAPER_API_KEY)
                     if use_proxy:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}, timeout=req_timeout)
                     else:
-                        current_profile = tls_profiles[(attempt - 1) % len(tls_profiles)]
-                        r = tls_requests.get(active_url, impersonate=current_profile, timeout=30)
+                        r = tls_requests.get(active_url, impersonate="safari17_0", timeout=30)
 
                 last_status = r.status_code if r else "TIMEOUT"
 
@@ -258,17 +236,9 @@ class ConsensusEngine:
                     rows = []
                     
                     if site_name == "WinDrawWin":
-                        prefix = "pt" if "predictz" in active_url.lower() else "wt"
-                        rows = soup.find_all("div", class_=re.compile(rf"({prefix}tr|{prefix}row|match-row|pr-match)", re.I))
-                        if not rows:
-                            child_elems = soup.find_all("div", class_=re.compile(rf"({prefix}tmobh|{prefix}tmoba|team1|team2)", re.I))
-                            if child_elems:
-                                rows = list(set([c.parent for c in child_elems if c.parent]))
+                        rows = soup.find_all("div", class_=re.compile(r"(wttr|wtrow|match-row|pr-match)", re.I))
                         if not rows:
                             rows = soup.find_all("tr")
-                        if not rows:
-                            raw_rows = soup.find_all("div", class_=re.compile(r'(row|match|fixture)', re.I))
-                            rows = [rw for rw in raw_rows if len(rw.find_all('a')) >= 2 and len(rw.text) < 800]
                     elif site_name in ["SoccerVista", "Zulubet"]:
                         rows = soup.find_all("tr")
                         if not rows or len(rows) < 5:
@@ -283,7 +253,7 @@ class ConsensusEngine:
                         if attempt < max_attempts:
                             time.sleep(2 * attempt)
                             continue
-                        self.diagnostics[site_name] = f"🟡 BLOCKED/EMPTY (0 parsed)"
+                        self.diagnostics[site_name] = "🟡 BLOCKED/EMPTY (0 parsed)"
                         return
 
                     valid_count = 0
@@ -298,10 +268,9 @@ class ConsensusEngine:
                             home, away, pick = None, None, None
 
                             if site_name == "WinDrawWin":
-                                prefix = "pt" if "predictz" in active_url.lower() else "wt"
-                                h_elem = row.find(class_=re.compile(rf'({prefix}tmobh|team1|h$|home)', re.I))
-                                a_elem = row.find(class_=re.compile(rf'({prefix}tmoba|team2|a$|away)', re.I))
-                                p_elem = row.find(class_=re.compile(rf'({prefix}oddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
+                                h_elem = row.find(class_=re.compile(r'(wttmobh|team1|h$|home)', re.I))
+                                a_elem = row.find(class_=re.compile(r'(wttmoba|team2|a$|away)', re.I))
+                                p_elem = row.find(class_=re.compile(r'(wtoddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
 
                                 if h_elem and a_elem:
                                     home, away = h_elem.text, a_elem.text
@@ -314,9 +283,8 @@ class ConsensusEngine:
                                         p_div = row.find(class_=re.compile(r'(prd|pred|odds)', re.I))
                                         if p_div and self.normalize_prediction(p_div.text): pick = p_div.text
                                         else:
-                                            valid_picks = ["HOME", "DRAW", "AWAY", "1", "X", "2", "HOME WIN", "AWAY WIN", "H", "A", "D"]
                                             for text_chunk in row.stripped_strings:
-                                                if text_chunk.strip().upper() in valid_picks:
+                                                if text_chunk.strip().upper() in ["1", "X", "2", "HOME", "DRAW", "AWAY"]:
                                                     pick = text_chunk.strip()
                                                     break
                                             
@@ -474,7 +442,7 @@ class ConsensusEngine:
         return agreed_matches, structured_tickets, ai_input_data, required_consensus
 
     def build_algorithmic_ticket(self, data, active_corner_teams):
-        self.diagnostics["QuantEngine"] = "🟢 2-Ticket Engine Generated"
+        self.diagnostics["QuantEngine"] = "🟢 1-Ticket Engine Generated"
         
         def get_score(match_data):
             backing_count = match_data.get("agreement_count", 0)
@@ -491,15 +459,15 @@ class ConsensusEngine:
             pick_str = f"{m['match']} ➔ {m['consensus_pick']}"
             if pick_str not in final_main_picks:
                 final_main_picks.append(pick_str)
-            if len(final_main_picks) == 6:
+            if len(final_main_picks) == 3:
                 break
                 
-        if len(final_main_picks) < 6:
+        if len(final_main_picks) < 3:
             for corner in active_corner_teams:
                 corner_pick = f"{corner['match']} ➔ Over 8.5 Corners (Avg: {corner['avg_corners']})"
                 if corner_pick not in final_main_picks:
                     final_main_picks.append(corner_pick)
-                if len(final_main_picks) == 6:
+                if len(final_main_picks) == 3:
                     break
         
         reserve_picks = []
@@ -507,53 +475,38 @@ class ConsensusEngine:
             pick_str = f"{d['match']} ➔ {d['consensus_pick']}"
             if pick_str not in reserve_picks and pick_str not in final_main_picks:
                 reserve_picks.append(pick_str)
-            if len(reserve_picks) == 2:
+            if len(reserve_picks) == 1:
                 break
                 
-        if len(reserve_picks) < 2:
+        if len(reserve_picks) < 1:
             leftovers = [f"{m['match']} ➔ {m['consensus_pick']}" for m in main_candidates]
             for pick_str in leftovers:
                 if pick_str not in final_main_picks and pick_str not in reserve_picks:
                     reserve_picks.append(pick_str)
-                if len(reserve_picks) == 2:
+                if len(reserve_picks) == 1:
                     break
                     
-        if len(reserve_picks) < 2:
+        if len(reserve_picks) < 1:
             for corner in active_corner_teams:
                 corner_pick = f"{corner['match']} ➔ Over 8.5 Corners (Avg: {corner['avg_corners']})"
                 if corner_pick not in final_main_picks and corner_pick not in reserve_picks:
                     reserve_picks.append(corner_pick)
-                if len(reserve_picks) == 2:
+                if len(reserve_picks) == 1:
                     break
 
         if len(final_main_picks) < 3:
-            return "No high-conviction matches found today to safely build tickets."
+            return "No high-conviction matches found today to safely build a ticket."
             
-        ticket1_mains = final_main_picks[:3]
-        ticket2_mains = final_main_picks[3:6]
-        
-        # Guarantee Ticket 2 has 3 selections if Ticket 1 got filled
-        if len(ticket2_mains) < 3 and len(ticket2_mains) > 0:
-            for corner in active_corner_teams:
-                corner_pick = f"{corner['match']} ➔ Over 8.5 Corners (Avg: {corner['avg_corners']})"
-                if corner_pick not in ticket1_mains and corner_pick not in ticket2_mains:
-                    ticket2_mains.append(corner_pick)
-                if len(ticket2_mains) == 3:
-                    break
-
         reserve1 = reserve_picks[0] if len(reserve_picks) > 0 else None
-        reserve2 = reserve_picks[1] if len(reserve_picks) > 1 else None
         
-        ticket_text = "🤖 **TITAN ALGORITHMIC TICKETS** 🤖\n\n"
+        ticket_text = "🤖 **TITAN ALGORITHMIC TICKET** 🤖\n\n"
+        ticket_text += "🛡️ **Premium Slip (100% of Daily Stake)**\n"
         
-        ticket_text += "🛡️ **Ticket 1: Premium Slip (50% of Daily Stake)**\n"
-        for pick in ticket1_mains: ticket_text += f"• {pick}\n"
-        if reserve1: ticket_text += f"🔄 [RESERVE PICK]: {reserve1}\n"
+        for pick in final_main_picks: 
+            ticket_text += f"• {pick}\n"
             
-        if len(ticket2_mains) >= 2:
-            ticket_text += "\n🛡️ **Ticket 2: Premium Slip (50% of Daily Stake)**\n"
-            for pick in ticket2_mains: ticket_text += f"• {pick}\n"
-            if reserve2: ticket_text += f"🔄 [RESERVE PICK]: {reserve2}\n"
+        if reserve1: 
+            ticket_text += f"🔄 [RESERVE PICK]: {reserve1}\n"
                 
         return ticket_text
 
@@ -662,95 +615,73 @@ class ConsensusEngine:
     async def run_pipeline(self):
         eat_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
         today_date = eat_time.strftime('%Y-%m-%d')
-        current_hour = eat_time.hour
 
         memory = self.load_memory()
-        today_payload = memory.get(today_date)
-
-        is_already_locked = False
-        if isinstance(today_payload, dict) and not FORCE_RUN:
-            if today_payload.get("locked"):
-                is_already_locked = True
 
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: self.diagnostics["Telegram"] = "🟡 NOT CONFIGURED"
         else: self.diagnostics["Telegram"] = "🟢 CONFIGURED"
 
-        if is_already_locked:
-            print(f"🔒 Data for {today_date} is securely locked. Bypassing scrapers.")
-            daily_data = memory[today_date]
-            agreed_matches = daily_data.get("agreed_matches", [])
-            algorithmic_message = daily_data.get("ai_optimized_message")
-            self.diagnostics["DailyLock"] = f"🟢 CACHED (Tokens Saved for {today_date})"
-        else:
-            print(f"🔓 Scraping and generating fresh Algorithmic Tickets for {today_date}...")
-            
-            self.check_scraperapi_balance()
+        print(f"🔓 Scraping and generating fresh Algorithmic Ticket for {today_date}...")
+        self.check_scraperapi_balance()
+        
+        loop = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+            base_tasks = [
+                loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c)
+                for n, c in self.configs.items()
+            ]
+            base_tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
+            await asyncio.gather(*base_tasks)
 
-            loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
-                base_tasks = [
-                    loop.run_in_executor(pool, self.fetch_and_scrape_sync, n, c)
-                    for n, c in self.configs.items()
-                ]
-                base_tasks.append(loop.run_in_executor(pool, self.fetch_corners_sync))
-                await asyncio.gather(*base_tasks)
+        agreed_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
 
-            agreed_matches, structured_tickets, ai_input_data, req_threshold = self.process_consensus_signals()
+        active_corner_teams = []
+        for match in self.master_matrix.keys():
+            parts = match.split(" vs ")
+            if len(parts) == 2:
+                h, a = parts[0].strip(), parts[1].strip()
+                if h in self.corner_stats and self.corner_stats[h] >= 9.5:
+                    active_corner_teams.append({"match": match, "team": h, "avg_corners": self.corner_stats[h]})
+                if a in self.corner_stats and self.corner_stats[a] >= 9.5:
+                    active_corner_teams.append({"match": match, "team": a, "avg_corners": self.corner_stats[a]})
 
-            active_corner_teams = []
-            for match in self.master_matrix.keys():
-                parts = match.split(" vs ")
-                if len(parts) == 2:
-                    h, a = parts[0].strip(), parts[1].strip()
-                    if h in self.corner_stats and self.corner_stats[h] >= 9.5:
-                        active_corner_teams.append({"match": match, "team": h, "avg_corners": self.corner_stats[h]})
-                    if a in self.corner_stats and self.corner_stats[a] >= 9.5:
-                        active_corner_teams.append({"match": match, "team": a, "avg_corners": self.corner_stats[a]})
+        algorithmic_message = None
+        if ai_input_data or active_corner_teams:
+            algorithmic_message = self.build_algorithmic_ticket(ai_input_data, active_corner_teams)
 
-            algorithmic_message = None
-            if ai_input_data or active_corner_teams:
-                algorithmic_message = self.build_algorithmic_ticket(ai_input_data, active_corner_teams)
-
-            should_lock = (current_hour >= 5) and (algorithmic_message is not None or not ai_input_data)
-
-            memory[today_date] = {
-                "locked": should_lock,
-                "agreed_matches": agreed_matches,
-                "ai_optimized_message": algorithmic_message,
-                "tickets": structured_tickets
-            }
-            
-            if not FORCE_RUN: self.save_memory(memory)
-            
-            if should_lock: self.diagnostics["DailyLock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
-            else: self.diagnostics["DailyLock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT)"
+        memory[today_date] = {
+            "agreed_matches": agreed_matches,
+            "ai_optimized_message": algorithmic_message,
+            "tickets": structured_tickets
+        }
+        
+        self.save_memory(memory)
 
         settled_reports = self.settle_pending_tickets(memory)
 
-        if not is_already_locked or settled_reports:
-            msg = "🤝 **RAW CONSENSUS DATA (3+ SITES AGREEMENT)** 🤝\n\n"
-            if agreed_matches:
-                for match in agreed_matches:
-                    msg += f"{match}\n"
-            else:
-                msg += "No matches found with required agreement today.\n\n"
+        msg = "🤝 **RAW CONSENSUS DATA (3+ SITES AGREEMENT)** 🤝\n\n"
+        if agreed_matches:
+            for match in agreed_matches:
+                msg += f"{match}\n"
+        else:
+            msg += "No matches found with required agreement today.\n\n"
 
-            if settled_reports:
-                msg += "📊 **SETTLED RESULTS** 📊\n\n"
-                for rep in settled_reports: msg += f"{rep}\n"
-                msg += "\n"
+        if settled_reports:
+            msg += "📊 **SETTLED RESULTS** 📊\n\n"
+            for rep in settled_reports: msg += f"{rep}\n"
+            msg += "\n"
 
-            msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-            essential_keys = ["Telegram", "ScraperAPICredits", "Statarea", "Vitibet", "Zulubet", "WinDrawWin", "SoccerVista", "CornersEngine", "QuantEngine", "DailyLock"]
-            for k in essential_keys:
-                if k in self.diagnostics:
-                    msg += f"↳ {k}: {self.diagnostics[k]}\n"
-            
-            self.send_telegram_alert(msg)
+        msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
+        essential_keys = ["Telegram", "ScraperAPICredits", "Statarea", "Vitibet", "Zulubet", "WinDrawWin", "SoccerVista", "CornersEngine", "QuantEngine"]
+        for k in essential_keys:
+            if k in self.diagnostics:
+                msg += f"↳ {k}: {self.diagnostics[k]}\n"
+        
+        self.send_telegram_alert(msg)
 
-            if algorithmic_message and not is_already_locked:
-                time.sleep(1.5)
-                self.send_telegram_alert(algorithmic_message)
+        if algorithmic_message:
+            time.sleep(1.5)
+            self.send_telegram_alert(algorithmic_message)
 
 if __name__ == "__main__":
     live_configs = get_dynamic_configs()
