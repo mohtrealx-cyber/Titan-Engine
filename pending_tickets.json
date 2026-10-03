@@ -8828,20 +8828,47 @@
     },
     "2026-10-03": {
         "agreed_matches": [
+            "\u2022 **Morecambe vs Darlington 1883** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
             "\u2022 **Stromsgodset vs Asane** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Iceland vs Bulgaria** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Croatia vs England** \u2794 2\n  \u21b3 \u2705 Backed by: `Zulubet + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Deportivo Camioneros vs Deportivo Laferrere** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
             "\u2022 **Switzerland vs Slovenia** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
             "\u2022 **Belarus vs San Marino** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
             "\u2022 **Marine vs Warrington Town** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
-            "\u2022 **Morecambe vs Darlington Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
             "\u2022 **Redditch vs Berkhamsted** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
             "\u2022 **Salisbury Fc vs Dulwich Hamlet** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
             "\u2022 **Cray Wanderers vs Chippenham** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
             "\u2022 **Dorking Wanderers vs Chatham Town** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n"
         ],
-        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Stromsgodset vs Asane \u2794 1\n\u2022 Switzerland vs Slovenia \u2794 1\n\u2022 Belarus vs San Marino \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Marine vs Warrington Town \u2794 1\n",
+        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Morecambe vs Darlington 1883 \u2794 1\n\u2022 Stromsgodset vs Asane \u2794 1\n\u2022 Iceland vs Bulgaria \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Croatia vs England \u2794 2\n",
         "tickets": [
             {
+                "match": "Morecambe vs Darlington 1883",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
                 "match": "Stromsgodset vs Asane",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Iceland vs Bulgaria",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Croatia vs England",
+                "prediction": "2",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Deportivo Camioneros vs Deportivo Laferrere",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -8860,12 +8887,6 @@
             },
             {
                 "match": "Marine vs Warrington Town",
-                "prediction": "1",
-                "status": "PENDING",
-                "score": "-"
-            },
-            {
-                "match": "Morecambe vs Darlington Fc",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
