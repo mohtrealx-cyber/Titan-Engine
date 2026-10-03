@@ -8825,5 +8825,75 @@
                 "score": "-"
             }
         ]
+    },
+    "2026-10-03": {
+        "agreed_matches": [
+            "\u2022 **Stromsgodset vs Asane** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Switzerland vs Slovenia** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Belarus vs San Marino** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Marine vs Warrington Town** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Morecambe vs Darlington Fc** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Redditch vs Berkhamsted** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Salisbury Fc vs Dulwich Hamlet** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Cray Wanderers vs Chippenham** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n",
+            "\u2022 **Dorking Wanderers vs Chatham Town** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Stromsgodset vs Asane \u2794 1\n\u2022 Switzerland vs Slovenia \u2794 1\n\u2022 Belarus vs San Marino \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Marine vs Warrington Town \u2794 1\n",
+        "tickets": [
+            {
+                "match": "Stromsgodset vs Asane",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Switzerland vs Slovenia",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Belarus vs San Marino",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Marine vs Warrington Town",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Morecambe vs Darlington Fc",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Redditch vs Berkhamsted",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Salisbury Fc vs Dulwich Hamlet",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Cray Wanderers vs Chippenham",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Dorking Wanderers vs Chatham Town",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
