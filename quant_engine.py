@@ -617,6 +617,21 @@ class ConsensusEngine:
         today_date = eat_time.strftime('%Y-%m-%d')
 
         memory = self.load_memory()
+        today_payload = memory.get(today_date)
+
+        # =======================================================
+        # STRICT DAILY LOCK
+        # If the script has already successfully pulled a ticket today, 
+        # it will lock down, silently check for settled matches, and exit instantly.
+        # =======================================================
+        if today_payload and today_payload.get("locked"):
+            print(f"🔒 Engine already ran for {today_date}. Bypassing scrapers to prevent duplicate tickets.")
+            settled_reports = self.settle_pending_tickets(memory)
+            if settled_reports:
+                msg = "📊 **MATCH SETTLEMENT UPDATE** 📊\n\n"
+                for rep in settled_reports: msg += f"{rep}\n"
+                self.send_telegram_alert(msg)
+            return
 
         if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: self.diagnostics["Telegram"] = "🟡 NOT CONFIGURED"
         else: self.diagnostics["Telegram"] = "🟢 CONFIGURED"
@@ -649,7 +664,9 @@ class ConsensusEngine:
         if ai_input_data or active_corner_teams:
             algorithmic_message = self.build_algorithmic_ticket(ai_input_data, active_corner_teams)
 
+        # Activate the strict lock for this calendar date
         memory[today_date] = {
+            "locked": True,
             "agreed_matches": agreed_matches,
             "ai_optimized_message": algorithmic_message,
             "tickets": structured_tickets
