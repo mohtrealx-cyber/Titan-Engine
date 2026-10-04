@@ -390,7 +390,6 @@ class ConsensusEngine:
                     if attempt == 1 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}, timeout=req_timeout)
                     elif attempt == 2 and SCRAPER_API_KEY:
-                        # Twin Bypass: PredictZ
                         active_url = "https://www.predictz.com/predictions/"
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us", "antibot": "true"}, timeout=req_timeout)
                     elif attempt == 3:
@@ -737,7 +736,7 @@ class ConsensusEngine:
         
         ticket_text = "🤖 **TITAN ALGORITHMIC TICKETS** 🤖\n\n"
         
-        ticket_text += "🛡️ **Ticket 1: Premium Slip (50% of Daily Stake)**\n"
+        ticket_text += "🛡️️ **Ticket 1: Premium Slip (50% of Daily Stake)**\n"
         for pick in ticket1_mains: ticket_text += f"• {pick}\n"
         if reserve1: ticket_text += f"🔄 [RESERVE PICK]: {reserve1}\n"
             
