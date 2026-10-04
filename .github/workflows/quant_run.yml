@@ -47,6 +47,11 @@ jobs:
           QUANT_TELEGRAM_CHAT_ID: ${{ secrets.QUANT_TELEGRAM_CHAT_ID }}
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          
+          # INJECTED GIST SECRETS FOR BOT A (THE WRITER)
+          GIST_ID: ${{ secrets.GIST_ID }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          
           FORCE_RUN: ${{ inputs.force_run }}
         run: python quant_engine.py
 
