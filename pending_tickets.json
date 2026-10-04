@@ -8920,20 +8920,25 @@
     "2026-10-04": {
         "locked": true,
         "agreed_matches": [
-            "\u2022 **Bryne vs Lyn** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + WinDrawWin + Vitibet`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Bryne vs Lyn** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Statarea + Vitibet`\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Vvv Venlo vs Roda** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Sporting Gijon vs Celta De Vigo Ii** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Kosovo vs Austria** \u2794 X\n  \u21b3 \u2705 Backed by: `Zulubet + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f WinDrawWin backed: 1\n",
             "\u2022 **Malta vs Andorra** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n",
             "\u2022 **Huracan vs Aldosivi** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n",
-            "\u2022 **Netherlands vs Serbia** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + WinDrawWin + Vitibet + SoccerVista`\n",
-            "\u2022 **Portugal vs Norway** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + WinDrawWin + Vitibet + SoccerVista`\n",
-            "\u2022 **Castellon vs Ad Ceuta** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Cucuta vs Pereira** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **Potenza vs Az Picerno** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
-            "\u2022 **San Martin S.J. vs Almagro** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n",
-            "\u2022 **Chaco For Ever vs Defensores De Belgrano** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
-            "\u2022 **Javor vs Borac Cacak** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **San Telmo vs Almirante Brown** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26a0\ufe0f Zulubet backed: X\n",
+            "\u2022 **Netherlands vs Serbia** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Statarea + Vitibet + SoccerVista`\n",
+            "\u2022 **Portugal vs Norway** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Statarea + Vitibet + SoccerVista`\n",
+            "\u2022 **Rep. Of Ireland vs Israel** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Girona vs Mallorca** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + WinDrawWin + Vitibet`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Potenza vs Az Picerno** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Statarea + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Castellon vs Ceuta** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Statarea + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Javor Ivanjica vs Borac Cacak** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Statarea + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Central Norte Salta vs Racing De Cordoba** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Zulubet: Not Listed\n",
+            "\u2022 **Chaco For Ever vs Defensores De Belgrano** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Statarea + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26a0\ufe0f SoccerVista backed: X\n",
+            "\u2022 **Godoy Cruz vs Los Andes** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Vitibet + SoccerVista`\n  \u21b3 \u26aa Statarea: Not Listed\n  \u21b3 \u26aa Zulubet: Not Listed\n",
+            "\u2022 **San Martin San Juan vs Almagro** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Statarea + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Cucuta vs Pereira** \u2794 1\n  \u21b3 \u2705 Backed by: `WinDrawWin + Statarea + Vitibet`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
             "\u2022 **Comunicaciones vs Flandria** \u2794 1\n  \u21b3 \u2705 Backed by: `Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa Zulubet: Not Listed\n  \u21b3 \u26aa WinDrawWin: Not Listed\n"
         ],
         "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET (BOT B)** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Netherlands vs Serbia \u2794 1\n\u2022 Portugal vs Norway \u2794 1\n\u2022 Bryne vs Lyn \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Kosovo vs Austria \u2794 X\n",
@@ -8975,6 +8980,12 @@
                 "score": "-"
             },
             {
+                "match": "San Telmo vs Almirante Brown",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
                 "match": "Netherlands vs Serbia",
                 "prediction": "1",
                 "status": "PENDING",
@@ -8987,13 +8998,13 @@
                 "score": "-"
             },
             {
-                "match": "Castellon vs Ad Ceuta",
+                "match": "Rep. Of Ireland vs Israel",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
             },
             {
-                "match": "Cucuta vs Pereira",
+                "match": "Girona vs Mallorca",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -9005,7 +9016,19 @@
                 "score": "-"
             },
             {
-                "match": "San Martin S.J. vs Almagro",
+                "match": "Castellon vs Ceuta",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Javor Ivanjica vs Borac Cacak",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Central Norte Salta vs Racing De Cordoba",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
@@ -9017,7 +9040,19 @@
                 "score": "-"
             },
             {
-                "match": "Javor vs Borac Cacak",
+                "match": "Godoy Cruz vs Los Andes",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "San Martin San Juan vs Almagro",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Cucuta vs Pereira",
                 "prediction": "1",
                 "status": "PENDING",
                 "score": "-"
