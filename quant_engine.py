@@ -646,15 +646,17 @@ class ConsensusEngine:
             fallback_active,
         )
 
-    def build_algorithmic_ticket(self, data, active_corner_teams):
+    def build_algorithmic_ticket(self, core_data, fallback_data, active_corner_teams):
         self.diagnostics["QuantEngine"] = "🟢 1-Ticket Engine Generated"
         
+        combined_data = core_data + fallback_data
+
         def get_score(match_data):
             backing_count = match_data.get("agreement_count", 0)
             contradiction_count = len(match_data.get("contradictions", []))
             return (backing_count, -contradiction_count)
 
-        sorted_matches = sorted(data, key=get_score, reverse=True)
+        sorted_matches = sorted(combined_data, key=get_score, reverse=True)
         
         main_candidates = [m for m in sorted_matches if m['consensus_pick'] in ["1", "2"]]
         draw_candidates = [m for m in sorted_matches if m['consensus_pick'] == "X"]
@@ -891,7 +893,7 @@ class ConsensusEngine:
 
             algorithmic_message = None
             if core_ai_input_data or fallback_ai_input_data or active_corner_teams:
-                algorithmic_message = self.build_algorithmic_ticket(core_ai_input_data, fallback_ai_input_data)
+                algorithmic_message = self.build_algorithmic_ticket(core_ai_input_data, fallback_ai_input_data, active_corner_teams)
 
             should_lock = (current_hour >= 5) and (algorithmic_message is not None or not (core_ai_input_data or fallback_ai_input_data))
 
