@@ -35,46 +35,31 @@ def get_dynamic_configs():
         "Statarea": {
             "url": f"https://www.statarea.com/predictions/date/{today_date}/",
             "fallback_url": None,
-            "row_selector": "div", "row_class": "matchrow",
-            "home_selector": "div", "home_class": "name", "home_index": 0,
-            "away_selector": "div", "away_class": "name", "away_index": 1,
-            "pick_selector": "div", "pick_class": "type1", "pick_index": 0,
             "use_scraperapi": False  
         },
         "Vitibet": {
             "url": f"https://www.vitibet.com/index.php?clanek=quicktips&sekce=fotbal&lang=en&cb={cb}",
             "fallback_url": None,
-            "row_selector": "a", "row_class": "livescore-match-row",
-            "home_selector": "span", "home_class": "livescore-team-name", "home_index": 0,
-            "away_selector": "span", "home_class": "livescore-team-name", "home_index": 1,
-            "pick_selector": "span", "pick_class": "tip-indicator-circle", "pick_index": 0,
             "use_scraperapi": False
         },
         "Zulubet": {  
             "url": "https://www.zulubet.com/",
             "fallback_url": "http://www.zulubet.com/",
-            "row_selector": "tr", "row_class": "",
-            "home_selector": "", "home_class": "", "home_index": 0,
-            "away_selector": "", "away_class": "", "away_index": 0,
-            "pick_selector": "", "pick_class": "", "pick_index": 0,
             "use_scraperapi": False 
         },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
-            "fallback_url": "https://www.windrawwin.com/predictions/",
-            "row_selector": "div", "row_class": "wtrow",
-            "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
-            "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
-            "pick_selector": "div", "pick_class": "wtoddsdesc", "pick_index": 0,
+            "fallback_url": "https://www.predictz.com/predictions/",
+            "use_scraperapi": True
+        },
+        "PredictZ": {
+            "url": "https://www.predictz.com/predictions/",
+            "fallback_url": None,
             "use_scraperapi": True
         },
         "SoccerVista": {
             "url": "https://www.soccervista.com/",
             "fallback_url": "https://www.soccervista.com/predictions/",
-            "row_selector": "tr", "row_class": "",
-            "home_selector": "td", "home_class": "", "home_index": 0,
-            "away_selector": "td", "home_class": "", "home_index": 1,
-            "pick_selector": "td", "pick_class": "", "pick_index": 4,
             "use_scraperapi": True
         },
         "Golsinyali": {
@@ -332,7 +317,13 @@ class ConsensusEngine:
         url = "https://www.totalcorner.com/match/today"
         for attempt in range(1, 4):
             try:
-                r = tls_requests.get(url, impersonate="chrome124", timeout=25)
+                if attempt == 1:
+                    r = tls_requests.get(url, impersonate="chrome124", timeout=30)
+                elif attempt == 2 and SCRAPER_API_KEY:
+                    r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": url, "premium": "true"}, timeout=45)
+                else:
+                    r = tls_requests.get(url, impersonate="safari17_0", timeout=35)
+
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     rows = soup.find_all("tr")
@@ -356,13 +347,13 @@ class ConsensusEngine:
                     self.diagnostics["CornersEngine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
                     return
                 elif r.status_code in [403, 500, 502, 503, 504, 429]:
-                    time.sleep(2 * attempt)
+                    time.sleep(3 * attempt)
                     continue
                 else:
                     self.diagnostics["CornersEngine"] = f"🔴 FAILED (HTTP {r.status_code})"
                     return
             except Exception:
-                time.sleep(2 * attempt)
+                time.sleep(3 * attempt)
                 continue
 
         self.diagnostics["CornersEngine"] = "🔴 TIMEOUT/ERROR"
@@ -378,15 +369,13 @@ class ConsensusEngine:
                 active_url = cfg.get("fallback_url") if (attempt >= 3 and cfg.get("fallback_url")) else target_url
                 r = None
 
-                if site_name == "WinDrawWin":
-                    # Cloudflare Bypass Escalation for WinDrawWin
+                # EXACT SAME CLOUDFLARE BYPASS ESCALATION FOR BOTH SITES
+                if site_name in ["WinDrawWin", "PredictZ"]:
                     if attempt == 1 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}, timeout=req_timeout)
                     elif attempt == 2 and SCRAPER_API_KEY:
-                        # Add render=true to spawn headless browser for Cloudflare challenge
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}, timeout=req_timeout)
                     elif attempt == 3 and SCRAPER_API_KEY:
-                        # Add antibot=true for advanced Cloudflare turnstile bypass
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true", "antibot": "true"}, timeout=req_timeout)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
@@ -417,8 +406,9 @@ class ConsensusEngine:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     rows = []
                     
-                    if site_name == "WinDrawWin":
-                        rows = soup.find_all("div", class_=re.compile(r"(wttr|wtrow|match-row|pr-match)", re.I))
+                    if site_name in ["WinDrawWin", "PredictZ"]:
+                        prefix = "pt" if "predictz" in active_url.lower() else "wt"
+                        rows = soup.find_all("div", class_=re.compile(rf"({prefix}tr|{prefix}row|match-row|pr-match)", re.I))
                         if not rows:
                             rows = soup.find_all("tr")
                     elif site_name in ["SoccerVista", "Zulubet"]:
@@ -449,10 +439,11 @@ class ConsensusEngine:
 
                             home, away, pick = None, None, None
 
-                            if site_name == "WinDrawWin":
-                                h_elem = row.find(class_=re.compile(r'(wttmobh|team1|h$|home)', re.I))
-                                a_elem = row.find(class_=re.compile(r'(wttmoba|team2|a$|away)', re.I))
-                                p_elem = row.find(class_=re.compile(r'(wtoddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
+                            if site_name in ["WinDrawWin", "PredictZ"]:
+                                prefix = "pt" if "predictz" in active_url.lower() else "wt"
+                                h_elem = row.find(class_=re.compile(rf'({prefix}tmobh|team1|h$|home)', re.I))
+                                a_elem = row.find(class_=re.compile(rf'({prefix}tmoba|team2|a$|away)', re.I))
+                                p_elem = row.find(class_=re.compile(rf'({prefix}oddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
 
                                 if h_elem and a_elem:
                                     home, away = h_elem.text, a_elem.text
@@ -578,7 +569,7 @@ class ConsensusEngine:
         fallback_data = []
 
         all_scrapers = [
-            "Statarea", "Vitibet", "Zulubet", "WinDrawWin", "SoccerVista", "Golsinyali"
+            "Statarea", "Vitibet", "Zulubet", "WinDrawWin", "PredictZ", "SoccerVista", "Golsinyali"
         ]
         
         required_consensus = 4 
@@ -935,7 +926,7 @@ class ConsensusEngine:
             msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
             essential_keys = [
                 "Telegram", "ScraperAPICredits", "Statarea", "Vitibet", 
-                "Zulubet", "WinDrawWin", "SoccerVista", "Golsinyali", 
+                "Zulubet", "WinDrawWin", "PredictZ", "SoccerVista", "Golsinyali", 
                 "SoccerAiTips", "CornersEngine", "QuantEngine", "GistSync", "DailyLock"
             ]
             for k in essential_keys:
