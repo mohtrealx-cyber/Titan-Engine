@@ -9,6 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
+import google.generativeai as genai
 
 # ==============================================================================
 # CONFIGURATION & SECURE ROUTING
@@ -16,6 +17,11 @@ from curl_cffi import requests as tls_requests
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
+
+# GEMINI AI CREDENTIALS
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 # GIST CREDENTIALS FOR BOT-TO-BOT SYNC
 GIST_ID = os.environ.get("GIST_ID")
@@ -50,11 +56,6 @@ def get_dynamic_configs():
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
             "fallback_url": "https://www.predictz.com/predictions/",
-            "use_scraperapi": True
-        },
-        "PredictZ": {
-            "url": "https://www.predictz.com/predictions/",
-            "fallback_url": None,
             "use_scraperapi": True
         },
         "SoccerVista": {
@@ -378,16 +379,6 @@ class ConsensusEngine:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true", "antibot": "true"}, timeout=req_timeout)
                     else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
-                elif site_name == "PredictZ":
-                    # PredictZ Bypass: Prioritize TLS spoofing first, Proxy second
-                    if attempt == 1:
-                        r = tls_requests.get(active_url, impersonate="safari17_0", timeout=req_timeout)
-                    elif attempt == 2 and SCRAPER_API_KEY:
-                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us"}, timeout=req_timeout)
-                    elif attempt == 3 and SCRAPER_API_KEY:
-                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true", "antibot": "true"}, timeout=req_timeout)
-                    else:
-                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
                 elif site_name == "SoccerVista":
                     if attempt <= 3 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}, timeout=req_timeout)
@@ -415,9 +406,8 @@ class ConsensusEngine:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     rows = []
                     
-                    if site_name in ["WinDrawWin", "PredictZ"]:
-                        prefix = "pt" if "predictz" in active_url.lower() else "wt"
-                        rows = soup.find_all("div", class_=re.compile(rf"({prefix}tr|{prefix}row|match-row|pr-match)", re.I))
+                    if site_name == "WinDrawWin":
+                        rows = soup.find_all("div", class_=re.compile(r"(wttr|wtrow|match-row|pr-match)", re.I))
                         if not rows:
                             rows = soup.find_all("tr")
                     elif site_name in ["SoccerVista", "Zulubet"]:
@@ -448,11 +438,10 @@ class ConsensusEngine:
 
                             home, away, pick = None, None, None
 
-                            if site_name in ["WinDrawWin", "PredictZ"]:
-                                prefix = "pt" if "predictz" in active_url.lower() else "wt"
-                                h_elem = row.find(class_=re.compile(rf'({prefix}tmobh|team1|h$|home)', re.I))
-                                a_elem = row.find(class_=re.compile(rf'({prefix}tmoba|team2|a$|away)', re.I))
-                                p_elem = row.find(class_=re.compile(rf'({prefix}oddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
+                            if site_name == "WinDrawWin":
+                                h_elem = row.find(class_=re.compile(r'(wttmobh|team1|h$|home)', re.I))
+                                a_elem = row.find(class_=re.compile(r'(wttmoba|team2|a$|away)', re.I))
+                                p_elem = row.find(class_=re.compile(r'(wtoddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
 
                                 if h_elem and a_elem:
                                     home, away = h_elem.text, a_elem.text
@@ -578,7 +567,7 @@ class ConsensusEngine:
         fallback_data = []
 
         all_scrapers = [
-            "Statarea", "Vitibet", "Zulubet", "WinDrawWin", "PredictZ", "SoccerVista", "Golsinyali"
+            "Statarea", "Vitibet", "Zulubet", "WinDrawWin", "SoccerVista", "Golsinyali"
         ]
         
         required_consensus = 4 
@@ -646,8 +635,6 @@ class ConsensusEngine:
         )
 
     def build_algorithmic_ticket(self, core_data, fallback_data, active_corner_teams):
-        self.diagnostics["QuantEngine"] = "🟢 1-Ticket Engine Generated"
-        
         combined_data = core_data + fallback_data
 
         def get_score(match_data):
@@ -711,16 +698,41 @@ class ConsensusEngine:
             
         reserve1 = reserve_picks[0] if len(reserve_picks) > 0 else None
         
-        ticket_text = "🤖 **TITAN ALGORITHMIC TICKET** 🤖\n\n"
-        ticket_text += "🛡️ **Premium Slip (100% of Daily Stake)**\n"
-        
+        # STANDARD FALLBACK TICKET (Used if Gemini AI is down or no key provided)
+        fallback_ticket_text = "🤖 **TITAN ALGORITHMIC TICKET** 🤖\n\n"
+        fallback_ticket_text += "🛡️ **Premium Slip (100% of Daily Stake)**\n"
         for pick in final_main_picks: 
-            ticket_text += f"• {pick}\n"
-            
+            fallback_ticket_text += f"• {pick}\n"
         if reserve1: 
-            ticket_text += f"🔄 [RESERVE PICK]: {reserve1}\n"
+            fallback_ticket_text += f"🔄 [RESERVE PICK]: {reserve1}\n"
+
+        # GEMINI AI TICKET GENERATION
+        if GEMINI_API_KEY:
+            try:
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                prompt = f"""
+                You are 'Titan AI', an elite quantitative sports betting engine. 
+                Format the following algorithmic football predictions into a clean, highly professional Telegram message.
+
+                Matches: {', '.join(final_main_picks)}
+                Reserve Pick: {reserve1 if reserve1 else 'None'}
+
+                Rules:
+                1. Start your message with the exact header: 🤖 **TITAN ALGORITHMIC TICKET** 🤖
+                2. Format the ticket beautifully using list points and emojis (🛡️ for ticket, • for matches, 🔄 for reserves). Include the label "Premium Slip (100% of Daily Stake)".
+                3. Keep the EXACT match names and predictions provided. Do not invent or change anything.
+                4. Write a brief '🧠 AI Quant Insight' at the bottom of the message. In 1-2 sentences, mention that these selections were generated using strict multi-site consensus filtering. Keep the tone sharp, professional, and confident.
+                """
+                response = model.generate_content(prompt)
+                self.diagnostics["QuantEngine"] = "🟢 AI-Formatted Ticket Generated"
+                return response.text.strip()
+            except Exception as e:
+                self.diagnostics["QuantEngine"] = "🟡 AI Error (Using Logic Fallback)"
+                return fallback_ticket_text
                 
-        return ticket_text
+        # If no Gemini Key is provided, use standard text
+        self.diagnostics["QuantEngine"] = "🟢 1-Ticket Engine Generated"
+        return fallback_ticket_text
 
     def load_memory(self):
         if os.path.exists(MEMORY_FILE):
@@ -932,22 +944,4 @@ class ConsensusEngine:
                 for rep in settled_reports: msg += f"{rep}\n"
                 msg += "\n"
 
-            msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
-            essential_keys = [
-                "Telegram", "ScraperAPICredits", "Statarea", "Vitibet", 
-                "Zulubet", "WinDrawWin", "PredictZ", "SoccerVista", "Golsinyali", 
-                "SoccerAiTips", "CornersEngine", "QuantEngine", "GistSync", "DailyLock"
-            ]
-            for k in essential_keys:
-                if k in self.diagnostics:
-                    msg += f"↳ {k}: {self.diagnostics[k]}\n"
-            
-            self.send_telegram_alert(msg)
-
-            if algorithmic_message and not is_already_locked:
-                time.sleep(1.5)
-                self.send_telegram_alert(algorithmic_message)
-
-if __name__ == "__main__":
-    live_configs = get_dynamic_configs()
-    asyncio.run(ConsensusEngine(live_configs).run_pipeline())
+            msg +=
