@@ -369,12 +369,21 @@ class ConsensusEngine:
                 active_url = cfg.get("fallback_url") if (attempt >= 3 and cfg.get("fallback_url")) else target_url
                 r = None
 
-                # EXACT SAME CLOUDFLARE BYPASS ESCALATION FOR BOTH SITES
-                if site_name in ["WinDrawWin", "PredictZ"]:
+                if site_name == "WinDrawWin":
                     if attempt == 1 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}, timeout=req_timeout)
                     elif attempt == 2 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}, timeout=req_timeout)
+                    elif attempt == 3 and SCRAPER_API_KEY:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true", "antibot": "true"}, timeout=req_timeout)
+                    else:
+                        r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
+                elif site_name == "PredictZ":
+                    # PredictZ Bypass: Prioritize TLS spoofing first, Proxy second
+                    if attempt == 1:
+                        r = tls_requests.get(active_url, impersonate="safari17_0", timeout=req_timeout)
+                    elif attempt == 2 and SCRAPER_API_KEY:
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us"}, timeout=req_timeout)
                     elif attempt == 3 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true", "antibot": "true"}, timeout=req_timeout)
                     else:
