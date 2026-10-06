@@ -61,7 +61,7 @@ def get_dynamic_configs():
         },
         "WinDrawWin": {
             "url": "https://www.windrawwin.com/predictions/today/",
-            "fallback_url": "https://www.predictz.com/predictions/",
+            "fallback_url": "https://www.windrawwin.com/predictions/",
             "row_selector": "div", "row_class": "wtrow",
             "home_selector": "div", "home_class": "wttmobh", "home_index": 0,
             "away_selector": "div", "away_class": "wttmoba", "away_index": 0,
@@ -332,14 +332,7 @@ class ConsensusEngine:
         url = "https://www.totalcorner.com/match/today"
         for attempt in range(1, 4):
             try:
-                if attempt == 1:
-                    r = tls_requests.get(url, impersonate="chrome124", timeout=30)
-                elif attempt == 2 and SCRAPER_API_KEY:
-                    # If direct request times out, aggressively route through ScraperAPI to bypass blocks
-                    r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": url, "premium": "true"}, timeout=45)
-                else:
-                    r = tls_requests.get(url, impersonate="safari17_0", timeout=35)
-
+                r = tls_requests.get(url, impersonate="chrome124", timeout=25)
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     rows = soup.find_all("tr")
@@ -363,13 +356,13 @@ class ConsensusEngine:
                     self.diagnostics["CornersEngine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
                     return
                 elif r.status_code in [403, 500, 502, 503, 504, 429]:
-                    time.sleep(3 * attempt)
+                    time.sleep(2 * attempt)
                     continue
                 else:
                     self.diagnostics["CornersEngine"] = f"🔴 FAILED (HTTP {r.status_code})"
                     return
             except Exception:
-                time.sleep(3 * attempt)
+                time.sleep(2 * attempt)
                 continue
 
         self.diagnostics["CornersEngine"] = "🔴 TIMEOUT/ERROR"
@@ -386,17 +379,17 @@ class ConsensusEngine:
                 r = None
 
                 if site_name == "WinDrawWin":
-                    # TWIN BYPASS: Will seamlessly fail over to PredictZ if Cloudflare triggers
+                    # Cloudflare Bypass Escalation for WinDrawWin
                     if attempt == 1 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}, timeout=req_timeout)
                     elif attempt == 2 and SCRAPER_API_KEY:
-                        active_url = "https://www.predictz.com/predictions/"
-                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "us", "antibot": "true"}, timeout=req_timeout)
-                    elif attempt == 3:
-                        active_url = "https://www.predictz.com/predictions/"
+                        # Add render=true to spawn headless browser for Cloudflare challenge
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}, timeout=req_timeout)
+                    elif attempt == 3 and SCRAPER_API_KEY:
+                        # Add antibot=true for advanced Cloudflare turnstile bypass
+                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true", "antibot": "true"}, timeout=req_timeout)
+                    else:
                         r = tls_requests.get(active_url, impersonate="chrome124", timeout=req_timeout)
-                    elif attempt == 4 and SCRAPER_API_KEY:
-                        r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true"}, timeout=req_timeout)
                 elif site_name == "SoccerVista":
                     if attempt <= 3 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "render": "true"}, timeout=req_timeout)
@@ -425,8 +418,7 @@ class ConsensusEngine:
                     rows = []
                     
                     if site_name == "WinDrawWin":
-                        prefix = "pt" if "predictz" in active_url.lower() else "wt"
-                        rows = soup.find_all("div", class_=re.compile(rf"({prefix}tr|{prefix}row|match-row|pr-match)", re.I))
+                        rows = soup.find_all("div", class_=re.compile(r"(wttr|wtrow|match-row|pr-match)", re.I))
                         if not rows:
                             rows = soup.find_all("tr")
                     elif site_name in ["SoccerVista", "Zulubet"]:
@@ -458,10 +450,9 @@ class ConsensusEngine:
                             home, away, pick = None, None, None
 
                             if site_name == "WinDrawWin":
-                                prefix = "pt" if "predictz" in active_url.lower() else "wt"
-                                h_elem = row.find(class_=re.compile(rf'({prefix}tmobh|team1|h$|home)', re.I))
-                                a_elem = row.find(class_=re.compile(rf'({prefix}tmoba|team2|a$|away)', re.I))
-                                p_elem = row.find(class_=re.compile(rf'({prefix}oddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
+                                h_elem = row.find(class_=re.compile(r'(wttmobh|team1|h$|home)', re.I))
+                                a_elem = row.find(class_=re.compile(r'(wttmoba|team2|a$|away)', re.I))
+                                p_elem = row.find(class_=re.compile(r'(wtoddsdesc|mobpred|prd|pred|pick|tip|prediction)', re.I))
 
                                 if h_elem and a_elem:
                                     home, away = h_elem.text, a_elem.text
