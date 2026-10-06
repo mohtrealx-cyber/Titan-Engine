@@ -694,11 +694,12 @@ class ConsensusEngine:
                     break
 
         if len(final_main_picks) < 3:
+            self.diagnostics["QuantEngine"] = "🟡 Insufficient Matches"
             return "No high-conviction matches found today to safely build a ticket."
             
         reserve1 = reserve_picks[0] if len(reserve_picks) > 0 else None
         
-        # STANDARD FALLBACK TICKET (Used if Gemini AI is down or no key provided)
+        # STANDARD FALLBACK TICKET (Used if Gemini AI is down or fails)
         fallback_ticket_text = "🤖 **TITAN ALGORITHMIC TICKET** 🤖\n\n"
         fallback_ticket_text += "🛡️ **Premium Slip (100% of Daily Stake)**\n"
         for pick in final_main_picks: 
@@ -709,7 +710,8 @@ class ConsensusEngine:
         # GEMINI AI TICKET GENERATION
         if GEMINI_API_KEY:
             try:
-                model = genai.GenerativeModel('gemini-2.5-flash')
+                # Upgraded to rock-solid 1.5 flash model to prevent API mismatch errors
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 prompt = f"""
                 You are 'Titan AI', an elite quantitative sports betting engine. 
                 Format the following algorithmic football predictions into a clean, highly professional Telegram message.
@@ -727,10 +729,12 @@ class ConsensusEngine:
                 self.diagnostics["QuantEngine"] = "🟢 AI-Formatted Ticket Generated"
                 return response.text.strip()
             except Exception as e:
-                self.diagnostics["QuantEngine"] = "🟡 AI Error (Using Logic Fallback)"
+                # Instantly falls back to logic ticket while displaying the exact AI error
+                error_name = type(e).__name__
+                self.diagnostics["QuantEngine"] = f"🟡 AI Error ({error_name})"
                 return fallback_ticket_text
                 
-        # If no Gemini Key is provided, use standard text
+        # If no Gemini Key is provided in repository secrets
         self.diagnostics["QuantEngine"] = "🟢 1-Ticket Engine Generated"
         return fallback_ticket_text
 
@@ -956,7 +960,7 @@ class ConsensusEngine:
             
             self.send_telegram_alert(msg)
 
-            if algorithmic_message and not is_already_locked:
+            if algorithmic_message and not is_already_locked and "No high-conviction matches found" not in algorithmic_message:
                 time.sleep(1.5)
                 self.send_telegram_alert(algorithmic_message)
 
