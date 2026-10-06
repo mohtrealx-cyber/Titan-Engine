@@ -944,4 +944,22 @@ class ConsensusEngine:
                 for rep in settled_reports: msg += f"{rep}\n"
                 msg += "\n"
 
-            msg +=
+            msg += "⚙️ **SCRAPER STATUS** ⚙️\n"
+            essential_keys = [
+                "Telegram", "ScraperAPICredits", "Statarea", "Vitibet", 
+                "Zulubet", "WinDrawWin", "SoccerVista", "Golsinyali", 
+                "SoccerAiTips", "CornersEngine", "QuantEngine", "GistSync", "DailyLock"
+            ]
+            for k in essential_keys:
+                if k in self.diagnostics:
+                    msg += f"↳ {k}: {self.diagnostics[k]}\n"
+            
+            self.send_telegram_alert(msg)
+
+            if algorithmic_message and not is_already_locked:
+                time.sleep(1.5)
+                self.send_telegram_alert(algorithmic_message)
+
+if __name__ == "__main__":
+    live_configs = get_dynamic_configs()
+    asyncio.run(ConsensusEngine(live_configs).run_pipeline())
