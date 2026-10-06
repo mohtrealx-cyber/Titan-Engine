@@ -332,7 +332,14 @@ class ConsensusEngine:
         url = "https://www.totalcorner.com/match/today"
         for attempt in range(1, 4):
             try:
-                r = tls_requests.get(url, impersonate="chrome124", timeout=25)
+                if attempt == 1:
+                    r = tls_requests.get(url, impersonate="chrome124", timeout=30)
+                elif attempt == 2 and SCRAPER_API_KEY:
+                    # If direct request times out, aggressively route through ScraperAPI to bypass blocks
+                    r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": url, "premium": "true"}, timeout=45)
+                else:
+                    r = tls_requests.get(url, impersonate="safari17_0", timeout=35)
+
                 if r.status_code == 200:
                     soup = BeautifulSoup(r.content, 'html.parser')
                     rows = soup.find_all("tr")
@@ -356,13 +363,13 @@ class ConsensusEngine:
                     self.diagnostics["CornersEngine"] = f"🟢 OK ({valid_corners} High-Corner Teams)"
                     return
                 elif r.status_code in [403, 500, 502, 503, 504, 429]:
-                    time.sleep(2 * attempt)
+                    time.sleep(3 * attempt)
                     continue
                 else:
                     self.diagnostics["CornersEngine"] = f"🔴 FAILED (HTTP {r.status_code})"
                     return
             except Exception:
-                time.sleep(2 * attempt)
+                time.sleep(3 * attempt)
                 continue
 
         self.diagnostics["CornersEngine"] = "🔴 TIMEOUT/ERROR"
@@ -379,6 +386,7 @@ class ConsensusEngine:
                 r = None
 
                 if site_name == "WinDrawWin":
+                    # TWIN BYPASS: Will seamlessly fail over to PredictZ if Cloudflare triggers
                     if attempt == 1 and SCRAPER_API_KEY:
                         r = requests.get("http://api.scraperapi.com/", params={"api_key": SCRAPER_API_KEY, "url": active_url, "premium": "true", "country_code": "uk"}, timeout=req_timeout)
                     elif attempt == 2 and SCRAPER_API_KEY:
