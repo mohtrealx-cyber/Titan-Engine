@@ -9,7 +9,6 @@ import requests
 from bs4 import BeautifulSoup
 import concurrent.futures
 from curl_cffi import requests as tls_requests
-import google.generativeai as genai
 
 # ==============================================================================
 # CONFIGURATION & SECURE ROUTING
@@ -17,11 +16,6 @@ import google.generativeai as genai
 TELEGRAM_TOKEN = os.environ.get("QUANT_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TRACKER_TELEGRAM_TOKEN") or os.environ.get("TRACKER_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("QUANT_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TRACKER_TELEGRAM_CHAT_ID") or os.environ.get("TRACKER_TELEGRAM_CHAT_ID")
 SCRAPER_API_KEY = (os.environ.get("SCRAPER_API_KEY") or "").strip()
-
-# GEMINI AI CREDENTIALS
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
 
 # GIST CREDENTIALS FOR BOT-TO-BOT SYNC
 GIST_ID = os.environ.get("GIST_ID")
@@ -634,7 +628,7 @@ class ConsensusEngine:
             fallback_active,
         )
 
-    def build_algorithmic_ticket(self, core_data, fallback_data, active_corner_teams):
+    def build_algorithmic_ticket(self, core_data, fallback_data):
         combined_data = core_data + fallback_data
 
         def get_score(match_data):
@@ -655,15 +649,6 @@ class ConsensusEngine:
                 self.finalized_match_keys.append(m['match'])
             if len(final_main_picks) == 3:
                 break
-                
-        if len(final_main_picks) < 3:
-            for corner in active_corner_teams:
-                corner_pick = f"{corner['match']} ➔ Over 8.5 Corners (Avg: {corner['avg_corners']})"
-                if corner_pick not in final_main_picks:
-                    final_main_picks.append(corner_pick)
-                    self.finalized_match_keys.append(corner['match'])
-                if len(final_main_picks) == 3:
-                    break
         
         reserve_picks = []
         for d in draw_candidates:
@@ -683,60 +668,23 @@ class ConsensusEngine:
                     self.finalized_match_keys.append(match_key)
                 if len(reserve_picks) == 1:
                     break
-                    
-        if len(reserve_picks) < 1:
-            for corner in active_corner_teams:
-                corner_pick = f"{corner['match']} ➔ Over 8.5 Corners (Avg: {corner['avg_corners']})"
-                if corner_pick not in final_main_picks and corner_pick not in reserve_picks:
-                    reserve_picks.append(corner_pick)
-                    self.finalized_match_keys.append(corner['match'])
-                if len(reserve_picks) == 1:
-                    break
 
         if len(final_main_picks) < 3:
+            self.finalized_match_keys = []
             self.diagnostics["QuantEngine"] = "🟡 Insufficient Matches"
             return "No high-conviction matches found today to safely build a ticket."
             
         reserve1 = reserve_picks[0] if len(reserve_picks) > 0 else None
         
-        # STANDARD FALLBACK TICKET (Used if Gemini AI is down or fails)
-        fallback_ticket_text = "🤖 **TITAN ALGORITHMIC TICKET** 🤖\n\n"
-        fallback_ticket_text += "🛡️ **Premium Slip (100% of Daily Stake)**\n"
+        ticket_text = "🤖 **TITAN ALGORITHMIC TICKET** 🤖\n\n"
+        ticket_text += "🛡️ **Premium Slip (100% of Daily Stake)**\n"
         for pick in final_main_picks: 
-            fallback_ticket_text += f"• {pick}\n"
+            ticket_text += f"• {pick}\n"
         if reserve1: 
-            fallback_ticket_text += f"🔄 [RESERVE PICK]: {reserve1}\n"
+            ticket_text += f"🔄 [RESERVE PICK]: {reserve1}\n"
 
-        # GEMINI AI TICKET GENERATION
-        if GEMINI_API_KEY:
-            try:
-                # Upgraded to rock-solid 1.5 flash model to prevent API mismatch errors
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                prompt = f"""
-                You are 'Titan AI', an elite quantitative sports betting engine. 
-                Format the following algorithmic football predictions into a clean, highly professional Telegram message.
-
-                Matches: {', '.join(final_main_picks)}
-                Reserve Pick: {reserve1 if reserve1 else 'None'}
-
-                Rules:
-                1. Start your message with the exact header: 🤖 **TITAN ALGORITHMIC TICKET** 🤖
-                2. Format the ticket beautifully using list points and emojis (🛡️ for ticket, • for matches, 🔄 for reserves). Include the label "Premium Slip (100% of Daily Stake)".
-                3. Keep the EXACT match names and predictions provided. Do not invent or change anything.
-                4. Write a brief '🧠 AI Quant Insight' at the bottom of the message. In 1-2 sentences, mention that these selections were generated using strict multi-site consensus filtering. Keep the tone sharp, professional, and confident.
-                """
-                response = model.generate_content(prompt)
-                self.diagnostics["QuantEngine"] = "🟢 AI-Formatted Ticket Generated"
-                return response.text.strip()
-            except Exception as e:
-                # Instantly falls back to logic ticket while displaying the exact AI error
-                error_name = type(e).__name__
-                self.diagnostics["QuantEngine"] = f"🟡 AI Error ({error_name})"
-                return fallback_ticket_text
-                
-        # If no Gemini Key is provided in repository secrets
         self.diagnostics["QuantEngine"] = "🟢 1-Ticket Engine Generated"
-        return fallback_ticket_text
+        return ticket_text
 
     def load_memory(self):
         if os.path.exists(MEMORY_FILE):
@@ -896,19 +844,9 @@ class ConsensusEngine:
 
             agreed_matches = core_matches if core_matches else fallback_matches
 
-            active_corner_teams = []
-            for match in self.master_matrix.keys():
-                parts = match.split(" vs ")
-                if len(parts) == 2:
-                    h, a = parts[0].strip(), parts[1].strip()
-                    if h in self.corner_stats and self.corner_stats[h] >= 8.5:
-                        active_corner_teams.append({"match": match, "team": h, "avg_corners": self.corner_stats[h]})
-                    if a in self.corner_stats and self.corner_stats[a] >= 8.5:
-                        active_corner_teams.append({"match": match, "team": a, "avg_corners": self.corner_stats[a]})
-
             algorithmic_message = None
-            if core_ai_input_data or fallback_ai_input_data or active_corner_teams:
-                algorithmic_message = self.build_algorithmic_ticket(core_ai_input_data, fallback_ai_input_data, active_corner_teams)
+            if core_ai_input_data or fallback_ai_input_data:
+                algorithmic_message = self.build_algorithmic_ticket(core_ai_input_data, fallback_ai_input_data)
 
             should_lock = (current_hour >= 5) and (algorithmic_message is not None or not (core_ai_input_data or fallback_ai_input_data))
 
@@ -924,9 +862,11 @@ class ConsensusEngine:
             if should_lock: self.diagnostics["DailyLock"] = f"🟢 LOCKED NEW DATA FOR {today_date}"
             else: self.diagnostics["DailyLock"] = f"⏳ PREVIEW (Will Lock At 05:00 EAT)"
 
-            # TRIGGER GIST PUSH FOR BOT B
-            if algorithmic_message:
+            # TRIGGER GIST PUSH FOR BOT A
+            if algorithmic_message and "No high-conviction matches found" not in algorithmic_message:
                 self.save_picks_to_gist()
+            else:
+                self.diagnostics["GistSync"] = "⚪ SKIPPED (No ticket generated)"
 
         settled_reports = self.settle_pending_tickets(memory)
 
