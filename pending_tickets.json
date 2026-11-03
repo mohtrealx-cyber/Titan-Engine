@@ -9344,5 +9344,27 @@
         ],
         "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Cherno More Varna vs Botev Vratsa \u2794 1\n\u2022 Karpaty vs Kudrivka \u2794 1\n\u2022 Sonderjyske vs Fc Copenhagen \u2794 2\n\ud83d\udd04 [RESERVE PICK]: Penafiel vs Feirense \u2794 1\n",
         "tickets": []
+    },
+    "2026-11-03": {
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Barcelona vs Aston Villa** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa Golsinyali: Not Listed\n",
+            "\u2022 **Lask Linz vs Slovan Bratislava** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet + SoccerVista`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa Golsinyali: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Barcelona vs Aston Villa \u2794 1\n\u2022 Lask Linz vs Slovan Bratislava \u2794 1\n\u2022 Birmingham vs Millwall \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Bodo/Glimt vs Lille \u2794 1\n",
+        "tickets": [
+            {
+                "match": "Barcelona vs Aston Villa",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Lask Linz vs Slovan Bratislava",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
