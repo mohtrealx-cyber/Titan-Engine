@@ -9528,5 +9528,27 @@
         ],
         "ai_optimized_message": "No high-conviction matches found today to safely build a ticket.",
         "tickets": []
+    },
+    "2026-11-12": {
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Montenegro vs Latvia** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet + Golsinyali`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **England vs Croatia** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet + Golsinyali`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Montenegro vs Latvia \u2794 1\n\u2022 England vs Croatia \u2794 1\n\u2022 Czechia vs Spain \u2794 2\n\ud83d\udd04 [RESERVE PICK]: \u00c1guila vs Municipal Lime\u00f1o \u2794 1\n",
+        "tickets": [
+            {
+                "match": "Montenegro vs Latvia",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "England vs Croatia",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
