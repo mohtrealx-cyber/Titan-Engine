@@ -9688,5 +9688,20 @@
         ],
         "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Kashiwa Reysol vs Jef United Chiba \u2794 1\n\u2022 Vissel Kobe vs Mito Hollyhock \u2794 1\n\u2022 Fc Botosani vs Fc Voluntari \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Dinamo Tbilisi vs Torpedo Kutaisi \u2794 1\n",
         "tickets": []
+    },
+    "2026-11-21": {
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Aston Villa vs Sunderland** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Golsinyali + Statarea + Vitibet`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Aston Villa vs Sunderland \u2794 1\n\u2022 Eintracht Frankfurt W vs Hamburger Sv W \u2794 1\n\u2022 Southampton vs Derby \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Kayserispor vs Sar\u0131yer \u2794 1\n",
+        "tickets": [
+            {
+                "match": "Aston Villa vs Sunderland",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
