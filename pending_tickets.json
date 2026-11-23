@@ -9725,5 +9725,20 @@
                 "score": "-"
             }
         ]
+    },
+    "2026-11-23": {
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Hammarby Ff vs Ifk Goteborg** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet + Golsinyali`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Hammarby Ff vs Ifk Goteborg \u2794 1\n\u2022 Ludogorets vs Dunav Ruse \u2794 1\n\u2022 Bayern Munich W vs 1899 Hoffenheim W \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Diosgyori Vtk vs Karcag Se \u2794 1\n",
+        "tickets": [
+            {
+                "match": "Hammarby Ff vs Ifk Goteborg",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
