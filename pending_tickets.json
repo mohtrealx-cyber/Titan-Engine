@@ -9798,5 +9798,27 @@
         ],
         "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Boreham Wood vs Aldershot Town \u2794 1\n\u2022 Club Brugge Kv vs Liverpool \u2794 2\n\u2022 Lille vs Bayern M\u00fcnchen \u2794 2\n\ud83d\udd04 [RESERVE PICK]: Paris Saint Germain vs Roma \u2794 1\n",
         "tickets": []
+    },
+    "2026-11-26": {
+        "locked": true,
+        "agreed_matches": [
+            "\u2022 **Union St. Gilloise vs Lech Poznan** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet + Golsinyali`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n",
+            "\u2022 **Lyon vs Lillestrom** \u2794 1\n  \u21b3 \u2705 Backed by: `Zulubet + Statarea + Vitibet + Golsinyali`\n  \u21b3 \u26aa WinDrawWin: Not Listed\n  \u21b3 \u26aa SoccerVista: Not Listed\n"
+        ],
+        "ai_optimized_message": "\ud83e\udd16 **TITAN ALGORITHMIC TICKET** \ud83e\udd16\n\n\ud83d\udee1\ufe0f **Premium Slip (100% of Daily Stake)**\n\u2022 Union St. Gilloise vs Lech Poznan \u2794 1\n\u2022 Lyon vs Lillestrom \u2794 1\n\u2022 Ural vs Arsenal Tula \u2794 1\n\ud83d\udd04 [RESERVE PICK]: Be\u015fikta\u015f vs Hapoel Beer Sheva \u2794 1\n",
+        "tickets": [
+            {
+                "match": "Union St. Gilloise vs Lech Poznan",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            },
+            {
+                "match": "Lyon vs Lillestrom",
+                "prediction": "1",
+                "status": "PENDING",
+                "score": "-"
+            }
+        ]
     }
 }
